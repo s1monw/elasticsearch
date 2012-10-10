@@ -199,4 +199,14 @@ public class DefaultSourceMappingTests extends ElasticsearchTestCase {
         assertThat(mapper.type(), equalTo("my_type"));
         assertThat(mapper.sourceMapper().enabled(), equalTo(true));
     }
+    
+    @Test(expected = MapperParsingException.class)
+    public void testSourceObjectContainsExtraTokens() throws Exception {
+        String mapping = XContentFactory.jsonBuilder().startObject().startObject("type")
+                .startObject("_source").endObject()
+                .endObject().endObject().string();
+
+        DocumentMapper documentMapper = MapperTestUtils.newParser().parse(mapping);
+        ParsedDocument doc = documentMapper.parse("type", "1", new BytesArray("{}}")); // extra end object (invalid JSON)
+    }
 }

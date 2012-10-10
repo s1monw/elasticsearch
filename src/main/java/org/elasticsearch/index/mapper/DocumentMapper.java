@@ -29,6 +29,7 @@ import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.CloseableThreadLocal;
 import org.elasticsearch.ElasticsearchGenerationException;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.Booleans;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Preconditions;
@@ -281,6 +282,8 @@ public class DocumentMapper implements ToXContent {
 
     private final Object mappersMutex = new Object();
 
+    private final Version indexCreatedVersion;
+
     public DocumentMapper(String index, @Nullable Settings indexSettings, DocumentMapperParser docMapperParser,
                           RootObjectMapper rootObjectMapper,
                           ImmutableMap<String, Object> meta,
@@ -288,6 +291,7 @@ public class DocumentMapper implements ToXContent {
                           Map<Class<? extends RootMapper>, RootMapper> rootMappers) {
         this.index = index;
         this.indexSettings = indexSettings;
+        indexCreatedVersion = Version.indexCreated(indexSettings);
         this.type = rootObjectMapper.name();
         this.typeText = new StringAndBytesText(this.type);
         this.docMapperParser = docMapperParser;
@@ -516,6 +520,12 @@ public class DocumentMapper implements ToXContent {
 
             for (int i = 0; i < countDownTokens; i++) {
                 parser.nextToken();
+            }
+            
+            // try to parse the next token, this should be null if the object is ended properly (might throw a JSON exception if the extra tokens is not valid JSON, this will be handled by the catch)
+            if(parser.nextToken() != null && indexCreatedVersion.onOrAfter(Version.V_1_3_0)) {
+            	// this source object contains more tokens than expected...
+            	 throw new MapperParsingException("Malformed content, object is not ended properly");
             }
 
             for (RootMapper rootMapper : rootMappersOrdered) {
