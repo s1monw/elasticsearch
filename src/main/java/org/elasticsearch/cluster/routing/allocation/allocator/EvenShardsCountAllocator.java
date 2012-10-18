@@ -41,6 +41,8 @@ import static org.elasticsearch.cluster.routing.ShardRoutingState.INITIALIZING;
 import static org.elasticsearch.cluster.routing.ShardRoutingState.STARTED;
 
 /**
+ * This class is an implementation of a ShardsAllocator. Rebalancing and
+ * assignment of unassigned shards is done by greedy algorithms.
  */
 public class EvenShardsCountAllocator extends AbstractComponent implements ShardsAllocator {
 
@@ -62,7 +64,7 @@ public class EvenShardsCountAllocator extends AbstractComponent implements Shard
         boolean changed = false;
         RoutingNodes routingNodes = allocation.routingNodes();
 
-
+        // order nodes by number of shards (asc) 
         RoutingNode[] nodes = sortedNodesLeastToHigh(allocation);
 
         Iterator<MutableShardRouting> unassignedIterator = routingNodes.unassigned().iterator();
@@ -112,6 +114,7 @@ public class EvenShardsCountAllocator extends AbstractComponent implements Shard
 
     @Override
     public boolean rebalance(RoutingAllocation allocation) {
+    	// take shards form busy nodes and move them to less busy nodes
         boolean changed = false;
         RoutingNode[] sortedNodesLeastToHigh = sortedNodesLeastToHigh(allocation);
         if (sortedNodesLeastToHigh.length == 0) {
@@ -138,6 +141,7 @@ public class EvenShardsCountAllocator extends AbstractComponent implements Shard
                     continue;
                 }
 
+                // Take a started shard from a "busy" node and move it to less busy node and go on 
                 boolean relocated = false;
                 List<MutableShardRouting> startedShards = highRoutingNode.shardsWithState(STARTED);
                 for (MutableShardRouting startedShard : startedShards) {

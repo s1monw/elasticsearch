@@ -38,6 +38,10 @@ public class StartedRerouteAllocation extends RoutingAllocation {
         this.startedShards = startedShards;
     }
 
+    /**
+     * Get started shards
+     * @return list of started shards
+     */
     public List<? extends ShardRouting> startedShards() {
         return startedShards;
     }

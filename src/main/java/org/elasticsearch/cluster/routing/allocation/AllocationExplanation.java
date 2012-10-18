@@ -48,10 +48,18 @@ public class AllocationExplanation implements Streamable {
             this.description = description;
         }
 
+        /**
+         * The node referenced by the explanation
+         * @return referenced node
+         */
         public DiscoveryNode node() {
             return node;
         }
 
+        /**
+         * Get the explanation for the node
+         * @return explanation for the node
+         */
         public String description() {
             return description;
         }
@@ -59,6 +67,12 @@ public class AllocationExplanation implements Streamable {
 
     private final Map<ShardId, List<NodeExplanation>> explanations = Maps.newHashMap();
 
+    /**
+     * Create and add a node explanation to this explanation referencing a shard  
+     * @param shardId id the of the referenced shard
+     * @param nodeExplanation Explanation itself
+     * @return AllocationExplanation involving the explanation 
+     */
     public AllocationExplanation add(ShardId shardId, NodeExplanation nodeExplanation) {
         List<NodeExplanation> list = explanations.get(shardId);
         if (list == null) {
@@ -69,10 +83,20 @@ public class AllocationExplanation implements Streamable {
         return this;
     }
 
+    /**
+     * List of explanations involved by this AllocationExplanation
+     * @return Map of shard ids and corresponding explanations  
+     */
     public Map<ShardId, List<NodeExplanation>> explanations() {
         return this.explanations;
     }
 
+    /**
+     * Read an AllocatioExplanation from an inputstream
+     * @param in Inputstream to read from
+     * @return a new AllocationExplanation 
+     * @throws IOException if something happened during read
+     */
     public static AllocationExplanation readAllocationExplanation(StreamInput in) throws IOException {
         AllocationExplanation e = new AllocationExplanation();
         e.readFrom(in);

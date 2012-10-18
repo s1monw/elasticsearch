@@ -33,9 +33,29 @@ public interface ShardsAllocator {
 
     void applyFailedShards(FailedRerouteAllocation allocation);
 
+    /**
+     * Assign all unassigned shards to nodes 
+
+     * @param allocation current node allocation
+     * @return <code>true</code> if the allocation has changed
+     */
     boolean allocateUnassigned(RoutingAllocation allocation);
 
+    /**
+     * Rebalancing number of shards on all nodes
+     *   
+     * @param allocation current node allocation
+     * @return <code>true</code> if the allocation has changed
+     */
     boolean rebalance(RoutingAllocation allocation);
 
+    /**
+     * Moves a shard from a node to some other node
+     * 
+     * @param shardRouting the shard to move
+     * @param node A node containing the shard
+     * @param allocation current node allocation
+     * @return <code>true</code> if the allocation has changed
+     */
     boolean move(MutableShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation);
 }

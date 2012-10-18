@@ -29,7 +29,7 @@ import org.elasticsearch.index.shard.ShardId;
 import java.io.IOException;
 import java.io.Serializable;
 
-/**
+/** this class describes information about shard like id, state, version, etc.
  *
  */
 public class ImmutableShardRouting implements Streamable, Serializable, ShardRouting {
@@ -172,18 +172,47 @@ public class ImmutableShardRouting implements Streamable, Serializable, ShardRou
         return new PlainShardIterator(shardId(), asList);
     }
 
+    /**
+     * Read a routingentry of a shard from an inputstream
+     * 
+     * @param in inputstream to read the entry from
+     * @return Shard routing entry read
+     * 
+     * @throws IOException if some exception occurs during the read operations
+     */
     public static ImmutableShardRouting readShardRoutingEntry(StreamInput in) throws IOException {
         ImmutableShardRouting entry = new ImmutableShardRouting();
         entry.readFrom(in);
         return entry;
     }
 
+    /**
+     * Read a routingentry of a shard from an inputstream with given <code>index</code> and
+     * <code>shardId</code>.
+     * 
+     * @param in inputstream to read the entry from
+     * @param index shards index
+     * @param id id of the shard
+     * @return Shard routing entry read
+     * 
+     * @throws IOException if some exception occurs during the read operations
+     */
     public static ImmutableShardRouting readShardRoutingEntry(StreamInput in, String index, int shardId) throws IOException {
         ImmutableShardRouting entry = new ImmutableShardRouting();
         entry.readFrom(in, index, shardId);
         return entry;
     }
 
+    /**
+     * Read information from an inputstream with given <code>index</code> and
+     * <code>shardId</code>.
+     * 
+     * @param in inputstream to read the entry from
+     * @param index shards index
+     * @param id id of the shard
+     * 
+     * @throws IOException if some exception occurs during the read operations
+     */
     public void readFrom(StreamInput in, String index, int shardId) throws IOException {
         this.index = index;
         this.shardId = shardId;

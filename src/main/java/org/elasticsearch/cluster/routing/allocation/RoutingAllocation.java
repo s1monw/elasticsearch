@@ -83,22 +83,42 @@ public class RoutingAllocation {
         return this.deciders;
     }
 
+    /**
+     * Get routing table of current nodes
+     * @return current routing table
+     */
     public RoutingTable routingTable() {
         return routingNodes.routingTable();
     }
 
+    /**
+     * Get current routing nodes
+     * @return routing nodes
+     */
     public RoutingNodes routingNodes() {
         return routingNodes;
     }
 
+    /**
+     * Get metadata of routing nodes
+     * @return Metadata of routing nodes
+     */
     public MetaData metaData() {
         return routingNodes.metaData();
     }
 
+    /**
+     * Get discovery nodes in current routing
+     * @return discovery nodes
+     */
     public DiscoveryNodes nodes() {
         return nodes;
     }
 
+    /**
+     * Get explanations of current routing
+     * @return explanation of routing
+     */
     public AllocationExplanation explanation() {
         return explanation;
     }

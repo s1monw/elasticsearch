@@ -73,7 +73,7 @@ public class AllocationService extends AbstractComponent {
     /**
      * Applies the started shards. Note, shards can be called several times within this method.
      * <p/>
-     * <p>If the same instance of the routing table is returned, then no change has been made.
+     * <p>If the same instance of the routing table is returned, then no change has been made.</p>
      */
     public RoutingAllocation.Result applyStartedShards(ClusterState clusterState, List<? extends ShardRouting> startedShards) {
         RoutingNodes routingNodes = clusterState.routingNodes();
@@ -92,7 +92,7 @@ public class AllocationService extends AbstractComponent {
     /**
      * Applies the failed shards. Note, shards can be called several times within this method.
      * <p/>
-     * <p>If the same instance of the routing table is returned, then no change has been made.
+     * <p>If the same instance of the routing table is returned, then no change has been made.</p>
      */
     public RoutingAllocation.Result applyFailedShard(ClusterState clusterState, ShardRouting failedShard) {
         RoutingNodes routingNodes = clusterState.routingNodes();

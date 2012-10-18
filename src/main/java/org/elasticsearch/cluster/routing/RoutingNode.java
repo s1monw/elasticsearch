@@ -23,6 +23,7 @@ import org.elasticsearch.ElasticSearchIllegalStateException;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
@@ -53,18 +54,35 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
         return shards.iterator();
     }
 
+    /**
+     * Get the discoveryNode of this node
+     * 
+     * @return discoveryNode of this node
+     */
     public DiscoveryNode node() {
         return this.node;
     }
 
+    /**
+     * Get the id of this node 
+     * @return id of the node
+     */
     public String nodeId() {
         return this.nodeId;
     }
 
+    /**
+     * Get a list of shards hosted on this node  
+     * @return list of shards
+     */
     public List<MutableShardRouting> shards() {
         return this.shards;
     }
 
+    /**
+     * Add a new shard to this node
+     * @param shard Shard to crate on this Node
+     */
     public void add(MutableShardRouting shard) {
         for (MutableShardRouting shardRouting : shards) {
             if (shardRouting.shardId().equals(shard.shardId())) {
@@ -75,6 +93,10 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
         shard.assignToNode(node.id());
     }
 
+    /**
+     * Remove a shard from this node
+     * @param shardId id of the shard to remove
+     */
     public void removeByShardId(int shardId) {
         for (Iterator<MutableShardRouting> it = shards.iterator(); it.hasNext(); ) {
             MutableShardRouting shard = it.next();
@@ -84,6 +106,11 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
         }
     }
 
+    /**
+     * Determine the number of shards with a specific state
+     * @param states set of states which should be counted
+     * @return number of shards 
+     */
     public int numberOfShardsWithState(ShardRoutingState... states) {
         int count = 0;
         for (MutableShardRouting shardEntry : this) {
@@ -93,9 +120,22 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
                 }
             }
         }
+//		TODO: REVIEW
+//		Double counting on different states 
+//		The code above will not work correct if
+//      states contain the same state multiple times
+//      Arrays.sort(states);
+//      for (MutableShardRouting shardEntry : this)
+//          if(Arrays.binarySearch(states, shardEntry.state())>=0)
+//              count++;
         return count;
     }
 
+    /**
+     * Determine the shards with a specific state
+     * @param states set of states which should be listed
+     * @return List of shards 
+     */
     public List<MutableShardRouting> shardsWithState(ShardRoutingState... states) {
         List<MutableShardRouting> shards = newArrayList();
         for (MutableShardRouting shardEntry : this) {
@@ -108,14 +148,21 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
         return shards;
     }
 
+    /**
+     * Determine the shards of an index with a specific state 
+     * @param index id of the index
+     * @param states set of states which should be listed
+     * @return a list of shards
+     */
     public List<MutableShardRouting> shardsWithState(String index, ShardRoutingState... states) {
         List<MutableShardRouting> shards = newArrayList();
+
         for (MutableShardRouting shardEntry : this) {
             if (!shardEntry.index().equals(index)) {
                 continue;
             }
             for (ShardRoutingState state : states) {
-                if (shardEntry.state() == state) {
+                if(shardEntry.state() == state) {
                     shards.add(shardEntry);
                 }
             }
@@ -123,6 +170,11 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
         return shards;
     }
 
+    /**
+     * Get the number of shard that not match the given states
+     * @param state set states to exclude
+     * @return number of shards which state is listed
+     */
     public int numberOfShardsNotWithState(ShardRoutingState state) {
         int count = 0;
         for (MutableShardRouting shardEntry : this) {
@@ -134,7 +186,7 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
     }
 
     /**
-     * The number fo shards on this node that will not be eventually relocated.
+     * The number of shards on this node that will not be eventually relocated.
      */
     public int numberOfOwningShards() {
         int count = 0;
