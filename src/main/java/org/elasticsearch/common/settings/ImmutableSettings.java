@@ -21,6 +21,8 @@ package org.elasticsearch.common.settings;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+
+import org.apache.lucene.util.IOUtils;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.Booleans;
 import org.elasticsearch.common.Classes;
@@ -36,10 +38,14 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.SizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -379,6 +385,8 @@ public class ImmutableSettings implements Settings {
         private final Map<String, String> map = new LinkedHashMap<String, String>();
 
         private ClassLoader classLoader;
+        
+        private static final Charset UTF_8 = Charset.forName("UTF-8");
 
         private Builder() {
 
@@ -619,7 +627,7 @@ public class ImmutableSettings implements Settings {
         public Builder loadFromStream(String resourceName, InputStream is) throws SettingsException {
             SettingsLoader settingsLoader = SettingsLoaderFactory.loaderFromResource(resourceName);
             try {
-                Map<String, String> loadedSettings = settingsLoader.load(Streams.copyToString(new InputStreamReader(is, "UTF-8")));
+                Map<String, String> loadedSettings = settingsLoader.load(Streams.copyToString(IOUtils.getDecodingReader(is, UTF_8)));
                 put(loadedSettings);
             } catch (Exception e) {
                 throw new SettingsException("Failed to load settings from [" + resourceName + "]", e);
