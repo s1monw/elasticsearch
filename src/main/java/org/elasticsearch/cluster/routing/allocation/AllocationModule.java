@@ -27,6 +27,7 @@ import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.common.inject.SpawnModules;
 import org.elasticsearch.common.settings.Settings;
 
+//TODO: Documentation
 /**
  *
  */
@@ -34,6 +35,7 @@ public class AllocationModule extends AbstractModule implements SpawnModules {
 
     private final Settings settings;
 
+    //TODO: Documentation
     public AllocationModule(Settings settings) {
         this.settings = settings;
     }

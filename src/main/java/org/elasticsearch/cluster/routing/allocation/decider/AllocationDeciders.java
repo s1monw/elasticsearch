@@ -36,6 +36,11 @@ public class AllocationDeciders extends AllocationDecider {
 
     private final AllocationDecider[] allocations;
 
+    /**
+     * Create a new {@link AllocationDeciders} instance
+     * @param settings  settings to use
+     * @param nodeSettingsService per-node settings to use
+     */
     public AllocationDeciders(Settings settings, NodeSettingsService nodeSettingsService) {
         this(settings, ImmutableSet.<AllocationDecider>builder()
                 .add(new SameShardAllocationDecider(settings))

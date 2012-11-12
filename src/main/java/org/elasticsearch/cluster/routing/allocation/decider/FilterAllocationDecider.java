@@ -30,6 +30,7 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.settings.NodeSettingsService;
 
+//TODO: Documentation
 /**
  */
 public class FilterAllocationDecider extends AllocationDecider {

@@ -24,6 +24,8 @@ import com.google.common.collect.Lists;
 import java.util.List;
 
 /**
+ * This abstract class defines the base of decisions that
+ * are made within the routing allocation
  */
 public abstract class Decision {
 
@@ -32,33 +34,63 @@ public abstract class Decision {
     public static final Decision NO = new Single(Type.NO);
     public static final Decision THROTTLE = new Single(Type.THROTTLE);
 
+    /**
+     * Creates a simple decision 
+     * @param type {@link Type} of the decision
+     * @param explanation explanation of the decision
+     * @param explanationParams additional parameters for the decision
+     * @return new {@link Decision} instance
+     */
     public static Decision single(Type type, String explanation, Object... explanationParams) {
         return new Single(type, explanation, explanationParams);
     }
 
+    /**
+     * This enumeration defines the 
+     * possible types of decisions 
+     */
     public static enum Type {
         YES,
         NO,
         THROTTLE
     }
 
+    /**
+     * Get the {@link Type} of this decision
+     * @return {@link Type} of this decision
+     */
     public abstract Type type();
 
+    /**
+     * This class implements a single decision
+     */
     public static class Single extends Decision {
         private final Type type;
         private final String explanation;
         private final Object[] explanationParams;
 
+        /**
+         * Creates a new {@link Single}decision of a given type 
+         * @param type {@link Type} of the decision
+         */
         public Single(Type type) {
             this(type, null, (Object[]) null);
         }
 
+        /**
+         * Creates a new {@link Single}decision of a given type
+         *  
+         * @param type {@link Type} of the decision
+         * @param explanation An explanation of this {@link Decision}
+         * @param explanationParams A set of additional parameters
+         */
         public Single(Type type, String explanation, Object... explanationParams) {
             this.type = type;
             this.explanation = explanation;
             this.explanationParams = explanationParams;
         }
 
+        @Override
         public Type type() {
             return this.type;
         }
@@ -72,10 +104,18 @@ public abstract class Decision {
         }
     }
 
+    /**
+     * This class implements a collection of decisions
+     */
     public static class Multi extends Decision {
 
         private final List<Decision> decisions = Lists.newArrayList();
 
+        /**
+         * Add a decission to this {@link Multi}decision instance
+         * @param decision {@link Decision} to add
+         * @return {@link Multi}decision instance with the given decision added
+         */
         public Multi add(Decision decision) {
             decisions.add(decision);
             return this;

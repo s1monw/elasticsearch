@@ -21,8 +21,6 @@ package org.elasticsearch.cluster.routing;
 
 /**
  * Allows to iterate over unrelated shards.
- *
- *
  */
 public interface ShardsIterator {
 
@@ -33,11 +31,17 @@ public interface ShardsIterator {
 
     /**
      * The number of shard routing instances.
+     * @return  number of shard routing instances
      */
     int size();
 
+    /**
+     * The number of active shard routing instances
+     * @return number of active shard routing instances
+     */
     int sizeActive();
 
+    //TODO: Documentation
     int assignedReplicasIncludingRelocating();
 
     /**
@@ -53,12 +57,19 @@ public interface ShardsIterator {
      */
     ShardRouting firstOrNull();
 
+    /**
+     * Return the number of shards remaining in this {@link ShardsIterator}
+     * @return number of shard remaining
+     */
     int remaining();
 
+    @Override
     int hashCode();
 
+    @Override
     boolean equals(Object other);
 
+    // TODO: Documentation
     Iterable<ShardRouting> asUnordered();
 }
 

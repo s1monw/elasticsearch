@@ -21,11 +21,13 @@ package org.elasticsearch.cluster.routing.operation.hash.djb;
 
 import org.elasticsearch.cluster.routing.operation.hash.HashFunction;
 
+//TODO: Documentation
 /**
  *
  */
 public class DjbHashFunction implements HashFunction {
 
+    //TODO: Documentation
     public static int DJB_HASH(String value) {
         long hash = 5381;
 

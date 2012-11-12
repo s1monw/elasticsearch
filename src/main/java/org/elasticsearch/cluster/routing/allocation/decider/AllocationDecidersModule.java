@@ -34,10 +34,12 @@ public class AllocationDecidersModule extends AbstractModule {
 
     private List<Class<? extends AllocationDecider>> allocations = Lists.newArrayList();
 
+    //TODO: Documentation
     public AllocationDecidersModule(Settings settings) {
         this.settings = settings;
     }
 
+    //TODO: Documentation
     public AllocationDecidersModule add(Class<? extends AllocationDecider> allocationDecider) {
         this.allocations.add(allocationDecider);
         return this;

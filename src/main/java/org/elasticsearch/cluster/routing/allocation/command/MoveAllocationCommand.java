@@ -45,6 +45,7 @@ public class MoveAllocationCommand implements AllocationCommand {
 
     public static final String NAME = "move";
 
+    //TODO: Documentation
     public static class Factory implements AllocationCommand.Factory<MoveAllocationCommand> {
 
         @Override
@@ -117,6 +118,7 @@ public class MoveAllocationCommand implements AllocationCommand {
     private final String fromNode;
     private final String toNode;
 
+    //TODO: Documentation
     public MoveAllocationCommand(ShardId shardId, String fromNode, String toNode) {
         this.shardId = shardId;
         this.fromNode = fromNode;
@@ -128,14 +130,17 @@ public class MoveAllocationCommand implements AllocationCommand {
         return NAME;
     }
 
+    //TODO: Documentation
     public ShardId shardId() {
         return this.shardId;
     }
 
+    //TODO: Documentation
     public String fromNode() {
         return this.fromNode;
     }
 
+    //TODO: Documentation
     public String toNode() {
         return this.toNode;
     }

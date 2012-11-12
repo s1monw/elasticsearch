@@ -29,24 +29,33 @@ import org.elasticsearch.indices.IndexMissingException;
 import java.util.Map;
 import java.util.Set;
 
+//TODO: Documentation
 /**
  *
  */
 public interface OperationRouting {
 
+    //TODO: Documentation
     ShardIterator indexShards(ClusterState clusterState, String index, String type, String id, @Nullable String routing) throws IndexMissingException, IndexShardMissingException;
 
+    //TODO: Documentation
     ShardIterator deleteShards(ClusterState clusterState, String index, String type, String id, @Nullable String routing) throws IndexMissingException, IndexShardMissingException;
 
+    //TODO: Documentation
     GroupShardsIterator broadcastDeleteShards(ClusterState clusterState, String index) throws IndexMissingException, IndexShardMissingException;
 
+    //TODO: Documentation
     ShardIterator getShards(ClusterState clusterState, String index, String type, String id, @Nullable String routing, @Nullable String preference) throws IndexMissingException, IndexShardMissingException;
 
+    //TODO: Documentation
     ShardIterator getShards(ClusterState clusterState, String index, int shardId, @Nullable String preference) throws IndexMissingException, IndexShardMissingException;
 
+    //TODO: Documentation
     GroupShardsIterator deleteByQueryShards(ClusterState clusterState, String index, @Nullable Set<String> routing) throws IndexMissingException;
 
+    //TODO: Documentation
     int searchShardsCount(ClusterState clusterState, String[] indices, String[] concreteIndices, @Nullable String queryHint, @Nullable Map<String, Set<String>> routing, @Nullable String preference) throws IndexMissingException;
 
+    //TODO: Documentation
     GroupShardsIterator searchShards(ClusterState clusterState, String[] indices, String[] concreteIndices, @Nullable String queryHint, @Nullable Map<String, Set<String>> routing, @Nullable String preference) throws IndexMissingException;
 }

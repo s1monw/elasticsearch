@@ -37,7 +37,7 @@ import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Maps.newHashMap;
 
 /**
- *
+ * Instances of this class representing routing tables. These keep the {@link IndexRoutingTable}s and the version of he current routing state
  */
 public class RoutingTable implements Iterable<IndexRoutingTable> {
 
@@ -46,42 +46,53 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
     private final long version;
 
     // index to IndexRoutingTable map
-    private final ImmutableMap<String, IndexRoutingTable> indicesRouting;
+    private final Map<String, IndexRoutingTable> indicesRouting;
 
+    //TODO: Documentation
     RoutingTable(long version, Map<String, IndexRoutingTable> indicesRouting) {
         this.version = version;
         this.indicesRouting = ImmutableMap.copyOf(indicesRouting);
     }
 
+    /**
+     * Returns the version of the {@link RoutingTable}.
+     * @return version of the {@link RoutingTable}
+     */
     public long version() {
         return this.version;
     }
 
     @Override
     public UnmodifiableIterator<IndexRoutingTable> iterator() {
-        return indicesRouting.values().iterator();
+        return new UnindicesRouting.values().iterator();
     }
 
+    //TODO: Documentation
     public boolean hasIndex(String index) {
         return indicesRouting.containsKey(index);
     }
 
+    //TODO: Documentation
     public IndexRoutingTable index(String index) {
         return indicesRouting.get(index);
     }
 
+    //TODO: Documentation
     public Map<String, IndexRoutingTable> indicesRouting() {
         return indicesRouting;
     }
 
+    //TODO: Documentation
     public Map<String, IndexRoutingTable> getIndicesRouting() {
         return indicesRouting();
     }
 
+    //TODO: Documentation
     public RoutingNodes routingNodes(ClusterState state) {
         return new RoutingNodes(state);
     }
 
+    //TODO: Documentation
     public RoutingTable validateRaiseException(MetaData metaData) throws RoutingValidationException {
         RoutingTableValidation validation = validate(metaData);
         if (!validation.valid()) {
@@ -90,6 +101,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
         return this;
     }
 
+    //TODO: Documentation
     public RoutingTableValidation validate(MetaData metaData) {
         RoutingTableValidation validation = new RoutingTableValidation();
         for (IndexRoutingTable indexRoutingTable : this) {
@@ -98,6 +110,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
         return validation;
     }
 
+    //TODO: Documentation
     public List<ShardRouting> shardsWithState(ShardRoutingState... states) {
         List<ShardRouting> shards = newArrayList();
         for (IndexRoutingTable indexRoutingTable : this) {
@@ -164,6 +177,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
         return new GroupShardsIterator(set);
     }
 
+    //TODO: Documentation
     public GroupShardsIterator allActiveShardsGrouped(String[] indices, boolean includeEmpty) throws IndexMissingException {
         // use list here since we need to maintain identity across shards
         ArrayList<ShardIterator> set = new ArrayList<ShardIterator>();
@@ -190,6 +204,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
         return new GroupShardsIterator(set);
     }
 
+    //TODO: Documentation
     public GroupShardsIterator allAssignedShardsGrouped(String[] indices, boolean includeEmpty) throws IndexMissingException {
         // use list here since we need to maintain identity across shards
         ArrayList<ShardIterator> set = new ArrayList<ShardIterator>();
@@ -249,16 +264,19 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
         return new GroupShardsIterator(set);
     }
 
+    //TODO: Documentation
     public static Builder builder() {
         return new Builder();
     }
 
+    //TODO: Documentation
     public static class Builder {
 
         private long version;
 
         private final Map<String, IndexRoutingTable> indicesRouting = newHashMap();
 
+        //TODO: Documentation
         public Builder routingTable(RoutingTable routingTable) {
             version = routingTable.version;
             for (IndexRoutingTable indexRoutingTable : routingTable) {
@@ -267,6 +285,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
             return this;
         }
 
+        //TODO: Documentation
         public Builder updateNodes(RoutingNodes routingNodes) {
             // this is being called without pre initializing the routing table, so we must copy over the version as well
             this.version = routingNodes.routingTable().version();
@@ -305,6 +324,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
             return this;
         }
 
+        //TODO: Documentation
         public Builder updateNumberOfReplicas(int numberOfReplicas, String... indices) throws IndexMissingException {
             if (indices == null || indices.length == 0) {
                 indices = indicesRouting.keySet().toArray(new String[indicesRouting.keySet().size()]);
@@ -341,6 +361,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
             return this;
         }
 
+        //TODO: Documentation
         public Builder addAsNew(IndexMetaData indexMetaData) {
             if (indexMetaData.state() == IndexMetaData.State.OPEN) {
                 IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetaData.index())
@@ -350,6 +371,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
             return this;
         }
 
+        //TODO: Documentation
         public Builder addAsRecovery(IndexMetaData indexMetaData) {
             if (indexMetaData.state() == IndexMetaData.State.OPEN) {
                 IndexRoutingTable.Builder indexRoutingBuilder = new IndexRoutingTable.Builder(indexMetaData.index())
@@ -359,27 +381,32 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
             return this;
         }
 
+        //TODO: Documentation
         public Builder add(IndexRoutingTable indexRoutingTable) {
             indexRoutingTable.validate();
             indicesRouting.put(indexRoutingTable.index(), indexRoutingTable);
             return this;
         }
 
+        //TODO: Documentation
         public Builder add(IndexRoutingTable.Builder indexRoutingTableBuilder) {
             add(indexRoutingTableBuilder.build());
             return this;
         }
 
+        //TODO: Documentation
         public Builder remove(String index) {
             indicesRouting.remove(index);
             return this;
         }
 
+        //TODO: Documentation
         public Builder version(long version) {
             this.version = version;
             return this;
         }
 
+        //TODO: Documentation
         public RoutingTable build() {
             // normalize the versions right before we build it...
             for (IndexRoutingTable indexRoutingTable : indicesRouting.values()) {
@@ -388,6 +415,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
             return new RoutingTable(version, indicesRouting);
         }
 
+        //TODO: Documentation
         public static RoutingTable readFrom(StreamInput in) throws IOException {
             Builder builder = new Builder();
             builder.version = in.readLong();
@@ -400,6 +428,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
             return builder.build();
         }
 
+        //TODO: Documentation
         public static void writeTo(RoutingTable table, StreamOutput out) throws IOException {
             out.writeLong(table.version);
             out.writeVInt(table.indicesRouting.size());
@@ -409,6 +438,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
         }
     }
 
+    //TODO: Documentation
     public String prettyPrint() {
         StringBuilder sb = new StringBuilder("routing_table:\n");
         for (Map.Entry<String, IndexRoutingTable> entry : indicesRouting.entrySet()) {

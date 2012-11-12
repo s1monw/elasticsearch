@@ -20,7 +20,7 @@
 package org.elasticsearch.cluster.routing;
 
 /**
- *
+ * TODO: Documentation
  */
 public final class RoutingBuilders {
 
@@ -28,10 +28,12 @@ public final class RoutingBuilders {
 
     }
 
+    //TODO: Documentation
     public static RoutingTable.Builder routingTable() {
         return new RoutingTable.Builder();
     }
 
+    //TODO: Documentation
     public static IndexRoutingTable.Builder indexRoutingTable(String index) {
         return new IndexRoutingTable.Builder(index);
     }

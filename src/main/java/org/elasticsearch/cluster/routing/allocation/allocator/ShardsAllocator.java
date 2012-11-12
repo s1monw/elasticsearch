@@ -26,11 +26,16 @@ import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.StartedRerouteAllocation;
 
 /**
+ * A {@link ShardsAllocator} is used to reconfigure the current allocation of shards.
+ * Instances of this interface are used to allocate unassigned shards, moving shards,
+ * (re-) start (failed) Shards and keep the nodes balanced.
  */
 public interface ShardsAllocator {
 
+    //TODO: Documentation
     void applyStartedShards(StartedRerouteAllocation allocation);
 
+    //TODO: Documentation
     void applyFailedShards(FailedRerouteAllocation allocation);
 
     /**

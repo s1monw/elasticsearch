@@ -34,7 +34,9 @@ public interface GatewayAllocator {
 	 */
     void applyStartedShards(StartedRerouteAllocation allocation);
 
+    //TODO: Documentation
     void applyFailedShards(FailedRerouteAllocation allocation);
 
+    //TODO: Documentation
     boolean allocateUnassigned(RoutingAllocation allocation);
 }

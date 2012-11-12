@@ -23,6 +23,7 @@ import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.gateway.none.NoneGatewayAllocator;
 
+//TODO: Documentation
 /**
  */
 public class ShardsAllocatorModule extends AbstractModule {
@@ -33,14 +34,17 @@ public class ShardsAllocatorModule extends AbstractModule {
 
     private Class<? extends GatewayAllocator> gatewayAllocator = NoneGatewayAllocator.class;
 
+    //TODO: Documentation
     public ShardsAllocatorModule(Settings settings) {
         this.settings = settings;
     }
 
+    //TODO: Documentation
     public void setGatewayAllocator(Class<? extends GatewayAllocator> gatewayAllocator) {
         this.gatewayAllocator = gatewayAllocator;
     }
 
+    //TODO: Documentation
     public void setShardsAllocator(Class<? extends ShardsAllocator> shardsAllocator) {
         this.shardsAllocator = shardsAllocator;
     }

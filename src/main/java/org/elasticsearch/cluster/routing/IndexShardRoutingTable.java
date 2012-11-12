@@ -36,7 +36,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static com.google.common.collect.Lists.newArrayList;
 
 /**
- *
+ * This class implements a routing table of shards. It keeps informations bout shards
+ * and the nodes containing these shards
  */
 public class IndexShardRoutingTable implements Iterable<ShardRouting> {
 
@@ -53,6 +54,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
 
     final boolean primaryAllocatedPostApi;
 
+    //TODO: Documentation
     IndexShardRoutingTable(ShardId shardId, ImmutableList<ShardRouting> shards, boolean primaryAllocatedPostApi) {
         this.shardId = shardId;
         this.shards = shards;
@@ -125,16 +127,24 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
 
     /**
      * Has this shard group primary shard been allocated post API creation. Will be set to
-     * <tt>true</tt> if it was created because of recovery action.
+     * <code>true</code> if it was created because of recovery action.
      */
     public boolean primaryAllocatedPostApi() {
         return primaryAllocatedPostApi;
     }
 
+    /**
+     * Returns the shards id
+     * @return id of the shard
+     */
     public ShardId shardId() {
         return shardId;
     }
 
+    /**
+     * Returns the shards id
+     * @return id of the shard
+     */
     public ShardId getShardId() {
         return shardId();
     }
@@ -144,38 +154,69 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         return shards.iterator();
     }
 
+    //TODO: Documentation
     public int size() {
         return shards.size();
     }
 
+    //TODO: Documentation
     public int getSize() {
         return size();
     }
 
+    /**
+     * Returns a {@link ImmutableList} of shards
+     * @return a {@link ImmutableList} of shards
+     */
     public ImmutableList<ShardRouting> shards() {
         return this.shards;
     }
 
+    /**
+     * Returns a {@link ImmutableList} of shards
+     * @return a {@link ImmutableList} of shards
+     */
     public ImmutableList<ShardRouting> getShards() {
         return shards();
     }
 
+    /**
+     * Returns a {@link ImmutableList} of active shards
+     * @return a {@link ImmutableList} of shards
+     */
     public ImmutableList<ShardRouting> activeShards() {
         return this.activeShards;
     }
 
+    /**
+     * Returns a {@link ImmutableList} of active shards
+     * @return a {@link ImmutableList} of shards
+     */
     public ImmutableList<ShardRouting> getActiveShards() {
         return activeShards();
     }
 
+    /**
+     * Returns a {@link ImmutableList} of assigned shards
+     * @return a {@link ImmutableList} of shards
+     */
     public ImmutableList<ShardRouting> assignedShards() {
         return this.assignedShards;
     }
 
+    /**
+     * Returns a {@link ImmutableList} of assigned shards
+     * @return a {@link ImmutableList} of shards
+     */
     public ImmutableList<ShardRouting> getAssignedShards() {
         return this.assignedShards;
     }
 
+    /**
+     * Returns the number of shards in a specific state
+     * @param state state of the shards to count
+     * @return number of shards in <code>state</code>
+     */
     public int countWithState(ShardRoutingState state) {
         int count = 0;
         for (ShardRouting shard : this) {
@@ -186,38 +227,47 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         return count;
     }
 
+    //TODO: DOCUMENTATION
     public ShardIterator shardsRandomIt() {
         return new PlainShardIterator(shardId, shards, counter.getAndIncrement());
     }
 
+    //TODO: Documentation
     public ShardIterator shardsIt() {
         return new PlainShardIterator(shardId, shards);
     }
 
+    //TODO: Documentation
     public ShardIterator shardsIt(int index) {
         return new PlainShardIterator(shardId, shards, index);
     }
 
+    //TODO: Documentation
     public ShardIterator activeShardsRandomIt() {
         return new PlainShardIterator(shardId, activeShards, counter.getAndIncrement());
     }
 
+    //TODO: Documentation
     public ShardIterator activeShardsIt() {
         return new PlainShardIterator(shardId, activeShards);
     }
 
+    //TODO: Documentation
     public ShardIterator activeShardsIt(int index) {
         return new PlainShardIterator(shardId, activeShards, index);
     }
 
+    //TODO: Documentation
     public ShardIterator assignedShardsRandomIt() {
         return new PlainShardIterator(shardId, assignedShards, counter.getAndIncrement());
     }
 
+    //TODO: Documentation
     public ShardIterator assignedShardsIt() {
         return new PlainShardIterator(shardId, assignedShards);
     }
 
+    //TODO: Documentation
     public ShardIterator assignedShardsIt(int index) {
         return new PlainShardIterator(shardId, assignedShards, index);
     }
@@ -229,6 +279,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         return new PlainShardIterator(shardId, primaryAsList);
     }
 
+    //TODO: Documentation
     public ShardIterator primaryFirstActiveShardsIt() {
         ArrayList<ShardRouting> ordered = new ArrayList<ShardRouting>(activeShards.size());
         // fill it in a randomized fashion
@@ -253,6 +304,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         return preferNodeShardsIt(nodeId, shards);
     }
 
+    //TODO: Documentation
     public ShardIterator onlyNodeActiveShardsIt(String nodeId) {
         ArrayList<ShardRouting> ordered = new ArrayList<ShardRouting>(shards.size());
         // fill it in a randomized fashion
@@ -331,10 +383,12 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
     private volatile Map<AttributesKey, AttributesRoutings> activeShardsByAttributes = ImmutableMap.of();
     private final Object shardsByAttributeMutex = new Object();
 
+    //TODO: Documentation
     public ShardIterator preferAttributesActiveShardsIt(String[] attributes, DiscoveryNodes nodes) {
         return preferAttributesActiveShardsIt(attributes, nodes, counter.incrementAndGet());
     }
 
+    //TODO: Documentation
     public ShardIterator preferAttributesActiveShardsIt(String[] attributes, DiscoveryNodes nodes, int index) {
         AttributesKey key = new AttributesKey(attributes);
         AttributesRoutings shardRoutings = activeShardsByAttributes.get(key);
@@ -378,14 +432,17 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         return new PlainShardIterator(shardId, ordered);
     }
 
+    //TODO: Documentation
     public ShardRouting primaryShard() {
         return primary;
     }
 
+    //TODO: Documentation
     public List<ShardRouting> replicaShards() {
         return this.replicas;
     }
 
+    //TODO: Documentation
     public List<ShardRouting> shardsWithState(ShardRoutingState... states) {
         List<ShardRouting> shards = newArrayList();
         for (ShardRouting shardEntry : this) {
@@ -398,6 +455,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         return shards;
     }
 
+    //TODO: Documentation
     public static class Builder {
 
         private ShardId shardId;
@@ -449,7 +507,7 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
         }
 
         public static IndexShardRoutingTable readFrom(StreamInput in) throws IOException {
-            String index = in.readUTF();
+            String index = in.readString();
             return readFromThin(in, index);
         }
 
@@ -467,11 +525,13 @@ public class IndexShardRoutingTable implements Iterable<ShardRouting> {
             return builder.build();
         }
 
+        //TODO: Documentation
         public static void writeTo(IndexShardRoutingTable indexShard, StreamOutput out) throws IOException {
-            out.writeUTF(indexShard.shardId().index().name());
+            out.writeString(indexShard.shardId().index().name());
             writeToThin(indexShard, out);
         }
 
+        //TODO: Documentation
         public static void writeToThin(IndexShardRoutingTable indexShard, StreamOutput out) throws IOException {
             out.writeVInt(indexShard.shardId.id());
             out.writeBoolean(indexShard.primaryAllocatedPostApi());

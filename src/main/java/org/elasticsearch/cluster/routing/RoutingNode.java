@@ -30,6 +30,7 @@ import java.util.List;
 import static com.google.common.collect.Lists.newArrayList;
 
 /**
+ * A {@link RoutingNode} is the base of nodes related to routing 
  */
 public class RoutingNode implements Iterable<MutableShardRouting> {
 
@@ -39,10 +40,12 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
 
     private final List<MutableShardRouting> shards;
 
+    //TODO: Documentation
     public RoutingNode(String nodeId, DiscoveryNode node) {
         this(nodeId, node, new ArrayList<MutableShardRouting>());
     }
 
+    //TODO: Documentation
     public RoutingNode(String nodeId, DiscoveryNode node, List<MutableShardRouting> shards) {
         this.nodeId = nodeId;
         this.node = node;
@@ -55,7 +58,7 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
     }
 
     /**
-     * Get the discoveryNode of this node
+     * Returns the nodes {@link DiscoveryNode}.
      * 
      * @return discoveryNode of this node
      */
@@ -199,6 +202,7 @@ public class RoutingNode implements Iterable<MutableShardRouting> {
         return count;
     }
 
+    //TODO: Documentation
     public String prettyPrint() {
         StringBuilder sb = new StringBuilder();
         sb.append("-----node_id[").append(nodeId).append("][" + (node == null ? "X" : "V") + "]\n");

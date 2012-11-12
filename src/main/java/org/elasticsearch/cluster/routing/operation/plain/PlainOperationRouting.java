@@ -46,6 +46,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+//TODO: Documentation
 /**
  *
  */
@@ -259,6 +260,7 @@ public class PlainOperationRouting extends AbstractComponent implements Operatio
         }
     }
 
+    //TODO: Documentation
     public IndexMetaData indexMetaData(ClusterState clusterState, String index) {
         IndexMetaData indexMetaData = clusterState.metaData().index(index);
         if (indexMetaData == null) {

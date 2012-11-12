@@ -30,6 +30,10 @@ import org.elasticsearch.common.settings.Settings;
  */
 public abstract class AllocationDecider extends AbstractComponent {
 
+	/**
+	 * Initializes a new {@link AllocationDecider}
+	 * @param settings {@link Settings} used by this {@link AllocationDecider}
+	 */
     protected AllocationDecider(Settings settings) {
         super(settings);
     }

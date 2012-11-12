@@ -24,17 +24,28 @@ import org.elasticsearch.index.shard.ShardId;
 import java.util.List;
 
 /**
- *
+ * The {@link PlainShardIterator} is a {@link PlainShardsIterator} which iterates all
+ * shards with a fixed {@link ShardId}
  */
 public class PlainShardIterator extends PlainShardsIterator implements ShardIterator {
 
     private final ShardId shardId;
 
+    //TODO: Documentation
+    /**
+     * Creates a {@link PlainShardIterator} instance that iterates over a subset of
+     * specified {@link List} of shards. Namely those with a given <code>shardId</code>
+     * 
+     * @param shardId shard id of the group 
+     * @param shards shards to iterate
+     * @param index
+     */
     public PlainShardIterator(ShardId shardId, List<ShardRouting> shards) {
         super(shards);
         this.shardId = shardId;
     }
 
+    //TODO: DOCUMENTATION 
     public PlainShardIterator(ShardId shardId, List<ShardRouting> shards, int index) {
         super(shards, index);
         this.shardId = shardId;

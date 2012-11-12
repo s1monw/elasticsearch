@@ -28,8 +28,10 @@ import org.elasticsearch.common.settings.Settings;
 
 import java.util.List;
 
+//TODO: Documentation
 public class ClusterRebalanceAllocationDecider extends AllocationDecider {
 
+    //TODO: Documentation
     public static enum ClusterRebalanceType {
         ALWAYS,
         INDICES_PRIMARIES_ACTIVE,

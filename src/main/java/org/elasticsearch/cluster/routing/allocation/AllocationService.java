@@ -43,6 +43,7 @@ import java.util.List;
 import static org.elasticsearch.cluster.routing.ShardRoutingState.INITIALIZING;
 import static org.elasticsearch.cluster.routing.ShardRoutingState.RELOCATING;
 
+//TODO: Documentation
 /**
  *
  */
@@ -56,6 +57,7 @@ public class AllocationService extends AbstractComponent {
         this(ImmutableSettings.Builder.EMPTY_SETTINGS);
     }
 
+    //TODO: Documentation
     public AllocationService(Settings settings) {
         this(settings,
                 new AllocationDeciders(settings, new NodeSettingsService(ImmutableSettings.Builder.EMPTY_SETTINGS)),
@@ -108,6 +110,7 @@ public class AllocationService extends AbstractComponent {
         return new RoutingAllocation.Result(true, new RoutingTable.Builder().updateNodes(routingNodes).build().validateRaiseException(clusterState.metaData()), allocation.explanation());
     }
 
+    //TODO: Documentation
     public RoutingAllocation.Result reroute(ClusterState clusterState, AllocationCommands commands) throws ElasticSearchException {
         RoutingNodes routingNodes = clusterState.routingNodes();
         // we don't shuffle the unassigned shards here, to try and get as close as possible to

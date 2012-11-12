@@ -23,16 +23,22 @@ import java.util.Collection;
 import java.util.Iterator;
 
 /**
- *
+ * This class implements a compilation of {@link ShardIterator}s. Each {@link ShardIterator}
+ * represents a group.
  */
 public class GroupShardsIterator implements Iterable<ShardIterator> {
 
     private final Collection<ShardIterator> iterators;
 
+    //TODO: Documentation
     public GroupShardsIterator(Collection<ShardIterator> iterators) {
         this.iterators = iterators;
     }
 
+    /**
+     * Returns the total number of shards within all groups 
+     * @return total number of shards
+     */
     public int totalSize() {
         int size = 0;
         for (ShardIterator shard : iterators) {
@@ -41,6 +47,10 @@ public class GroupShardsIterator implements Iterable<ShardIterator> {
         return size;
     }
 
+    /**
+     * Returns the total number of shards plus the number of empty groups
+     * @return number of shards and empty groups 
+     */
     public int totalSizeWith1ForEmpty() {
         int size = 0;
         for (ShardIterator shard : iterators) {
@@ -54,10 +64,18 @@ public class GroupShardsIterator implements Iterable<ShardIterator> {
         return size;
     }
 
+    /**
+     * Return the number of groups
+     * @return number of groups
+     */
     public int size() {
         return iterators.size();
     }
 
+    /**
+     * Return all group iterators
+     * @return
+     */
     public Collection<ShardIterator> iterators() {
         return iterators;
     }

@@ -30,6 +30,7 @@ import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.gateway.none.NoneGatewayAllocator;
 
+//TODO: Documentation
 /**
  */
 public class ShardsAllocators extends AbstractComponent implements ShardsAllocator {
@@ -41,6 +42,7 @@ public class ShardsAllocators extends AbstractComponent implements ShardsAllocat
         this(ImmutableSettings.Builder.EMPTY_SETTINGS);
     }
 
+    //TODO: Documentation
     public ShardsAllocators(Settings settings) {
         this(settings, new NoneGatewayAllocator(), new EvenShardsCountAllocator(settings));
     }

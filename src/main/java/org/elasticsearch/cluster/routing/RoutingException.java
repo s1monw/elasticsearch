@@ -22,7 +22,8 @@ package org.elasticsearch.cluster.routing;
 import org.elasticsearch.ElasticSearchException;
 
 /**
- *
+ * The {@link RoutingException} defines the base of all {@link Exception}s that can
+ * be throws by routing related methods 
  */
 public class RoutingException extends ElasticSearchException {
 

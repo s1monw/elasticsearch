@@ -29,11 +29,15 @@ import org.elasticsearch.index.shard.ShardId;
 import java.util.HashMap;
 import java.util.Map;
 
+//TODO: Documentation
 /**
  *
  */
 public class RoutingAllocation {
 
+    /**
+     * this class is used to describe results of a {@link RoutingAllocation}  
+     */
     public static class Result {
 
         private final boolean changed;
@@ -42,20 +46,38 @@ public class RoutingAllocation {
 
         private final AllocationExplanation explanation;
 
+        /**
+         * Creates a new {@link RoutingAllocation.Result}
+         * 
+         * @param changed a flag to determine whether the actual {@link RoutingTable} has been changed
+         * @param routingTable the {@link RoutingTable} this Result references
+         * @param explanation Explanation of the Result
+         */
         public Result(boolean changed, RoutingTable routingTable, AllocationExplanation explanation) {
             this.changed = changed;
             this.routingTable = routingTable;
             this.explanation = explanation;
         }
 
+        /** determine whether the actual {@link RoutingTable} has been changed
+         * @return <code>true</code> if the {@link RoutingTable} has been changed by allocation. Otherwise <code>false</code>
+         */
         public boolean changed() {
             return this.changed;
         }
 
+        /**
+         * Get the {@link RoutingTable} referenced by this result
+         * @return referenced {@link RoutingTable}
+         */
         public RoutingTable routingTable() {
             return routingTable;
         }
 
+        /**
+         * Get the explanation of this result
+         * @return explanation
+         */
         public AllocationExplanation explanation() {
             return explanation;
         }
@@ -73,12 +95,23 @@ public class RoutingAllocation {
 
     private boolean ignoreDisable = false;
 
+    /**
+     * Creates a new {@link RoutingAllocation}
+     * 
+     * @param deciders {@link AllocationDeciders} to used to make decisions for routing allocations
+     * @param routingNodes Routing nodes in the current cluster 
+     * @param nodes TODO: Documentation
+     */
     public RoutingAllocation(AllocationDeciders deciders, RoutingNodes routingNodes, DiscoveryNodes nodes) {
         this.deciders = deciders;
         this.routingNodes = routingNodes;
         this.nodes = nodes;
     }
 
+    /**
+     * Get {@link AllocationDeciders} used for allocation
+     * @return {@link AllocationDeciders} used for allocation
+     */
     public AllocationDeciders deciders() {
         return this.deciders;
     }
@@ -123,14 +156,17 @@ public class RoutingAllocation {
         return explanation;
     }
 
+    //TODO: Documentation
     public void ignoreDisable(boolean ignoreDisable) {
         this.ignoreDisable = ignoreDisable;
     }
 
+    //TODO: Documentation
     public boolean ignoreDisable() {
         return this.ignoreDisable;
     }
 
+    //TODO: Documentation
     public void addIgnoreShardForNode(ShardId shardId, String nodeId) {
         if (ignoredShardToNodes == null) {
             ignoredShardToNodes = new HashMap<ShardId, String>();
@@ -138,6 +174,7 @@ public class RoutingAllocation {
         ignoredShardToNodes.put(shardId, nodeId);
     }
 
+    //TODO: Documentation
     public boolean shouldIgnoreShardForNode(ShardId shardId, String nodeId) {
         return ignoredShardToNodes != null && nodeId.equals(ignoredShardToNodes.get(shardId));
     }

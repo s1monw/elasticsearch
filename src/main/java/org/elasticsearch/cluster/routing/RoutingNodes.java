@@ -32,7 +32,7 @@ import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Maps.newHashMap;
 
 /**
- *
+ * This class implements a collection of {@link RoutingNode}s
  */
 public class RoutingNodes implements Iterable<RoutingNode> {
 

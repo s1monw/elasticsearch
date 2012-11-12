@@ -26,6 +26,7 @@ import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
 
 import java.util.List;
 
+//TODO: Documentation
 /**
  *
  */
@@ -33,6 +34,7 @@ public class StartedRerouteAllocation extends RoutingAllocation {
 
     private final List<? extends ShardRouting> startedShards;
 
+    //TODO: Documentation
     public StartedRerouteAllocation(AllocationDeciders deciders, RoutingNodes routingNodes, DiscoveryNodes nodes, List<? extends ShardRouting> startedShards) {
         super(deciders, routingNodes, nodes);
         this.startedShards = startedShards;

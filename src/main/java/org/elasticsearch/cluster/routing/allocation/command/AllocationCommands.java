@@ -37,7 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
+/**This class manages a set of {@link AllocationCommand}s
  */
 public class AllocationCommands {
 
@@ -73,12 +73,22 @@ public class AllocationCommands {
 
     private final List<AllocationCommand> commands = Lists.newArrayList();
 
+    /**
+     * Creates a new set of {@link AllocationCommands}
+     *   
+     * @param commands {@link AllocationCommand}s that are wrapped by this instance
+     */
     public AllocationCommands(AllocationCommand... commands) {
         if (commands != null) {
             this.commands.addAll(Arrays.asList(commands));
         }
     }
 
+    /**
+     * Adds a set of commands to this collection
+     * @param commands Array of commands to add to this instance
+     * @return {@link AllocationCommands} with the given commands added
+     */
     public AllocationCommands add(AllocationCommand... commands) {
         if (commands != null) {
             this.commands.addAll(Arrays.asList(commands));
@@ -86,16 +96,32 @@ public class AllocationCommands {
         return this;
     }
 
+    /**
+     * Get the commands wrapped by this instance
+     * @return {@link List} of commands
+     */
     public List<AllocationCommand> commands() {
         return this.commands;
     }
 
+    /**
+     * Executes all wrapped commands on a given {@link RoutingAllocation}
+     * @param allocation {@link RoutingAllocation} to apply this command to
+     * @throws ElasticSearchException if something happens during execution
+     */
     public void execute(RoutingAllocation allocation) throws ElasticSearchException {
         for (AllocationCommand command : commands) {
             command.execute(allocation);
         }
     }
 
+    /**
+     * Reads a {@link AllocationCommands} from a {@link StreamInput}
+     * @param in {@link StreamInput} to read from
+     * @return {@link AllocationCommands} read
+     * 
+     * @throws IOException if something happens during read
+     */
     public static AllocationCommands readFrom(StreamInput in) throws IOException {
         AllocationCommands commands = new AllocationCommands();
         int size = in.readVInt();
@@ -106,6 +132,13 @@ public class AllocationCommands {
         return commands;
     }
 
+    /**
+     * Writes {@link AllocationCommands} to a {@link StreamOutput}
+     * 
+     * @param commands Commands to write
+     * @param out {@link StreamOutput} to write the commands to
+     * @throws IOException if something happens during write
+     */
     public static void writeTo(AllocationCommands commands, StreamOutput out) throws IOException {
         out.writeVInt(commands.commands.size());
         for (AllocationCommand command : commands.commands) {
@@ -113,15 +146,19 @@ public class AllocationCommands {
             lookupFactorySafe(command.name()).writeTo(command, out);
         }
     }
-
+    
     /**
+     * Reads {@link AllocationCommands} from a {@link XContentParser}
      * <pre>
-     *     {
-     *         "commands" : [
-     *              {"allocate" : {"index" : "test", "shard" : 0, "node" : "test"}}
-     *         ]
-     *     }
+     * {
+     *     <b>"commands"</b> : [
+     *         {<b>"allocate"</b> : {<b>"index"</b> : <i>"test"</i>, <b>"shard"</b> : <i>0</i>, <b>"node"</b> : <i>"test"</i>}}
+     *     ]
+     * }
      * </pre>
+     * @param parser {@link XContentParser} to read the commands from
+     * @return {@link AllocationCommands} read
+     * @throws IOException if something bad happens while reading the stream 
      */
     public static AllocationCommands fromXContent(XContentParser parser) throws IOException {
         AllocationCommands commands = new AllocationCommands();
@@ -163,7 +200,15 @@ public class AllocationCommands {
         }
         return commands;
     }
-
+    
+    /**
+     * Writes {@link AllocationCommands} to a {@link XContentBuilder}
+     * 
+     * @param commands {@link AllocationCommands} to write
+     * @param builder {@link XContentBuilder} to use
+     * @param params Parameters to use for building
+     * @throws IOException if something bad happens while building the content
+     */
     public static void toXContent(AllocationCommands commands, XContentBuilder builder, ToXContent.Params params) throws IOException {
         builder.startArray("commands");
         for (AllocationCommand command : commands.commands) {

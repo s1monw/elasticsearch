@@ -20,23 +20,28 @@
 package org.elasticsearch.cluster.routing;
 
 /**
- *
+ * Like {@link ImmutableShardRouting} this class keeps metadata of the current shard routing. But unlike
+ * {@link ImmutableShardRouting} the information kept in this class can be modified.
  */
 public class MutableShardRouting extends ImmutableShardRouting {
 
+	//TODO: Documentation
     public MutableShardRouting(ShardRouting copy) {
         super(copy);
     }
 
+    //TODO: Documentation
     public MutableShardRouting(ShardRouting copy, long version) {
         super(copy);
         this.version = version;
     }
 
+    //TODO: Documentation
     public MutableShardRouting(String index, int shardId, String currentNodeId, boolean primary, ShardRoutingState state, long version) {
         super(index, shardId, currentNodeId, primary, state, version);
     }
 
+    //TODO: Documentation
     public MutableShardRouting(String index, int shardId, String currentNodeId,
                                String relocatingNodeId, boolean primary, ShardRoutingState state, long version) {
         super(index, shardId, currentNodeId, relocatingNodeId, primary, state, version);
@@ -67,6 +72,7 @@ public class MutableShardRouting extends ImmutableShardRouting {
      * Relocate the shard to another node.
      * 
      * @param relocatingNodeId id of the node to relocate the shard
+     * //TODO document the state
      */
     public void relocate(String relocatingNodeId) {
         version++;
@@ -78,6 +84,7 @@ public class MutableShardRouting extends ImmutableShardRouting {
     /**
      * Cancel relocation of a shard. The shards state must be set
      * to <code>RELOCATING</code>.
+     * //TODO document the state
      */
     public void cancelRelocation() {
         version++;
@@ -91,6 +98,7 @@ public class MutableShardRouting extends ImmutableShardRouting {
 
     /**
      * Set the shards state to <code>UNASSIGNED</code>.
+     * //TODO document the state
      */
     public void deassignNode() {
         version++;
@@ -114,7 +122,8 @@ public class MutableShardRouting extends ImmutableShardRouting {
     }
 
     /**
-     * Set the shard to primary
+     * Make the shard primary unless it's not Primary
+     * //TODO: doc exception
      */
     public void moveToPrimary() {
         version++;
@@ -130,7 +139,6 @@ public class MutableShardRouting extends ImmutableShardRouting {
     public void moveFromPrimary() {
         version++;
         if (!primary) {
-//            throw new IllegalShardRoutingStateException(this, "Already primary, can't move to replica");
             throw new IllegalShardRoutingStateException(this, "Not primary, can't move to replica");
         }
         primary = false;

@@ -51,6 +51,10 @@ public enum ShardRoutingState {
         this.value = value;
     }
 
+    /**
+     * Byte value of this {@link ShardRoutingState}
+     * @return Byte value of this {@link ShardRoutingState}
+     */
     public byte value() {
         return this.value;
     }

@@ -27,10 +27,11 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.shard.ShardId;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serializable;
 
-/** this class describes information about shard like id, state, version, etc.
- *
+/** this class describes information about shards like id, state, version, etc.
+ *  These informations can't be modified within this class 
  */
 public class ImmutableShardRouting implements Streamable, Serializable, ShardRouting {
 
@@ -56,23 +57,27 @@ public class ImmutableShardRouting implements Streamable, Serializable, ShardRou
         this.asList = ImmutableList.of((ShardRouting) this);
     }
 
+    //TODO: Documentation
     public ImmutableShardRouting(ShardRouting copy) {
         this(copy.index(), copy.id(), copy.currentNodeId(), copy.primary(), copy.state(), copy.version());
         this.relocatingNodeId = copy.relocatingNodeId();
     }
 
+    //TODO: Documentation
     public ImmutableShardRouting(ShardRouting copy, long version) {
         this(copy.index(), copy.id(), copy.currentNodeId(), copy.primary(), copy.state(), copy.version());
         this.relocatingNodeId = copy.relocatingNodeId();
         this.version = version;
     }
 
+    //TODO: Documentation
     public ImmutableShardRouting(String index, int shardId, String currentNodeId,
                                  String relocatingNodeId, boolean primary, ShardRoutingState state, long version) {
         this(index, shardId, currentNodeId, primary, state, version);
         this.relocatingNodeId = relocatingNodeId;
     }
 
+    //TODO: Documentation
     public ImmutableShardRouting(String index, int shardId, String currentNodeId, boolean primary, ShardRoutingState state, long version) {
         this.index = index;
         this.shardId = shardId;
@@ -173,10 +178,10 @@ public class ImmutableShardRouting implements Streamable, Serializable, ShardRou
     }
 
     /**
-     * Read a routingentry of a shard from an inputstream
+     * Reads a {@link ImmutableShardRouting} instance of a shard from an {@link InputStream}
      * 
-     * @param in inputstream to read the entry from
-     * @return Shard routing entry read
+     * @param in {@link InputStream} to read the entry from
+     * @return {@link ImmutableShardRouting} instances read from the given {@link InputStream}
      * 
      * @throws IOException if some exception occurs during the read operations
      */
@@ -187,7 +192,7 @@ public class ImmutableShardRouting implements Streamable, Serializable, ShardRou
     }
 
     /**
-     * Read a routingentry of a shard from an inputstream with given <code>index</code> and
+     * Reads a routingentry from an inputstream with given <code>index</code> and
      * <code>shardId</code>.
      * 
      * @param in inputstream to read the entry from
@@ -223,11 +228,11 @@ public class ImmutableShardRouting implements Streamable, Serializable, ShardRou
     public void readFromThin(StreamInput in) throws IOException {
         version = in.readLong();
         if (in.readBoolean()) {
-            currentNodeId = in.readUTF();
+            currentNodeId = in.readString();
         }
 
         if (in.readBoolean()) {
-            relocatingNodeId = in.readUTF();
+            relocatingNodeId = in.readString();
         }
 
         primary = in.readBoolean();
@@ -236,24 +241,26 @@ public class ImmutableShardRouting implements Streamable, Serializable, ShardRou
 
     @Override
     public void readFrom(StreamInput in) throws IOException {
-        readFrom(in, in.readUTF(), in.readVInt());
+        readFrom(in, in.readString(), in.readVInt());
     }
-
+    
     /**
-     * Does not write index name and shard id
+     * Writes shard information to {@link StreamOutput} without writing index name and shard id
+     * @param out {@link StreamOutput} to write shard information to
+     * @throws IOException if something happens during write
      */
     public void writeToThin(StreamOutput out) throws IOException {
         out.writeLong(version);
         if (currentNodeId != null) {
             out.writeBoolean(true);
-            out.writeUTF(currentNodeId);
+            out.writeString(currentNodeId);
         } else {
             out.writeBoolean(false);
         }
 
         if (relocatingNodeId != null) {
             out.writeBoolean(true);
-            out.writeUTF(relocatingNodeId);
+            out.writeString(relocatingNodeId);
         } else {
             out.writeBoolean(false);
         }
@@ -264,7 +271,7 @@ public class ImmutableShardRouting implements Streamable, Serializable, ShardRou
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        out.writeUTF(index);
+        out.writeString(index);
         out.writeVInt(shardId);
         writeToThin(out);
     }

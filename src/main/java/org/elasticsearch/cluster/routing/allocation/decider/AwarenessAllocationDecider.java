@@ -35,6 +35,7 @@ import org.elasticsearch.node.settings.NodeSettingsService;
 import java.util.HashMap;
 import java.util.Map;
 
+//TODO: Documentation
 /**
  */
 public class AwarenessAllocationDecider extends AllocationDecider {
@@ -72,10 +73,17 @@ public class AwarenessAllocationDecider extends AllocationDecider {
 
     private Map<String, String[]> forcedAwarenessAttributes;
 
+    /**
+     * Creates a new {@link AwarenessAllocationDecider} instance
+     */
     public AwarenessAllocationDecider() {
         this(ImmutableSettings.Builder.EMPTY_SETTINGS);
     }
 
+    /**
+     * Creates a new {@link AwarenessAllocationDecider} instance from given settings
+     * @param settings {@link Settings} to use
+     */
     public AwarenessAllocationDecider(Settings settings) {
         this(settings, new NodeSettingsService(settings));
     }
@@ -97,6 +105,10 @@ public class AwarenessAllocationDecider extends AllocationDecider {
         nodeSettingsService.addListener(new ApplySettings());
     }
 
+    /**
+     * Get the attributes defined by this instance 
+     * @return attributes defined by this instance
+     */
     public String[] awarenessAttributes() {
         return this.awarenessAttributes;
     }

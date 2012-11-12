@@ -20,21 +20,27 @@
 package org.elasticsearch.cluster.routing;
 
 /**
- *
+ * This exception defines illegal states of shard routing
  */
 public class IllegalShardRoutingStateException extends RoutingException {
 
     private final ShardRouting shard;
 
+    //TODO: Documentation
     public IllegalShardRoutingStateException(ShardRouting shard, String message) {
         this(shard, message, null);
     }
 
+    //TODO: Documentation
     public IllegalShardRoutingStateException(ShardRouting shard, String message, Throwable cause) {
         super(shard.shortSummary() + ": " + message, cause);
         this.shard = shard;
     }
 
+    /**
+     * Returns the shard instance referenced by this exception
+     * @return shard instance referenced by this exception
+     */
     public ShardRouting shard() {
         return shard;
     }
