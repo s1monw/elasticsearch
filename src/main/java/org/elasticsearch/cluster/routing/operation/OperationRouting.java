@@ -29,9 +29,8 @@ import org.elasticsearch.indices.IndexMissingException;
 import java.util.Map;
 import java.util.Set;
 
-//TODO: Documentation
 /**
- *
+ * TODO: Class-Documentation
  */
 public interface OperationRouting {
 

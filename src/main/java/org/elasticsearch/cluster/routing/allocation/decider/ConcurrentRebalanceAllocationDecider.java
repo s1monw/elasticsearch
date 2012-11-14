@@ -31,6 +31,10 @@ import org.elasticsearch.node.settings.NodeSettingsService;
 
 import java.util.List;
 
+/**
+ * Like the {@link ClusterRebalanceAllocationDecider} this {@link AllocationDecider}
+ * controls shard allocation by keeping the cluster balanced under concurrent conditions 
+ */
 public class ConcurrentRebalanceAllocationDecider extends AllocationDecider {
 
     static {

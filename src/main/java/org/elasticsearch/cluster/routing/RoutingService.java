@@ -36,7 +36,8 @@ import static org.elasticsearch.cluster.ClusterState.newClusterStateBuilder;
 import static org.elasticsearch.common.unit.TimeValue.timeValueSeconds;
 
 /**
- *
+ * A {@link RoutingService} listens to clusters state. When this service receives a {@link ClusterChangedEvent}
+ * the cluster state will be verified and the routing tables will be reconfigured possibly.
  */
 public class RoutingService extends AbstractLifecycleComponent<RoutingService> implements ClusterStateListener {
 

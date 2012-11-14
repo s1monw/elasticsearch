@@ -22,9 +22,8 @@ package org.elasticsearch.cluster.routing.operation.plain;
 import org.elasticsearch.cluster.routing.operation.OperationRouting;
 import org.elasticsearch.common.inject.AbstractModule;
 
-//TODO: Documentation
 /**
- *
+ * TODO: Class-Documentation
  */
 public class PlainOperationRoutingModule extends AbstractModule {
 

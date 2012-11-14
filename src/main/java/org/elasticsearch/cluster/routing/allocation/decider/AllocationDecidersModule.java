@@ -27,6 +27,8 @@ import org.elasticsearch.common.settings.Settings;
 import java.util.List;
 
 /**
+ * This module configures several {@link AllocationDecider}s
+ * to manage rules of shard allocation
  */
 public class AllocationDecidersModule extends AbstractModule {
 

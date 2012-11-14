@@ -21,9 +21,10 @@ package org.elasticsearch.cluster.routing.operation.hash.djb;
 
 import org.elasticsearch.cluster.routing.operation.hash.HashFunction;
 
-//TODO: Documentation
+//TODO: documentation: what is djb hashfunction
+
 /**
- *
+ * This class implements the DJB hash function for hashing strings
  */
 public class DjbHashFunction implements HashFunction {
 

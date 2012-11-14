@@ -31,8 +31,8 @@ import org.elasticsearch.node.settings.NodeSettingsService;
 
 import java.util.List;
 
-//TODO: Documentation
 /**
+ * TODO: Class-Documentation
  */
 public class ThrottlingAllocationDecider extends AllocationDecider {
 

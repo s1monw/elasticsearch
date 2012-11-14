@@ -28,6 +28,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.settings.NodeSettingsService;
 
 /**
+ * This {@link AllocationDecider} disables allocation of defined shards.
  */
 public class DisableAllocationDecider extends AllocationDecider {
 

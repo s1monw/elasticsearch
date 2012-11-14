@@ -19,6 +19,9 @@
 
 package org.elasticsearch.cluster.routing.allocation;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.RoutingNodes;
@@ -26,12 +29,10 @@ import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
 import org.elasticsearch.index.shard.ShardId;
 
-import java.util.HashMap;
-import java.util.Map;
-
-//TODO: Documentation
 /**
- *
+ * The {@link RoutingAllocation} keep the state of the current allocation
+ * of shards and holds the {@link AllocationDeciders} which are responsible
+ *  for the current routing state.
  */
 public class RoutingAllocation {
 

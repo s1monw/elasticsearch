@@ -27,9 +27,9 @@ import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.common.inject.SpawnModules;
 import org.elasticsearch.common.settings.Settings;
 
-//TODO: Documentation
 /**
- *
+ * The {@link AllocationModule} manages several
+ * modules related to the allocation process
  */
 public class AllocationModule extends AbstractModule implements SpawnModules {
 

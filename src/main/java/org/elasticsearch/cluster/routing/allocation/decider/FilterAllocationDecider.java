@@ -30,8 +30,8 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.settings.NodeSettingsService;
 
-//TODO: Documentation
 /**
+ * This {@link AllocationDecider} control shard allocation by include and exclude filters.
  */
 public class FilterAllocationDecider extends AllocationDecider {
 

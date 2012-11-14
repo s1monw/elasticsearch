@@ -35,8 +35,10 @@ import org.elasticsearch.node.settings.NodeSettingsService;
 import java.util.HashMap;
 import java.util.Map;
 
-//TODO: Documentation
 /**
+ * This {@link AllocationDecider} controls shard rerouting by
+ * awareness attributes which define whether a node can remain
+ * on a node or has to be moved to another one.
  */
 public class AwarenessAllocationDecider extends AllocationDecider {
 

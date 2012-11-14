@@ -29,9 +29,8 @@ import org.elasticsearch.common.settings.Settings;
 
 import java.util.List;
 
-//TODO: Documentation
 /**
- *
+ * This {@link AllocationDecider} limits the number of shards per node 
  */
 public class ShardsLimitAllocationDecider extends AllocationDecider {
 

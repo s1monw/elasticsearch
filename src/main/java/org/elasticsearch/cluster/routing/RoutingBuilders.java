@@ -20,7 +20,8 @@
 package org.elasticsearch.cluster.routing;
 
 /**
- * TODO: Documentation
+ * This factory allows creation of builders for
+ * {@link RoutingTable}s and {@link IndexRoutingTable}s
  */
 public final class RoutingBuilders {
 

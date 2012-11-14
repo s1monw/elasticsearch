@@ -28,7 +28,10 @@ import org.elasticsearch.common.settings.Settings;
 
 import java.util.List;
 
-//TODO: Documentation
+/**
+ * This {@link AllocationDecider} controls shard allocation
+ *  by keeping the cluster balanced 
+ */
 public class ClusterRebalanceAllocationDecider extends AllocationDecider {
 
     //TODO: Documentation

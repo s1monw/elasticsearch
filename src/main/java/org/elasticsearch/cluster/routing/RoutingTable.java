@@ -37,7 +37,8 @@ import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Maps.newHashMap;
 
 /**
- * Instances of this class representing routing tables. These keep the {@link IndexRoutingTable}s and the version of he current routing state
+ * Instances of this class representing routing tables. These keep the
+ * {@link IndexRoutingTable}s and the version of the current routing state
  */
 public class RoutingTable implements Iterable<IndexRoutingTable> {
 
