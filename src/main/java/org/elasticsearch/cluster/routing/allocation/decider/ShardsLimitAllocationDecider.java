@@ -30,10 +30,26 @@ import org.elasticsearch.common.settings.Settings;
 import java.util.List;
 
 /**
- * This {@link AllocationDecider} limits the number of shards per node 
+ * This {@link AllocationDecider} limits the number of shards per node on a per
+ * index basis. The allocator prevents a single node to hold more than
+ * {@value #INDEX_TOTAL_SHARDS_PER_NODE} per index during the allocation
+ * process. The limits of this decider can be changed in real-time via a the
+ * index settings API. If {@value #INDEX_TOTAL_SHARDS_PER_NODE} is un-set or set
+ * to a negative value shards per index are unlimited per node. <b> Currently
+ * relocating shards are ignored by this {@link AllocationDecider} until the
+ * shard changed its state.
+ * <p>
+ * Note: Reducing the number of shards per node can cause shard-relocation and
+ * additional load on the system.
+ * </p>
+ * 
  */
 public class ShardsLimitAllocationDecider extends AllocationDecider {
 
+    /**
+     * Controls the maximum number of shards per index on a single elastic
+     * search node. Negative values are interpreted as unlimited.
+     */
     public static final String INDEX_TOTAL_SHARDS_PER_NODE = "index.routing.allocation.total_shards_per_node";
 
     static {

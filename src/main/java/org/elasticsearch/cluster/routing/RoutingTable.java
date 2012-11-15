@@ -47,7 +47,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
     private final long version;
 
     // index to IndexRoutingTable map
-    private final Map<String, IndexRoutingTable> indicesRouting;
+    private final ImmutableMap<String, IndexRoutingTable> indicesRouting;
 
     //TODO: Documentation
     RoutingTable(long version, Map<String, IndexRoutingTable> indicesRouting) {
@@ -65,7 +65,7 @@ public class RoutingTable implements Iterable<IndexRoutingTable> {
 
     @Override
     public UnmodifiableIterator<IndexRoutingTable> iterator() {
-        return new UnindicesRouting.values().iterator();
+        return indicesRouting.values().iterator();
     }
 
     //TODO: Documentation
