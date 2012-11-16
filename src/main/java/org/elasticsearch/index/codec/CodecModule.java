@@ -34,10 +34,14 @@ import org.elasticsearch.index.codec.postingsformat.PreBuiltPostingsFormatProvid
 import java.util.Map;
 
 /**
+ * The {@link CodecModule} creates and loads the {@link CodecService} and
+ * {@link PostingsFormatService} allowing low level data-structure
+ * specialization on a Lucene Segment basis.
  */
 public class CodecModule extends AbstractModule {
 
     private final Settings indexSettings;
+    private static final String POSTINGS_FORMAT_KEY = "index.codec.postings_format";
 
     private Map<String, Class<? extends PostingsFormatProvider>> customProviders = Maps.newHashMap();
 
@@ -55,7 +59,7 @@ public class CodecModule extends AbstractModule {
 
         Map<String, Class<? extends PostingsFormatProvider>> postingFormatProviders = Maps.newHashMap(customProviders);
 
-        Map<String, Settings> postingsFormatsSettings = indexSettings.getGroups("index.codec.postings_format");
+        Map<String, Settings> postingsFormatsSettings = indexSettings.getGroups(POSTINGS_FORMAT_KEY);
         for (Map.Entry<String, Settings> entry : postingsFormatsSettings.entrySet()) {
             String name = entry.getKey();
             Settings settings = entry.getValue();

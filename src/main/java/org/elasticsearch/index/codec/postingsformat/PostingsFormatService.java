@@ -32,6 +32,7 @@ import org.elasticsearch.index.settings.IndexSettings;
 import java.util.Map;
 
 /**
+ * A
  */
 public class PostingsFormatService extends AbstractIndexComponent {
 
