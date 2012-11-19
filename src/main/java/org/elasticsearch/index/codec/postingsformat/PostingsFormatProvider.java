@@ -40,9 +40,22 @@ import java.util.Map;
  * postings format in {@link PostingsFormatService#get(String)} and should be
  * identical to the values used in the field mappings.
  * </p>
+ * <p>
+ * {@link PostingsFormatProvider} instances are initialized with a
+ * {@link Settings} subset below the
+ * {@value PostingsFormatProvider#POSTINGS_FORMAT_SETTINGS_PREFIX} prefix and
+ * will only see the sub-tree below their mapping name. For instance a postings
+ * format <tt>ElasticFantastic</tt> will see settings below
+ * <tt>index.codec.postings_format.elastic_fantastic</tt> given that the
+ * postings format is exposed via
+ * <tt>index.codec.postings_format.elastic_fantastic.type : "ElasticFantastic"</tt>.
+ * </p>
+ * 
+ * @see CodecModule
  */
 public interface PostingsFormatProvider {
     public static final String POSTINGS_FORMAT_SETTINGS_PREFIX = "index.codec.postings_format";
+    
     /**
      * A helper class to lookup {@link PostingsFormatProvider providers} by their unique {@link PostingsFormatProvider#name() name}
      */

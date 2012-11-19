@@ -30,12 +30,14 @@ import org.elasticsearch.common.settings.Settings;
  * postings format uses an on-disk storage for its terms and posting lists and
  * streams its data during segment merges but loads its entire postings, terms
  * and positions into memory for faster search performance. This format has a
- * significant memory footprint and should be used with care.
- * <b>
- * This postings format offers the following parameters:
+ * significant memory footprint and should be used with care. <b> This postings
+ * format offers the following parameters:
  * <ul>
- * <li><tt>min_skip_count</tt>: the minimum number terms with a shared prefix to allow a skip pointer to be written. the default is <tt>8</tt></li>
- * <li><tt>low_freq_cutoff</tt>: terms with a lower document frequency use a single array object representation for postings and positions.</li>
+ * <li><tt>min_skip_count</tt>: the minimum number terms with a shared prefix to
+ * allow a skip pointer to be written. the default is <tt>8</tt></li>
+ * 
+ * <li><tt>low_freq_cutoff</tt>: terms with a lower document frequency use a
+ * single array object representation for postings and positions.</li>
  * </ul>
  * 
  * @see DirectPostingsFormat
