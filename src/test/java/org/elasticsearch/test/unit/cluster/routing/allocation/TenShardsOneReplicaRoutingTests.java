@@ -173,8 +173,8 @@ public class TenShardsOneReplicaRoutingTests {
 
         assertThat(prevRoutingTable != routingTable, equalTo(true));
         assertThat(routingTable.index("test").shards().size(), equalTo(10));
-        assertThat(routingNodes.node("node1").numberOfShardsWithState(STARTED), equalTo(8));
-        assertThat(routingNodes.node("node2").numberOfShardsWithState(STARTED), equalTo(6));
+        assertThat(routingNodes.node("node1").numberOfShardsWithState(STARTED), equalTo(7));
+        assertThat(routingNodes.node("node2").numberOfShardsWithState(STARTED), equalTo(7));
         assertThat(routingNodes.node("node3").numberOfShardsWithState(STARTED), equalTo(6));
     }
 }
