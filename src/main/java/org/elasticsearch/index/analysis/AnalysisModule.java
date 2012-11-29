@@ -495,6 +495,7 @@ public class AnalysisModule extends AbstractModule {
             tokenFiltersBindings.processTokenFilter("russian_stem", RussianStemTokenFilterFactory.class);
 
             tokenFiltersBindings.processTokenFilter("keyword_marker", KeywordMarkerTokenFilterFactory.class);
+            tokenFiltersBindings.processTokenFilter("stopword_marker", StopwordMarkerTokenFilterFactory.class);
             tokenFiltersBindings.processTokenFilter("stemmer_override", StemmerOverrideTokenFilterFactory.class);
         }
 

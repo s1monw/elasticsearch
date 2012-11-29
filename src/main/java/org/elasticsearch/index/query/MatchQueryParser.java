@@ -71,7 +71,6 @@ public class MatchQueryParser implements QueryParser {
         String text = null;
         float boost = 1.0f;
         MatchQuery matchQuery = new MatchQuery(parseContext);
-        String minimumShouldMatch = null;
 
         token = parser.nextToken();
         if (token == XContentParser.Token.START_OBJECT) {
@@ -117,7 +116,7 @@ public class MatchQueryParser implements QueryParser {
                             throw new QueryParsingException(parseContext.index(), "text query requires operator to be either 'and' or 'or', not [" + op + "]");
                         }
                     } else if ("minimum_should_match".equals(currentFieldName) || "minimumShouldMatch".equals(currentFieldName)) {
-                        minimumShouldMatch = parser.textOrNull();
+                        matchQuery.setMinimumShouldMatch(parser.textOrNull());
                     } else if ("rewrite".equals(currentFieldName)) {
                         matchQuery.setRewriteMethod(QueryParsers.parseRewriteMethod(parser.textOrNull(), null));
                     } else if ("fuzzy_rewrite".equals(currentFieldName) || "fuzzyRewrite".equals(currentFieldName)) {
@@ -135,6 +134,8 @@ public class MatchQueryParser implements QueryParser {
                         } else {
                             throw new QueryParsingException(parseContext.index(), "Unsupported zero_terms_docs value [" + zeroTermsDocs + "]");
                         }
+                    } else if ("optional_stopwords".equals(currentFieldName)) {
+                        matchQuery.setStopwordsOptional(parser.booleanValue());
                     } else {
                         throw new QueryParsingException(parseContext.index(), "[match] query does not support [" + currentFieldName + "]");
                     }
@@ -157,10 +158,6 @@ public class MatchQueryParser implements QueryParser {
         Query query = matchQuery.parse(type, fieldName, text);
         if (query == null) {
             return null;
-        }
-
-        if (query instanceof BooleanQuery) {
-            Queries.applyMinimumShouldMatch((BooleanQuery) query, minimumShouldMatch);
         }
 
         query.setBoost(boost);

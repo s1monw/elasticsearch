@@ -19,6 +19,7 @@
 
 package org.elasticsearch.index.query;
 
+import org.apache.lucene.analysis.StopwordAttribute;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
@@ -86,6 +87,8 @@ public class MatchQueryBuilder extends BaseQueryBuilder implements BoostableQuer
     private Boolean fuzzyTranspositions = null;
 
     private ZeroTermsQuery zeroTermsQuery;
+    
+    private Boolean stopwordsOptional = null;
 
     /**
      * Constructs a new text query.
@@ -191,6 +194,15 @@ public class MatchQueryBuilder extends BaseQueryBuilder implements BoostableQuer
         this.zeroTermsQuery = zeroTermsQuery;
         return this;
     }
+    
+    /**
+     * Sets whether terms marked as stopwords via {@link StopwordAttribute} should be treated as optional 
+     * terms and only be considered if the non-stopword terms in the query match.
+     */
+    public MatchQueryBuilder stopwordsOptional(boolean stopwordsOptional) {
+        this.stopwordsOptional = stopwordsOptional;
+        return this;
+    }
 
     @Override
     public void doXContent(XContentBuilder builder, Params params) throws IOException {
@@ -240,6 +252,9 @@ public class MatchQueryBuilder extends BaseQueryBuilder implements BoostableQuer
         }
         if (zeroTermsQuery != null) {
             builder.field("zero_terms_query", zeroTermsQuery.toString());
+        }
+        if (stopwordsOptional != null) {
+            builder.field("optional_stopwords", stopwordsOptional);
         }
 
         builder.endObject();

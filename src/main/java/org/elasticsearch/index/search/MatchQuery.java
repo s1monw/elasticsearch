@@ -21,11 +21,13 @@ package org.elasticsearch.index.search;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.CachingTokenFilter;
+import org.apache.lucene.analysis.StopwordAttribute;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.*;
+import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.UnicodeUtil;
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
@@ -83,6 +85,10 @@ public class MatchQuery {
 
     protected ZeroTermsQuery zeroTermsQuery = ZeroTermsQuery.NONE;
 
+    private boolean stopwordsOptional = false;
+
+    private String minimumShouldMatch;
+
     public MatchQuery(QueryParseContext parseContext) {
         this.parseContext = parseContext;
     }
@@ -90,9 +96,17 @@ public class MatchQuery {
     public void setAnalyzer(String analyzer) {
         this.analyzer = analyzer;
     }
+    
+    public void setMinimumShouldMatch(String minimumShouldMatch) {
+        this.minimumShouldMatch = minimumShouldMatch;
+    }
 
     public void setOccur(BooleanClause.Occur occur) {
         this.occur = occur;
+    }
+    
+    public void setStopwordsOptional(boolean stopwordsOptional) {
+        this.stopwordsOptional  = stopwordsOptional;
     }
 
     public void setEnablePositionIncrements(boolean enablePositionIncrements) {
@@ -194,6 +208,7 @@ public class MatchQuery {
         CachingTokenFilter buffer = null;
         CharTermAttribute termAtt = null;
         PositionIncrementAttribute posIncrAtt = null;
+        StopwordAttribute stopAttr = null;
         boolean success = false;
         try {
             source = analyzer.tokenStream(field, new FastStringReader(text));
@@ -216,6 +231,7 @@ public class MatchQuery {
             if (buffer.hasAttribute(PositionIncrementAttribute.class)) {
                 posIncrAtt = buffer.getAttribute(PositionIncrementAttribute.class);
             }
+            stopAttr = buffer.addAttribute(StopwordAttribute.class);
 
             boolean hasMoreTokens = false;
             if (termAtt != null) {
@@ -261,7 +277,9 @@ public class MatchQuery {
                 Query q = newTermQuery(mapper, new Term(field, termToByteRef(termAtt, new BytesRef())));
                 return wrapSmartNameQuery(q, smartNameFieldMappers, parseContext);
             }
-            BooleanQuery q = new BooleanQuery(positionCount == 1);
+            BooleanQuery q = new BooleanQuery(true);
+            final BooleanQuery optional = new BooleanQuery(positionCount == 1);
+            final BooleanQuery mandatory = new BooleanQuery(positionCount == 1);
             for (int i = 0; i < numTokens; i++) {
                 try {
                     boolean hasNext = buffer.incrementToken();
@@ -271,7 +289,23 @@ public class MatchQuery {
                 }
                 //LUCENE 4 UPGRADE instead of string term we can convert directly from utf-16 to utf-8
                 Query currentQuery = newTermQuery(mapper, new Term(field, termToByteRef(termAtt, new BytesRef())));
-                q.add(currentQuery, occur);
+                if (stopwordsOptional && stopAttr.isStopword()) {
+                    optional.add(currentQuery, occur); // we make stopwords optional so that they are only considered if the mandatory part matches
+                } else {
+                    mandatory.add(currentQuery, occur);
+                }
+            }
+            if (mandatory.clauses().isEmpty()) {
+                q = optional;
+                Queries.applyMinimumShouldMatch(q, minimumShouldMatch);
+            } else if (optional.clauses().isEmpty()){
+                q = mandatory;
+                Queries.applyMinimumShouldMatch(q, minimumShouldMatch);
+            } else {
+                q.add(mandatory, Occur.MUST);
+                q.add(optional, Occur.SHOULD);
+                // apply minShouldMatch before wrapping here otherwise the setting might not be applied
+                Queries.applyMinimumShouldMatch(mandatory, minimumShouldMatch);
             }
             return wrapSmartNameQuery(q, smartNameFieldMappers, parseContext);
         } else if (type == Type.PHRASE) {
