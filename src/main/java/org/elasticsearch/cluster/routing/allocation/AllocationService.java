@@ -228,7 +228,7 @@ public class AllocationService extends AbstractComponent {
                 continue;
             }
             RoutingNode routingNode = allocation.routingNodes().node(shardRouting.currentNodeId());
-            Decision decision = allocation.deciders().canRemain(shardRouting, routingNode, allocation);
+            Decision decision = allocation.deciders().canRemain(shardRouting, routingNode, allocation, false);
             if (decision.type() == Decision.Type.NO) {
                 logger.debug("[{}][{}] allocated on [{}], but can no longer be allocated on it, moving...", shardRouting.index(), shardRouting.id(), routingNode.node());
                 boolean moved = shardsAllocators.move(shardRouting, routingNode, allocation);

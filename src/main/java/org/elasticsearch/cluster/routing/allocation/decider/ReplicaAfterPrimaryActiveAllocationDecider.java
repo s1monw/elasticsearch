@@ -37,14 +37,14 @@ public class ReplicaAfterPrimaryActiveAllocationDecider extends AllocationDecide
     }
 
     @Override
-    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         if (shardRouting.primary()) {
-            return Decision.YES;
+            return decision(Decision.Type.YES, "[ReplicaAfterPrimary] Allocation allowed for primary shards", explain);
         }
         MutableShardRouting primary = allocation.routingNodes().findPrimaryForReplica(shardRouting);
         if (primary == null || !primary.active()) {
-            return Decision.NO;
+            return decision(Decision.Type.NO, "[ReplicaAfterPrimary] Replica allocation prohibited, not all primaries are active", explain);
         }
-        return Decision.YES;
+        return decision(Decision.Type.YES, "[ReplicaAfterPrimary] All primaries are active", explain);
     }
 }

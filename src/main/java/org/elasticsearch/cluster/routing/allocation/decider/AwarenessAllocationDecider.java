@@ -156,18 +156,18 @@ public class AwarenessAllocationDecider extends AllocationDecider {
     }
 
     @Override
-    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
-        return underCapacity(shardRouting, node, allocation, true) ? Decision.YES : Decision.NO;
+    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
+        return underCapacity(shardRouting, node, allocation, true, explain);
     }
 
     @Override
-    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
-        return underCapacity(shardRouting, node, allocation, false) ? Decision.YES : Decision.NO;
+    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
+        return underCapacity(shardRouting, node, allocation, false, explain);
     }
 
-    private boolean underCapacity(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean moveToNode) {
+    private Decision underCapacity(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean moveToNode, boolean explain) {
         if (awarenessAttributes.length == 0) {
-            return true;
+            return decision(Decision.Type.YES, "[Awareness] No Awareness settings present", explain);
         }
 
         IndexMetaData indexMetaData = allocation.metaData().index(shardRouting.index());
@@ -175,7 +175,7 @@ public class AwarenessAllocationDecider extends AllocationDecider {
         for (String awarenessAttribute : awarenessAttributes) {
             // the node the shard exists on must be associated with an awareness attribute
             if (!node.node().attributes().containsKey(awarenessAttribute)) {
-                return false;
+                return decision(Decision.Type.NO, "[Awareness] Awareness attribute don't exists on node", explain);
             }
 
             // build attr_value -> nodes map
@@ -236,7 +236,7 @@ public class AwarenessAllocationDecider extends AllocationDecider {
             int currentNodeCount = shardPerAttribute.get(node.node().attributes().get(awarenessAttribute));
             // if we are above with leftover, then we know we are not good, even with mod
             if (currentNodeCount > (requiredCountPerAttribute + leftoverPerAttribute)) {
-                return false;
+                return decision(Decision.Type.NO, "[Awareness] Allocation would exceed awareness threshold", explain);
             }
             // all is well, we are below or same as average
             if (currentNodeCount <= requiredCountPerAttribute) {
@@ -244,6 +244,6 @@ public class AwarenessAllocationDecider extends AllocationDecider {
             }
         }
 
-        return true;
+        return decision(Decision.Type.YES, "[Awareness] Allocation awareness satisfied", explain);
     }
 }

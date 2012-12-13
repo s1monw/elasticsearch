@@ -85,11 +85,11 @@ public class ClusterRebalanceAllocationDecider extends AllocationDecider {
     }
 
     @Override
-    public Decision canRebalance(ShardRouting shardRouting, RoutingAllocation allocation) {
+    public Decision canRebalance(ShardRouting shardRouting, RoutingAllocation allocation, boolean explain) {
         if (type == ClusterRebalanceType.INDICES_PRIMARIES_ACTIVE) {
             for (MutableShardRouting shard : allocation.routingNodes().unassigned()) {
                 if (shard.primary()) {
-                    return Decision.NO;
+                    return decision(Decision.Type.NO, "[ClusterRebalance] All primaries must be active for rebalance", explain);
                 }
             }
             for (RoutingNode node : allocation.routingNodes()) {
@@ -97,27 +97,26 @@ public class ClusterRebalanceAllocationDecider extends AllocationDecider {
                 for (int i = 0; i < shards.size(); i++) {
                     MutableShardRouting shard = shards.get(i);
                     if (shard.primary() && !shard.active() && shard.relocatingNodeId() == null) {
-                        return Decision.NO;
+                        return decision(Decision.Type.NO, "[ClusterRebalance] All primaries must be active for rebalance", explain);
                     }
                 }
             }
-            return Decision.YES;
+            return decision(Decision.Type.YES, "[ClusterRebalance] All primaries are active", explain);
         }
         if (type == ClusterRebalanceType.INDICES_ALL_ACTIVE) {
             if (!allocation.routingNodes().unassigned().isEmpty()) {
-                return Decision.NO;
+                return decision(Decision.Type.NO, "[ClusterRebalance] All replicas must be active for rebalance", explain);
             }
             for (RoutingNode node : allocation.routingNodes()) {
                 List<MutableShardRouting> shards = node.shards();
                 for (int i = 0; i < shards.size(); i++) {
                     MutableShardRouting shard = shards.get(i);
                     if (!shard.active() && shard.relocatingNodeId() == null) {
-                        return Decision.NO;
+                        return decision(Decision.Type.NO, "[ClusterRebalance] All replicas must be active for rebalance", explain);
                     }
                 }
             }
         }
-        // type == Type.ALWAYS
-        return Decision.YES;
+        return decision(Decision.Type.YES, "[ClusterRebalance] All replicas are active", explain);
     }
 }

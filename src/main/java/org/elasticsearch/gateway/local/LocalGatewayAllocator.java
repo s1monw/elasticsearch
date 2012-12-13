@@ -195,7 +195,7 @@ public class LocalGatewayAllocator extends AbstractComponent implements GatewayA
             Set<DiscoveryNode> noNodes = Sets.newHashSet();
             for (DiscoveryNode discoNode : nodesWithHighestVersion) {
                 RoutingNode node = routingNodes.node(discoNode.id());
-                Decision decision = allocation.deciders().canAllocate(shard, node, allocation);
+                Decision decision = allocation.deciders().canAllocate(shard, node, allocation, false);
                 if (decision.type() == Decision.Type.THROTTLE) {
                     throttledNodes.add(discoNode);
                 } else if (decision.type() == Decision.Type.NO) {
@@ -258,7 +258,7 @@ public class LocalGatewayAllocator extends AbstractComponent implements GatewayA
                 }
                 // if we can't allocate it on a node, ignore it, for example, this handles
                 // cases for only allocating a replica after a primary
-                Decision decision = allocation.deciders().canAllocate(shard, node, allocation);
+                Decision decision = allocation.deciders().canAllocate(shard, node, allocation, false);
                 if (decision.type() == Decision.Type.YES) {
                     canBeAllocatedToAtLeastOneNode = true;
                     break;
@@ -293,7 +293,7 @@ public class LocalGatewayAllocator extends AbstractComponent implements GatewayA
                 // check if we can allocate on that node...
                 // we only check for NO, since if this node is THROTTLING and it has enough "same data"
                 // then we will try and assign it next time
-                Decision decision = allocation.deciders().canAllocate(shard, node, allocation);
+                Decision decision = allocation.deciders().canAllocate(shard, node, allocation, false);
                 if (decision.type() == Decision.Type.NO) {
                     continue;
                 }
@@ -330,7 +330,7 @@ public class LocalGatewayAllocator extends AbstractComponent implements GatewayA
 
             if (lastNodeMatched != null) {
                 // we only check on THROTTLE since we checked before before on NO
-                Decision decision = allocation.deciders().canAllocate(shard, lastNodeMatched, allocation);
+                Decision decision = allocation.deciders().canAllocate(shard, lastNodeMatched, allocation, false);
                 if (decision.type() == Decision.Type.THROTTLE) {
                     if (logger.isTraceEnabled()) {
                         logger.debug("[{}][{}]: throttling allocation [{}] to [{}] in order to reuse its unallocated persistent store with total_size [{}]", shard.index(), shard.id(), shard, lastDiscoNodeMatched, new ByteSizeValue(lastSizeMatched));

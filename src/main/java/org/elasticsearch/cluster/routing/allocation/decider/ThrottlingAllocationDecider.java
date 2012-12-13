@@ -75,7 +75,7 @@ public class ThrottlingAllocationDecider extends AllocationDecider {
     }
 
     @Override
-    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         if (shardRouting.primary()) {
             boolean primaryUnassigned = false;
             for (MutableShardRouting shard : allocation.routingNodes().unassigned()) {
@@ -95,9 +95,9 @@ public class ThrottlingAllocationDecider extends AllocationDecider {
                     }
                 }
                 if (primariesInRecovery >= primariesInitialRecoveries) {
-                    return Decision.THROTTLE;
+                    return decision(Decision.Type.THROTTLE, "[Throtteling] Too many primaries recovering", explain);
                 } else {
-                    return Decision.YES;
+                    return decision(Decision.Type.YES, "[Throtteling] Recovery is below threshold", explain);
                 }
             }
         }
@@ -115,9 +115,9 @@ public class ThrottlingAllocationDecider extends AllocationDecider {
         }
 
         if (currentRecoveries >= concurrentRecoveries) {
-            return Decision.THROTTLE;
+            return decision(Decision.Type.THROTTLE, "[Throtteling] Too many concurrent recoveries", explain);
         } else {
-            return Decision.YES;
+            return decision(Decision.Type.YES, "[Throtteling] Recovery is below threshold", explain);
         }
     }
 

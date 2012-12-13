@@ -19,6 +19,7 @@
 
 package org.elasticsearch.cluster.routing.allocation.decider;
 
+import org.elasticsearch.ElasticSearchIllegalArgumentException;
 import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
@@ -45,7 +46,7 @@ public abstract class AllocationDecider extends AbstractComponent {
      * re-balanced to the given allocation. The default is
      * {@link Decision#ALWAYS}.
      */
-    public Decision canRebalance(ShardRouting shardRouting, RoutingAllocation allocation) {
+    public Decision canRebalance(ShardRouting shardRouting, RoutingAllocation allocation, boolean explain) {
         return Decision.ALWAYS;
     }
 
@@ -53,7 +54,7 @@ public abstract class AllocationDecider extends AbstractComponent {
      * Returns a {@link Decision} whether the given shard routing can be
      * allocated on the given node. The default is {@link Decision#ALWAYS}.
      */
-    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         return Decision.ALWAYS;
     }
 
@@ -61,7 +62,20 @@ public abstract class AllocationDecider extends AbstractComponent {
      * Returns a {@link Decision} whether the given shard routing can be remain
      * on the given node. The default is {@link Decision#ALWAYS}.
      */
-    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         return Decision.ALWAYS;
+    }
+    
+    protected static Decision decision(Decision.Type type, String explainMsg, boolean explain) {
+        switch (type) {
+        case NO:
+            return explain ? Decision.single(type, explainMsg) : Decision.NO;
+        case THROTTLE:
+            return explain ? Decision.single(type, explainMsg) : Decision.THROTTLE;
+        case YES:
+            return explain ? Decision.single(type, explainMsg) : Decision.YES;
+        default:
+            throw new ElasticSearchIllegalArgumentException("unknown decision type: " + type);
+        }
     }
 }

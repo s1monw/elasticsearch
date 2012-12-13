@@ -104,50 +104,50 @@ public class FilterAllocationDecider extends AllocationDecider {
     }
 
     @Override
-    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
-        return shouldFilter(shardRouting, node, allocation) ? Decision.NO : Decision.YES;
+    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
+        return shouldFilter(shardRouting, node, allocation, explain);
     }
 
     @Override
-    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
-        return shouldFilter(shardRouting, node, allocation) ? Decision.NO : Decision.YES;
+    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
+        return shouldFilter(shardRouting, node, allocation, explain);
     }
 
-    private boolean shouldFilter(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    private Decision shouldFilter(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         if (clusterRequireFilters != null) {
             if (!clusterRequireFilters.match(node.node())) {
-                return true;
+                return decision(Decision.Type.NO, "[FilterAllocation] Node is not required", explain);
             }
         }
         if (clusterIncludeFilters != null) {
             if (!clusterIncludeFilters.match(node.node())) {
-                return true;
+                return decision(Decision.Type.NO, "[FilterAllocation] Node is not included", explain);
             }
         }
         if (clusterExcludeFilters != null) {
             if (clusterExcludeFilters.match(node.node())) {
-                return true;
+                return decision(Decision.Type.NO, "[FilterAllocation] Node is excluded", explain);
             }
         }
 
         IndexMetaData indexMd = allocation.routingNodes().metaData().index(shardRouting.index());
         if (indexMd.requireFilters() != null) {
             if (!indexMd.requireFilters().match(node.node())) {
-                return true;
+                return decision(Decision.Type.NO, "[FilterAllocation] Node is not required for the current index", explain);
             }
         }
         if (indexMd.includeFilters() != null) {
             if (!indexMd.includeFilters().match(node.node())) {
-                return true;
+                return decision(Decision.Type.NO, "[FilterAllocation] Node is not included for the current index", explain);
             }
         }
         if (indexMd.excludeFilters() != null) {
             if (indexMd.excludeFilters().match(node.node())) {
-                return true;
+                return decision(Decision.Type.NO, "[FilterAllocation] Node is excluded for the current index", explain);
             }
         }
 
-        return false;
+        return decision(Decision.Type.YES, "[FilterAllocation] Allocation is not filtered", explain);
     }
 
     class ApplySettings implements NodeSettingsService.Listener {

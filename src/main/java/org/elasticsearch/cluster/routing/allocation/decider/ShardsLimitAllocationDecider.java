@@ -69,11 +69,11 @@ public class ShardsLimitAllocationDecider extends AllocationDecider {
     }
 
     @Override
-    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         IndexMetaData indexMd = allocation.routingNodes().metaData().index(shardRouting.index());
         int totalShardsPerNode = indexMd.settings().getAsInt(INDEX_TOTAL_SHARDS_PER_NODE, -1);
         if (totalShardsPerNode <= 0) {
-            return Decision.YES;
+            return decision(Decision.Type.YES, "[ShardsLimit] Number of shards per node is unlimited", explain);
         }
 
         int nodeCount = 0;
@@ -90,17 +90,17 @@ public class ShardsLimitAllocationDecider extends AllocationDecider {
             nodeCount++;
         }
         if (nodeCount >= totalShardsPerNode) {
-            return Decision.NO;
+            return decision(Decision.Type.NO, "[ShardsLimit] Too many shards allocated on the current node", explain);
         }
-        return Decision.YES;
+        return decision(Decision.Type.YES, "[ShardsLimit] Number of allocated shards is below the limit", explain);
     }
 
     @Override
-    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         IndexMetaData indexMd = allocation.routingNodes().metaData().index(shardRouting.index());
         int totalShardsPerNode = indexMd.settings().getAsInt(INDEX_TOTAL_SHARDS_PER_NODE, -1);
         if (totalShardsPerNode <= 0) {
-            return Decision.YES;
+            return decision(Decision.Type.YES, "[ShardsLimit] Number of shards per node is unlimited", explain);
         }
 
         int nodeCount = 0;
@@ -117,8 +117,8 @@ public class ShardsLimitAllocationDecider extends AllocationDecider {
             nodeCount++;
         }
         if (nodeCount > totalShardsPerNode) {
-            return Decision.NO;
+            return decision(Decision.Type.NO, "[ShardsLimit] Too many shards allocated on the current node", explain);
         }
-        return Decision.YES;
-    }
+        return decision(Decision.Type.YES, "[ShardsLimit] Number of allocated shards is below the limit", explain);
+      }
 }

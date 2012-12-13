@@ -23,10 +23,12 @@ import com.google.common.collect.ImmutableSet;
 import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
+import org.elasticsearch.cluster.routing.allocation.decider.Decision.Multi;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.settings.NodeSettingsService;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -65,10 +67,10 @@ public class AllocationDeciders extends AllocationDecider {
     }
 
     @Override
-    public Decision canRebalance(ShardRouting shardRouting, RoutingAllocation allocation) {
+    public Decision canRebalance(ShardRouting shardRouting, RoutingAllocation allocation, boolean explain) {
         Decision.Multi ret = new Decision.Multi();
         for (AllocationDecider allocationDecider : allocations) {
-            Decision decision = allocationDecider.canRebalance(shardRouting, allocation);
+            Decision decision = allocationDecider.canRebalance(shardRouting, allocation, explain);
             if (decision != Decision.ALWAYS) {
                 ret.add(decision);
             }
@@ -77,13 +79,13 @@ public class AllocationDeciders extends AllocationDecider {
     }
 
     @Override
-    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         if (allocation.shouldIgnoreShardForNode(shardRouting.shardId(), node.nodeId())) {
             return Decision.NO;
         }
         Decision.Multi ret = new Decision.Multi();
         for (AllocationDecider allocationDecider : allocations) {
-            Decision decision = allocationDecider.canAllocate(shardRouting, node, allocation);
+            Decision decision = allocationDecider.canAllocate(shardRouting, node, allocation, explain);
             // the assumption is that a decider that returns the static instance Decision#ALWAYS
             // does not really implements canAllocate
             if (decision != Decision.ALWAYS) {
@@ -94,13 +96,13 @@ public class AllocationDeciders extends AllocationDecider {
     }
 
     @Override
-    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    public Decision canRemain(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         if (allocation.shouldIgnoreShardForNode(shardRouting.shardId(), node.nodeId())) {
             return Decision.NO;
         }
         Decision.Multi ret = new Decision.Multi();
         for (AllocationDecider allocationDecider : allocations) {
-            Decision decision = allocationDecider.canRemain(shardRouting, node, allocation);
+            Decision decision = allocationDecider.canRemain(shardRouting, node, allocation, explain);
             if (decision != Decision.ALWAYS) {
                 ret.add(decision);
             }

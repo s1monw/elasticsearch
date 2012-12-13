@@ -119,7 +119,7 @@ public class BlobReuseExistingGatewayAllocator extends AbstractComponent impleme
                     continue;
                 }
                 // if its THROTTLING, we are not going to allocate it to this node, so ignore it as well
-                Decision decision = allocation.deciders().canAllocate(shard, node, allocation);
+                Decision decision = allocation.deciders().canAllocate(shard, node, allocation, false);
                 if (decision.type() == Decision.Type.YES) {
                     canBeAllocatedToAtLeastOneNode = true;
                     break;
@@ -154,7 +154,7 @@ public class BlobReuseExistingGatewayAllocator extends AbstractComponent impleme
                 // check if we can allocate on that node...
                 // we only check for NO, since if this node is THROTTLING and it has enough "same data"
                 // then we will try and assign it next time
-                if (allocation.deciders().canAllocate(shard, node, allocation).type() == Decision.Type.NO) {
+                if (allocation.deciders().canAllocate(shard, node, allocation, false).type() == Decision.Type.NO) {
                     continue;
                 }
 
@@ -237,7 +237,7 @@ public class BlobReuseExistingGatewayAllocator extends AbstractComponent impleme
             }
 
             if (lastNodeMatched != null) {
-                if (allocation.deciders().canAllocate(shard, lastNodeMatched, allocation).type() == Decision.Type.THROTTLE) {
+                if (allocation.deciders().canAllocate(shard, lastNodeMatched, allocation, false).type() == Decision.Type.THROTTLE) {
                     if (logger.isTraceEnabled()) {
                         logger.debug("[{}][{}]: throttling allocation [{}] to [{}] in order to reuse its unallocated persistent store with total_size [{}]", shard.index(), shard.id(), shard, lastDiscoNodeMatched, new ByteSizeValue(lastSizeMatched));
                     }

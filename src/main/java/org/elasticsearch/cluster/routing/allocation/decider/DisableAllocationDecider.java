@@ -100,17 +100,20 @@ public class DisableAllocationDecider extends AllocationDecider {
     }
 
     @Override
-    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+    public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation, boolean explain) {
         if (shardRouting.primary() && !allocation.routingNodes().routingTable().index(shardRouting.index()).shard(shardRouting.id()).primaryAllocatedPostApi()) {
             // if its primary, and it hasn't been allocated post API (meaning its a "fresh newly created shard"), only disable allocation
             // on a special disable allocation flag
-            return allocation.ignoreDisable() ? Decision.YES : disableNewAllocation ? Decision.NO : Decision.YES;
+            return allocation.ignoreDisable() ? decision(Decision.Type.YES, "[DisableAllocation] Disabled allocations are ignored", explain) : 
+                disableNewAllocation ? decision(Decision.Type.NO, "[DisableAllocation] New allocations are disabled", explain) :
+                    decision(Decision.Type.YES, "[DisableAllocation] PreAPI allocations are allowed ", explain);
         }
         if (disableAllocation) {
-            return allocation.ignoreDisable() ? Decision.YES : Decision.NO;
+            return allocation.ignoreDisable() ? decision(Decision.Type.YES, "[DisableAllocation] Disabled allocations are ignored", explain) : decision(Decision.Type.NO, "Shard allocation is disabled", explain);
         }
         if (disableReplicaAllocation) {
-            return shardRouting.primary() ? Decision.YES : allocation.ignoreDisable() ? Decision.YES : Decision.NO;
+            return shardRouting.primary() ? decision(Decision.Type.YES, "[DisableAllocation] Only replica allocations are disabled", explain) :
+                (allocation.ignoreDisable() ? decision(Decision.Type.YES, "[DisableAllocation] Disabled allocations are ignored", explain) : decision(Decision.Type.NO, "Replica allocation is disabled", explain));
         }
         return Decision.YES;
     }

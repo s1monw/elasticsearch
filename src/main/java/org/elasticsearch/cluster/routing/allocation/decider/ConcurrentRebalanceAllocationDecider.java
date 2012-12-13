@@ -74,9 +74,9 @@ public class ConcurrentRebalanceAllocationDecider extends AllocationDecider {
     }
 
     @Override
-    public Decision canRebalance(ShardRouting shardRouting, RoutingAllocation allocation) {
+    public Decision canRebalance(ShardRouting shardRouting, RoutingAllocation allocation, boolean explain) {
         if (clusterConcurrentRebalance == -1) {
-            return Decision.YES;
+            return decision(Decision.Type.YES, "[ConcurrentRebalance] Concurrent rebalance is unlimited", explain);
         }
         int rebalance = 0;
         for (RoutingNode node : allocation.routingNodes()) {
@@ -88,8 +88,9 @@ public class ConcurrentRebalanceAllocationDecider extends AllocationDecider {
             }
         }
         if (rebalance >= clusterConcurrentRebalance) {
-            return Decision.NO;
+            return decision(Decision.Type.NO, "[ConcurrentRebalance] Too many concurrent rebalance operations", explain);
         }
-        return Decision.YES;
+        return decision(Decision.Type.YES, "[ConcurrentRebalance] Concurrent rebalance operations is below threshold", explain);
+
     }
 }

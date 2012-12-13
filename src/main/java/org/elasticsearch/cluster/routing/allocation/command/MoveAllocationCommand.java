@@ -159,7 +159,7 @@ public class MoveAllocationCommand implements AllocationCommand {
             }
 
             RoutingNode toRoutingNode = allocation.routingNodes().node(toDiscoNode.id());
-            Decision decision = allocation.deciders().canAllocate(shardRouting, toRoutingNode, allocation);
+            Decision decision = allocation.deciders().canAllocate(shardRouting, toRoutingNode, allocation, true);
             if (decision.type() == Decision.Type.NO) {
                 throw new ElasticSearchIllegalArgumentException("[move_allocation] can't move " + shardId + ", from " + fromDiscoNode + ", to " + toDiscoNode + ", since its not allowed, reason: " + decision);
             }
