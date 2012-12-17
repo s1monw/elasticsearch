@@ -374,12 +374,11 @@ class Balancer {
             if(decision.type() == Type.YES) {
                 source.removeReplica(info);
                 nodes[i].addReplica(new ShardInfo(replica, decision));
-                
-                allocation.routingNodes().node(nodes[i].id).add(new MutableShardRouting(replica.index(), replica.id(),
+                target.add(new MutableShardRouting(replica.index(), replica.id(),
                         nodes[i].id, replica.currentNodeId(),
                         replica.primary(), ShardRoutingState.INITIALIZING, replica.version() + 1));
                 
-                info.replica.relocate(nodes[i].id);
+                replica.relocate(nodes[i].id);
                 logger.info("\tReplica " + toString(info.replica) + " moved to " + nodes[i].id);
                 return true;
             }
@@ -410,17 +409,23 @@ class Balancer {
                         if(id!=0) {
                             return id;
                         } else {
-                            String aNode = a.assignedToNode()?(a.relocating()?a.relocatingNodeId():a.currentNodeId()):null;
-                            String bNode = b.assignedToNode()?(b.relocating()?b.relocatingNodeId():b.currentNodeId()):null;
-                            if(aNode==null && bNode!=null) {
+                            if (a.version() < b.version()) {
                                 return 1;
-                            } else if(bNode==null && aNode!=null){
-                                return -1;
-                            } else if(aNode!=null && bNode!=null) {
-                                return aNode.compareTo(bNode);
-                            } else {
-                                return a.hashCode()-b.hashCode();
+                            } else if (a.version() == b.version()) {
+                                return 0;
                             }
+                            return -1;
+//                            String aNode = a.assignedToNode()?(a.relocating()?a.relocatingNodeId():a.currentNodeId()):null;
+//                            String bNode = b.assignedToNode()?(b.relocating()?b.relocatingNodeId():b.currentNodeId()):null;
+//                            if(aNode==null && bNode!=null) {
+//                                return 1;
+//                            } else if(bNode==null && aNode!=null){
+//                                return -1;
+//                            } else if(aNode!=null && bNode!=null) {
+//                                return aNode.compareTo(bNode);
+//                            } else {
+//                                return a.hashCode()-b.hashCode();
+//                            }
                         }
                     }
                 }
