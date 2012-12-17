@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
-import org.apache.lucene.util.PriorityQueue;
 import org.elasticsearch.cluster.routing.IndexRoutingTable;
 import org.elasticsearch.cluster.routing.IndexShardRoutingTable;
 import org.elasticsearch.cluster.routing.MutableShardRouting;
@@ -50,8 +49,6 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
-
-import com.fasterxml.jackson.dataformat.yaml.snakeyaml.nodes.Node;
 
 /**
  * 1) Maximize the number of nodes that keep a primary
