@@ -373,13 +373,15 @@ class Balancer {
             logger.info("\t" + nodes[i].id + " " + decision.type());
             if(decision.type() == Type.YES) {
                 source.removeReplica(info);
-                nodes[i].addReplica(new ShardInfo(replica, decision));
-                target.add(new MutableShardRouting(replica.index(), replica.id(),
+                MutableShardRouting copy = new MutableShardRouting(replica.index(), replica.id(),
                         nodes[i].id, replica.currentNodeId(),
-                        replica.primary(), ShardRoutingState.INITIALIZING, replica.version() + 1));
+                        replica.primary(), ShardRoutingState.INITIALIZING, replica.version() + 1);
+                ;
+                nodes[i].addReplica(new ShardInfo(copy, decision));
+                target.add(copy);
                 
-                replica.relocate(nodes[i].id);
-                logger.info("\tReplica " + toString(info.replica) + " moved to " + nodes[i].id);
+                replica.relocate(target.nodeId());
+                logger.info("\tReplica " + toString(info.replica) +  " v: " +  replica.version() + " moved to " + nodes[i].id + " copy v: " + copy.version());
                 return true;
             }
         }
@@ -722,15 +724,18 @@ class Balancer {
 
                 //Move on Cluster
                 if(replica.replica.started()) {
-                    if(!minNode.id.equals(replica.replica.currentNodeId())) {
+                    
+                    String rId = replica.replica.relocating() ? replica.replica.relocatingNodeId() : replica.replica.currentNodeId();
+                    
+                    if(!minNode.id.equals(rId)) {
                         RoutingNode lowRoutingNode = allocation.routingNodes().node(minNode.id);
                         
                         lowRoutingNode.add(new MutableShardRouting(replica.replica.index(), replica.replica.id(),
                                 lowRoutingNode.nodeId(), replica.replica.currentNodeId(),
                                 replica.replica.primary(), INITIALIZING, replica.replica.version() + 1));
                         
-                        replica.replica.relocate(minNode.id);
-                        logger.info("\tMoved " + toString(replica.replica));
+                        replica.replica.relocate(lowRoutingNode.nodeId());
+                        logger.info("\tMoved " + toString(replica.replica) + " v: " + replica.replica.version());
                         changed = true;
                     }
                 } else if(replica.replica.unassigned()) {
