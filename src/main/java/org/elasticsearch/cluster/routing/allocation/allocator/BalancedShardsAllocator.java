@@ -24,7 +24,6 @@ import static org.elasticsearch.cluster.routing.ShardRoutingState.INITIALIZING;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,6 +48,10 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
+
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
 
 /**
  * 1) Maximize the number of nodes that keep a primary
@@ -159,14 +162,9 @@ class BasicBalance implements WeightFunction {
 
     @Override
     public float weight(Balancer balancer, NodeInfo node, String index) {
-        
-//        float weight = ((indexBalance * node.numReplicas(index)) - balancer.stats.avgReplicasOfIndexPerNode(index))
-//                      + (replicaBalance * (node.numReplicas() - balancer.stats.avgReplicasPerNode()))
-//                      + ((primaryBalance * node.numPrimaries()) - balancer.stats.avgPrimariesPerNode());
-
-        float weightReplica = replicaBalance * (node.numReplicas() - balancer.stats.avgReplicasPerNode());
-        float weightIndex = indexBalance * (node.numReplicas(index) - balancer.stats.avgReplicasOfIndexPerNode(index));
-        float weightPrimary = primaryBalance * (node.numPrimaries() - balancer.stats.avgPrimariesPerNode());
+        final float weightReplica = replicaBalance * (node.numReplicas() - balancer.stats.avgReplicasPerNode());
+        final float weightIndex = indexBalance * (node.numReplicas(index) - balancer.stats.avgReplicasOfIndexPerNode(index));
+        final float weightPrimary = primaryBalance * (node.numPrimaries() - balancer.stats.avgPrimariesPerNode());
         return weightReplica + weightIndex + weightPrimary;
     }
 
@@ -358,9 +356,8 @@ class Balancer {
             return false;
         }
         
-        ShardInfo info = source.getReplica(replica);
         
-        if(info == null) {
+        if(!source.containsReplica(replica)) {
             return false;
         }
 
@@ -372,16 +369,15 @@ class Balancer {
             Decision decision = allocation.deciders().canAllocate(replica, target, allocation);
             logger.info("\t" + nodes[i].id + " " + decision.type());
             if(decision.type() == Type.YES) {
-                source.removeReplica(info);
-                MutableShardRouting copy = new MutableShardRouting(replica.index(), replica.id(),
+                source.removeReplica(replica);
+                MutableShardRouting initializingShard = new MutableShardRouting(replica.index(), replica.id(),
                         nodes[i].id, replica.currentNodeId(),
                         replica.primary(), ShardRoutingState.INITIALIZING, replica.version() + 1);
-                ;
-                nodes[i].addReplica(new ShardInfo(copy, decision));
-                target.add(copy);
+                nodes[i].addReplica(initializingShard, decision);
+                target.add(initializingShard);
                 
                 replica.relocate(target.nodeId());
-                logger.info("\tReplica " + toString(info.replica) +  " v: " +  replica.version() + " moved to " + nodes[i].id + " copy v: " + copy.version());
+                logger.info("\tReplica " + toString(replica) +  " v: " +  replica.version() + " moved to " + nodes[i].id + " copy v: " + initializingShard.version());
                 return true;
             }
         }
@@ -390,98 +386,57 @@ class Balancer {
         return changed;
     }
     
-    class DistributionOrder implements Comparator<MutableShardRouting> {
-        
-        @Override
-        public int compare(MutableShardRouting a, MutableShardRouting b) {
-            if(a.assignedToNode()!=b.assignedToNode()) {
-                return a.assignedToNode()?-1:1;
-            } else if(a.primary()!=b.primary()) {
-                return a.primary()?-1:1;
-            } else {
-                final int index = a.index().compareTo(b.index());
-                if(index!=0) {
-                    return index;
-                } else {
-                    final int shard = a.shardId().id()-b.shardId().id();
-                    if(shard != 0) {
-                        return shard;
-                    } else {
-                        final int id = a.id() - b.id();
-                        if(id!=0) {
-                            return id;
-                        } else {
-                            if (a.version() < b.version()) {
-                                return 1;
-                            } else if (a.version() == b.version()) {
-                                return 0;
-                            }
-                            return -1;
-//                            String aNode = a.assignedToNode()?(a.relocating()?a.relocatingNodeId():a.currentNodeId()):null;
-//                            String bNode = b.assignedToNode()?(b.relocating()?b.relocatingNodeId():b.currentNodeId()):null;
-//                            if(aNode==null && bNode!=null) {
-//                                return 1;
-//                            } else if(bNode==null && aNode!=null){
-//                                return -1;
-//                            } else if(aNode!=null && bNode!=null) {
-//                                return aNode.compareTo(bNode);
-//                            } else {
-//                                return a.hashCode()-b.hashCode();
-//                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
     
     private boolean distributeReplicas(Collection<MutableShardRouting> replicas) {
         ArrayList<MutableShardRouting> others = new ArrayList<MutableShardRouting>();
-        
-        boolean failed = false;
         boolean changed = false;
         List<MutableShardRouting> added = new ArrayList<MutableShardRouting>();
-
+        Predicate<MutableShardRouting> assignedFilter = new Predicate<MutableShardRouting>() {
+            @Override
+            public boolean apply(MutableShardRouting input) {
+                return input.assignedToNode();
+            }
+        }; 
         others.addAll(replicas);
-        Collections.sort(others, new DistributionOrder());
+        changed |= buildModel(Iterables.filter(replicas, assignedFilter), added);
+        changed |= buildModel(Iterables.filter(replicas, Predicates.not(assignedFilter)), added);
+        replicas.removeAll(added);
         
-        
-        for(MutableShardRouting replica : others) {
+        return changed;
+    }
+    
+    private boolean buildModel(Iterable<MutableShardRouting> replicas, List<MutableShardRouting> added) {
+        boolean changed = false;
+        for(MutableShardRouting replica : replicas) {
             NodeInfo node = allocateReplica(replica);
             if(node==null) {
-                failed = true;
                 logger.info("\t\tFAILED TO ASSIGN REPLICA " + toString(replica) + " ");
             } else {
                 logger.info("\t\tAssigned Replica " + toString(replica) + " to " + node.id);
                 if(replica.unassigned()) {
                     allocation.routingNodes().node(node.id).add(replica);
                     changed=true;
-                } else if(replica.initializing()) {
-//                    replica.moveToStarted();
                 }
                 String replicanode = replica.relocating()?replica.relocatingNodeId():replica.currentNodeId();
                 changed |= !node.id.equals(replicanode) ;
-
-//                changed = true;
                 added.add(replica);
             }
         }
-
-        replicas.removeAll(added);
-        
         return changed;
     }
     
     private NodeInfo allocateReplica(MutableShardRouting replica) {
         assert !nodes.isEmpty();
         // find an allocatable node which weight is minimal
-
         String nodeid = replica.relocating()?replica.relocatingNodeId():replica.currentNodeId();
         if(replica.assignedToNode()) {
             for (NodeInfo node : nodes) {
                 if(node.id.equals(nodeid)) {
                     logger.debug("\t\t\tReassign replica "+ toString(replica) + " to " +node.id + ": "  + allocation.deciders().canAllocate(replica, allocation.routingNodes().node(node.id), allocation).toString());
-                    if(node.addReplica(new ShardInfo(replica, Decision.single(Type.YES, "Already allocated on node", node.id)))) {
+                    if (replica.state() == ShardRoutingState.RELOCATING) {
+                        continue; // we skip relocating shards here since we expect an initializing shard with the same id coming in
+                    }
+                    if(node.addReplica(replica, Decision.single(Type.YES, "Already allocated on node", node.id))) {
                         return node;
                     }
                 }
@@ -495,8 +450,7 @@ class Balancer {
         Decision decision = null;
 
         for (NodeInfo node : nodes) {
-            ShardInfo shard = new ShardInfo(replica, decision);
-            if(node.addReplica(shard)) {
+            if(node.addReplica(replica, Decision.ALWAYS)) { // we delete this replica anyways
                 float w = weight.weight(this, node, replica.index());
                 if (w < min) {
                     RoutingNode routing = allocation.routingNodes().node(node.id);
@@ -508,60 +462,54 @@ class Balancer {
                         decision = currentDecision;
                     }
                 }
-                if(!node.removeReplica(shard)) {
-                    throw new RuntimeException("Unable to reinsert shardinfo");
-                }
+                Decision removed = node.removeReplica(replica);
+                assert removed != null;
             }
         }
 
         if (minNode != null) {
-            if(minNode.addReplica(new ShardInfo(replica, decision))) {
+            assert decision != null;
+            if(minNode.addReplica(replica, decision)) {
                 return minNode;
             }
         }
         return null;
     }
     
-    protected ShardInfo relocateSomeReplica(NodeInfo src, NodeInfo dst, String idx) {
-        IndexInfo index = src.getIndexInfo(idx);
+    protected MutableShardRouting relocateSomeReplica(NodeInfo src, NodeInfo dst, String idx) {
+        ModelIndex index = src.getIndexInfo(idx);
         if(index == null) {
             return null;
         } else {
-
             logger.info("Relocate some replica of '"+idx+"' to move form '" + src.id + "' to '" + dst.id+"'");
-
             RoutingNode node = allocation.routingNodes().node(dst.id);
             float minCost = Float.POSITIVE_INFINITY;
-            ShardInfo candidate = null;
+            MutableShardRouting candidate = null;
             Decision decision = null;
                         
-            Collection<ShardInfo> allReplicas = new ArrayList<ShardInfo>(index.replicas);
+            Collection<MutableShardRouting> allReplicas = new ArrayList<MutableShardRouting>(index.getAllReplicas());
             
-            for(ShardInfo info : allReplicas) {
+            for(MutableShardRouting info : allReplicas) {
                 
-                Decision allocationDecision = allocation.deciders().canAllocate(info.replica, node, allocation);
-                Decision rebalanceDecission = allocation.deciders().canRebalance(info.replica, allocation);
+                Decision allocationDecision = allocation.deciders().canAllocate(info, node, allocation);
+                Decision rebalanceDecission = allocation.deciders().canRebalance(info, allocation);
                 
                 if((allocationDecision.type() == Type.YES) || (allocationDecision.type() == Type.THROTTLE)) {
                     if((rebalanceDecission.type() == Type.YES) || (rebalanceDecission.type() == Type.THROTTLE)) {
-                        
-                        if(src.removeReplica(info)) {
-                            if(dst.addReplica(info)) {
+                        Decision srcDecision;
+                        if((srcDecision = src.removeReplica(info)) != null) {
+                            if(dst.addReplica(info, srcDecision)) {
+                                final float weightDiff = weight.weight(this, dst, idx) - weight.weight(this, src, idx); 
+                                logger.info("\t" + toString(info) + " canAllocate=" + allocationDecision.type() + " canRebalance="+rebalanceDecission.type()+" optimize="+weightDiff);
                                 
-                                float srcWeight = weight.weight(this, src, idx);
-                                float dstWeight = weight.weight(this, dst, idx);
-                                float currentCost = dstWeight-srcWeight; 
-    
-                                logger.info("\t" + toString(info.replica) + " canAllocate=" + allocationDecision.type() + " canRebalance="+rebalanceDecission.type()+" optimize="+currentCost);
-                                
-                                if(currentCost<minCost) {
-                                    minCost = currentCost;
+                                if(weightDiff<minCost) {
+                                    minCost = weightDiff;
                                     candidate = info;
                                     decision = new Decision.Multi().add(allocationDecision).add(rebalanceDecission);
                                 }
                                 dst.removeReplica(info);
                             }
-                            src.addReplica(info);
+                            src.addReplica(info, srcDecision);
                         }
                     }
                 }
@@ -569,8 +517,7 @@ class Balancer {
             
             if(candidate != null) {
                 src.removeReplica(candidate);
-                dst.addReplica(candidate);
-                candidate.decision = decision;
+                dst.addReplica(candidate, decision);
                 return candidate;
             } else {
                 return null;
@@ -613,10 +560,6 @@ class Balancer {
         
         logger.info("-------- INITIALIZE BALANCE --------");
         boolean changed = initateReplicas(allocation.routingNodes());
-        
-//        if(changed)
-//            return true;
-        
         logger.info("----------- REBALANCE --------------");
         logger.info(stats.toString());
         
@@ -649,31 +592,8 @@ class Balancer {
 
             NodeInfo minNode = nodes.pollFirst();
             NodeInfo maxNode = nodes.pollLast();
-
-//            if(order.weight(maxNode)-order.weight(minNode)<treshold) {
-//                break;
-//            }
-            
             boolean moved = false;
             if(maxNode.numReplicas(index) > 0){
-                
-//                if(index.equals("test13") || index.equals("test11")) {
-//                
-//                    StringBuilder sb = new StringBuilder("[");
-//                    for (NodeInfo n : ignoredMin)
-//                        sb.append(" ").append(n.id);
-//                    sb.append(" ]");
-//                    sb.append(" " + minNode.id);
-//                    for (NodeInfo n : nodes)
-//                        sb.append(" ").append(n.id);
-//                    sb.append(" " + maxNode.id);
-//                    sb.append(" [");
-//                    for (NodeInfo n : ignoredMax)
-//                        sb.append(" ").append(n.id);
-//                    sb.append(" ]");
-//                    logger.info(sb.toString());
-//                }
-                
                 moved = balanceRelocation(index, minNode, maxNode, order);
             }
             
@@ -715,32 +635,29 @@ class Balancer {
         boolean changed = false;
         
         if(diff>=treshold) {
-            ShardInfo replica = relocateSomeReplica(maxNode, minNode, index);
+            MutableShardRouting replica = relocateSomeReplica(maxNode, minNode, index);
             if(replica != null) {
-                logger.debug("\t\tReplica: " + toString(replica.replica));
+                logger.debug("\t\tReplica: " + toString(replica));
                 //Move in Simulation
-                maxNode.removeReplica(replica);
-                minNode.addReplica(replica);
-
                 //Move on Cluster
-                if(replica.replica.started()) {
+                if(replica.started()) {
                     
-                    String rId = replica.replica.relocating() ? replica.replica.relocatingNodeId() : replica.replica.currentNodeId();
+                    String rId = replica.relocating() ? replica.relocatingNodeId() : replica.currentNodeId();
                     
                     if(!minNode.id.equals(rId)) {
                         RoutingNode lowRoutingNode = allocation.routingNodes().node(minNode.id);
                         
-                        lowRoutingNode.add(new MutableShardRouting(replica.replica.index(), replica.replica.id(),
-                                lowRoutingNode.nodeId(), replica.replica.currentNodeId(),
-                                replica.replica.primary(), INITIALIZING, replica.replica.version() + 1));
+                        lowRoutingNode.add(new MutableShardRouting(replica.index(), replica.id(),
+                                lowRoutingNode.nodeId(), replica.currentNodeId(),
+                                replica.primary(), INITIALIZING, replica.version() + 1));
                         
-                        replica.replica.relocate(lowRoutingNode.nodeId());
-                        logger.info("\tMoved " + toString(replica.replica) + " v: " + replica.replica.version());
+                        replica.relocate(lowRoutingNode.nodeId());
+                        logger.info("\tMoved " + toString(replica) + " v: " + replica.version());
                         changed = true;
                     }
-                } else if(replica.replica.unassigned()) {
-                    logger.info("\tAssigned " + toString(replica.replica));
-                    allocation.routingNodes().node(minNode.id).add(replica.replica);
+                } else if(replica.unassigned()) {
+                    logger.info("\tAssigned " + toString(replica));
+                    allocation.routingNodes().node(minNode.id).add(replica);
                     changed = true;
                 }
             } else {
@@ -750,24 +667,6 @@ class Balancer {
             logger.debug("\t\tIgnored: diff=" + diff + "<" + "treshold=" + treshold);
         }
 
-        return changed;
-    }
-
-    
-    private boolean balanceIndex(String index, NodeInfo maxNode, TreeSet<NodeInfo> minNodes, WeightOrder order) {
-        boolean changed = false;
-
-        TreeSet<NodeInfo> nodes = new TreeSet<NodeInfo>(order);
-        nodes.addAll(minNodes);
-        
-        while (nodes.size()>=1) {
-            final NodeInfo minNode = nodes.pollFirst();
-            boolean moved = balanceRelocation(index, minNode, maxNode, order);
-            if(moved) {
-                changed = true;
-                minNodes.add(minNode);
-            }
-        }
         return changed;
     }
 
@@ -795,176 +694,207 @@ class Balancer {
     
 }
 
-class NodeInfo implements Iterable<IndexInfo> {
+class NodeInfo implements Iterable<ModelIndex> {
     final String id;
-    private final Map<String, IndexInfo> indices = new HashMap<String, IndexInfo>();
+    private final Map<String, ModelIndex> indices = new HashMap<String, ModelIndex>();
     
     public NodeInfo(String id) {
-        super();
         this.id = id;
     }
     
-    public IndexInfo getIndexInfo(String indexId) {
+    public ModelIndex getIndexInfo(String indexId) {
       return indices.get(indexId);
     }
     
     
     public int numReplicas() {
         int sum = 0;
-        for(IndexInfo index : indices.values()) {
-            sum += index.replicas.size();
+        for(ModelIndex index : indices.values()) {
+            sum += index.numReplicas();
         }
         return sum;
     }
     
     public int numReplicas(String idx) {
-        IndexInfo index = indices.get(idx);
+        ModelIndex index = indices.get(idx);
         if(index == null) {
             return 0;
         } else {
-            return index.replicas.size();
+            return index.numReplicas();
         }
     }
 
     public int numPrimaries(String idx) {
-        IndexInfo index = indices.get(idx);
-        if(index == null) {
-            return 0;
-        } else {
-            int sum = 0;
-            for (ShardInfo info : index.replicas) {
-                if(info.replica.primary()) {
-                    sum++;
-                }
-            }
-            return sum;
-        }
+        ModelIndex index = indices.get(idx);
+        return index == null ? 0 : index.numPrimaries();
     }
 
     public int numPrimaries() {
         int sum = 0;
-        for(IndexInfo index : indices.values()) {
-            for (ShardInfo info : index.replicas) {
-                if(info.replica.primary()) {
-                    sum++;
-                }
-            }
+        for(ModelIndex index : indices.values()) {
+            sum += index.numPrimaries();
         }
         return sum;
     }
     
 
-    public Collection<ShardInfo> replicas() {
-        Collection<ShardInfo> result = new ArrayList<ShardInfo>();
-        for(IndexInfo index : indices.values()) {
-            result.addAll(index.replicas);
+    public Collection<MutableShardRouting> replicas() {
+        Collection<MutableShardRouting> result = new ArrayList<MutableShardRouting>();
+        for(ModelIndex index : indices.values()) {
+            result.addAll(index.getAllReplicas());
         }
         return result;
     }
     
-    public boolean addReplica(ShardInfo info) {
-        IndexInfo index = indices.get(info.replica.index());
+    public boolean addReplica(MutableShardRouting info, Decision decision) {
+        ModelIndex index = indices.get(info.index());
         if(index == null) {
-            index = new IndexInfo(info.replica.index());
+            index = new ModelIndex(info.index());
             indices.put(index.id, index);
         }
-        return index.replicas.add(info);
+        return index.addReplica(info, decision);
     }
     
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("Node("+id+"):\n");
-        for(IndexInfo index : indices.values()) {
+        for(ModelIndex index : indices.values()) {
             sb.append('\t').append("index("+index.id+"):");
-            for(ShardInfo shard : index.replicas) {
-                sb.append(' ').append(Balancer.toString(shard.replica));
+            for(MutableShardRouting shard : index.getAllReplicas()) {
+                sb.append(' ').append(Balancer.toString(shard));
             }
             sb.append('\n');
         }
         return sb.toString();
     }
     
-    public boolean removeReplica(ShardInfo info) {
-        IndexInfo index = indices.get(info.replica.index());
+    public Decision removeReplica(MutableShardRouting info) {
+        ModelIndex index = indices.get(info.index());
         if(index==null){
-            return false;
+            return null;
         } else {
-            boolean removed = index.removeReplica(info);
-            if(removed && index.replicas.isEmpty()) {
-                indices.remove(info.replica.index());
+            Decision removed = index.removeReplica(info);
+            if(removed != null && index.numReplicas() == 0) {
+                indices.remove(info.index());
             }
             return removed;
         }
     }
 
     @Override
-    public Iterator<IndexInfo> iterator() {
+    public Iterator<ModelIndex> iterator() {
         return indices.values().iterator();
     }
     
-    public ShardInfo getReplica(MutableShardRouting replica) {
-        IndexInfo info = getIndexInfo(replica.getIndex());
+    public boolean containsReplica(MutableShardRouting replica) {
+        ModelIndex info = getIndexInfo(replica.getIndex());
         if(info == null) {
             System.err.println("\tNo such index");
-            return null;
+            return false;
         } else {
-            return info.getReplica(replica);
+            return info.containsReplica(replica);
         }
     }
-
-
+    
 }
 
-class IndexInfo implements Comparator<ShardInfo> {
+class ModelIndex {
     protected final String id;
-    final Collection<ShardInfo> replicas = new TreeSet<ShardInfo>(this);
+    private final Map<MutableShardRouting, Decision> replicas = new HashMap<MutableShardRouting, Decision>();
     
-    public IndexInfo(String id) {
+    public ModelIndex(String id) {
         super();
         this.id = id;
     }
 
-    public boolean removeReplica(ShardInfo replica) {
+    public Decision getDecicion(MutableShardRouting info) {
+        return replicas.get(info);
+    }
+
+    public int numReplicas() {
+        return replicas.size();
+    }
+    
+    public Collection<MutableShardRouting> getAllReplicas() {
+        return replicas.keySet();
+    }
+    
+    public int numPrimaries() {
+        int num = 0;
+        for (MutableShardRouting info : replicas.keySet()) {
+            if (info.primary()) {
+                num++;
+            }
+        }
+        return num;
+    }
+
+    public Decision removeReplica(MutableShardRouting replica) {
         return replicas.remove(replica);
     }
     
-    public boolean addReplica(ShardInfo replica) {
-        return replicas.add(replica);
+    public boolean addReplica(MutableShardRouting replica, Decision decision) {
+        assert decision != null;
+        boolean isIn = containsReplica(replica);
+        replicas.put(replica, decision);
+        return !isIn;
     }
     
-    @Override
-    public int compare(ShardInfo o1, ShardInfo o2) {
-        return o1.replica.id()-o2.replica.id();
-    }
-    
-    public ShardInfo getReplica(MutableShardRouting replica) {
-        for (ShardInfo info : replicas) {
-            if(info.replica.id() == replica.id())
-                return info;
-        }
-        System.err.println("\tNo such replica");
-        return null;
+    public boolean containsReplica(MutableShardRouting replica) {
+        return replicas.containsKey(replica);
     }
     
 }
 
-class ShardInfo {
-    final MutableShardRouting replica;
-    Decision decision;
-    
-//    public ShardInfo(MutableShardRouting replica) {
-//        this(replica, null);
+//class ModelReplica {
+//    final MutableShardRouting replica;
+//    private final Decision decision;
+//    private final int replicaId;
+//    private final ShardId shardId;
+//    
+//    public ModelReplica(MutableShardRouting replica, Decision decision) {
+//        super();
+//        this.replica = replica;
+//        this.decision = decision;
+//        this.replicaId = replica.getId();
+//        this.shardId = replica.shardId();
 //    }
-    
-    public ShardInfo(MutableShardRouting replica, Decision decision) {
-        super();
-        this.replica = replica;
-        this.decision = decision;
-    }
-    
-    @Override
-    public String toString() {
-        return Balancer.toString(replica);
-    }
-}
+//
+//    @Override
+//    public int hashCode() {
+//        final int prime = 31;
+//        int result = 1;
+//        result = prime * result + replicaId;
+//        result = prime * result + ((shardId == null) ? 0 : shardId.hashCode());
+//        return result;
+//    }
+//
+//
+//
+//    @Override
+//    public boolean equals(Object obj) {
+//        if (this == obj)
+//            return true;
+//        if (obj == null)
+//            return false;
+//        if (getClass() != obj.getClass())
+//            return false;
+//        ModelReplica other = (ModelReplica) obj;
+//        if (replicaId != other.replicaId)
+//            return false;
+//        if (shardId == null) {
+//            if (other.shardId != null)
+//                return false;
+//        } else if (!shardId.equals(other.shardId))
+//            return false;
+//        return true;
+//    }
+//
+//
+//
+//    @Override
+//    public String toString() {
+//        return Balancer.toString(replica);
+//    }
+//}
 
