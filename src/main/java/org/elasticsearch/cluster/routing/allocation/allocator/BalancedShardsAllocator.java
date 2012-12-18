@@ -88,7 +88,11 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             float indexBalance = settings.getAsFloat(SETTING_INDEX_BALANCE_FACTOR, 0.5f);
             float replicaBalance = settings.getAsFloat(SETTING_REPLICA_BALANCE_FACTOR, 0.4f);
             float primaryBalance = settings.getAsFloat(SETTING_PRIMARY_BALANCE_FACTOR, 0.1f);
-            BalancedShardsAllocator.this.treshold = settings.getAsFloat(SETTING_TRESHOLD, 1.0f);
+            float treshold = settings.getAsFloat(SETTING_TRESHOLD, 1.0f);
+            if (treshold <= 0.0f) {
+                throw new ElasticSearchIllegalArgumentException("threshold must be greater than 0.0f but was: " + treshold);
+            }
+            BalancedShardsAllocator.this.treshold = treshold;
             BalancedShardsAllocator.this.weightFunction = new WeightFunction(indexBalance, replicaBalance, primaryBalance);
         }
     }
