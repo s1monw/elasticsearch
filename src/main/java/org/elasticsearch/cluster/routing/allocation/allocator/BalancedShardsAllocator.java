@@ -19,8 +19,6 @@
 
 package org.elasticsearch.cluster.routing.allocation.allocator;
 
-import static org.elasticsearch.cluster.routing.ShardRoutingState.INITIALIZING;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,7 +39,6 @@ import org.elasticsearch.cluster.routing.allocation.FailedRerouteAllocation;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.routing.allocation.StartedRerouteAllocation;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
-import org.elasticsearch.cluster.routing.allocation.decider.AwarenessAllocationDecider;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision;
 import org.elasticsearch.cluster.routing.allocation.decider.Decision.Type;
 import org.elasticsearch.common.component.AbstractComponent;
@@ -54,6 +51,11 @@ import org.elasticsearch.node.settings.NodeSettingsService;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
+
+import static org.elasticsearch.cluster.routing.ShardRoutingState.INITIALIZING;
+import static org.elasticsearch.cluster.routing.ShardRoutingState.RELOCATING;;
+
+
 
 /**
  * 1) Maximize the number of nodes that keep a primary 2) Minimize the number of
@@ -68,7 +70,6 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
     public static final String SETTING_INDEX_BALANCE_FACTOR = "cluster.routing.allocation.balance.index";
     public static final String SETTING_REPLICA_BALANCE_FACTOR = "cluster.routing.allocation.balance.replica";
     public static final String SETTING_PRIMARY_BALANCE_FACTOR = "cluster.routing.allocation.balance.primary";
-    
     
     static {
         MetaData.addDynamicSettings(
@@ -86,18 +87,17 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             float replicaBalance = settings.getAsFloat(SETTING_REPLICA_BALANCE_FACTOR, 0.5f);
             float primaryBalance = settings.getAsFloat(SETTING_PRIMARY_BALANCE_FACTOR, 0.1f);
             BalancedShardsAllocator.this.treshold = settings.getAsFloat(SETTING_TRESHOLD, 1.0f);
-            BalancedShardsAllocator.this.balance = new WeightFunction(indexBalance, replicaBalance, primaryBalance);
+            BalancedShardsAllocator.this.weightFunction = new WeightFunction(indexBalance, replicaBalance, primaryBalance);
         }
     }
     
-    private volatile WeightFunction balance;
+    private volatile WeightFunction weightFunction;
     private volatile float treshold;
     private final ESLogger logger = Loggers.getLogger(getClass());
     
     public BalancedShardsAllocator(Settings settings) {
         this(settings, new NodeSettingsService(settings));
     }
-    
     
     @Inject
     public BalancedShardsAllocator(Settings settings, NodeSettingsService nodeSettingsService) {
@@ -108,27 +108,26 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
     }
 
     @Override
-    public void applyStartedShards(StartedRerouteAllocation allocation) {
-        // ONLY FOR GATEWAYS
-    }
+    public void applyStartedShards(StartedRerouteAllocation allocation) { /* ONLY FOR GATEWAYS */ }
 
     @Override
-    public void applyFailedShards(FailedRerouteAllocation allocation) {
-    }
+    public void applyFailedShards(FailedRerouteAllocation allocation) { /* ONLY FOR GATEWAYS */ }
 
     @Override
     public boolean allocateUnassigned(RoutingAllocation allocation) {
-        return new Balancer(logger, allocation, balance, treshold).balance();
+        return rebalance(allocation);
     }
 
     @Override
     public boolean rebalance(RoutingAllocation allocation) {
-        return new Balancer(logger, allocation, balance, treshold).balance();
+        final Balancer balancer = new Balancer(logger, allocation, weightFunction, treshold);
+        return balancer.balance();
     }
 
     @Override
     public boolean move(MutableShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
-        return new Balancer(logger, allocation, balance, treshold).move(shardRouting, node);
+        final Balancer balancer = new Balancer(logger, allocation, weightFunction, treshold);
+        return balancer.move(shardRouting, node);
     }
 
 
@@ -162,7 +161,6 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
      * </ul>
      * <code>weight(node, index) = weight<sub>index</sub>(node, index) + weight<sub>node</sub>(node, index) + weight<sub>primary</sub>(node, index)</code>
      * 
-     * @author schilling
      */
     public static class WeightFunction  {
 
@@ -170,7 +168,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
         private final float replicaBalance;
         private final float primaryBalance;
 
-        protected WeightFunction(float indexBalance, float replicaBalance, float primaryBalance) {
+        public WeightFunction(float indexBalance, float replicaBalance, float primaryBalance) {
             final float sum = indexBalance + replicaBalance + primaryBalance;
             if (sum <= 0.0f) {
                 throw new ElasticSearchIllegalArgumentException("Balance factors must sum to a value > 0 but was: " + sum);
@@ -182,7 +180,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
 
         public float weight(Balancer balancer, ModelNode node, String index) {
             final float weightReplica = replicaBalance * (node.numReplicas() - balancer.avgReplicasPerNode());
-            final float weightIndex = indexBalance * (node.numReplicas(index) - balancer.avgReplicasOfIndexPerNode(index));
+            final float weightIndex = indexBalance * (node.numReplicas(index) - balancer.avgReplicasPerNode(index));
             final float weightPrimary = primaryBalance * (node.numPrimaries() - balancer.avgPrimariesPerNode());
             return weightReplica + weightIndex + weightPrimary;
         }
@@ -192,10 +190,9 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
     /**
      * A {@link Balancer}
      */
-    static class Balancer {
+    public static class Balancer {
 
         private final ESLogger logger;
-
         private final Map<String, ModelNode> nodes = new HashMap<String, ModelNode>();
         private final HashSet<String> indices = new HashSet<String>();
         private final RoutingAllocation allocation;
@@ -223,6 +220,9 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             metaData = allocation.routingNodes().metaData();
         }
 
+        /**
+         * Returns an array view on the nodes in the balancer. Nodes should not be removed from this list.
+         */
         private ModelNode[] nodesArray() {
             if (nodesArray == null) {
                 return nodesArray = nodes.values().toArray(new ModelNode[nodes.size()]);
@@ -230,30 +230,145 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             return nodesArray;
         }
 
-        public float avgReplicasOfIndexPerNode(String index) {
+        /**
+         * Returns the average of replicas per node for the given index
+         */
+        public float avgReplicasPerNode(String index) {
             return ((float) metaData.index(index).totalNumberOfShards()) / nodes.size();
         }
 
+        /**
+         * Returns the global average of replicas per node
+         */
         public float avgReplicasPerNode() {
             return ((float) metaData.totalNumberOfShards()) / nodes.size();
         }
-
+        
+        /**
+         * Returns the global average of primaries per node
+         */
         public float avgPrimariesPerNode() {
             return ((float) metaData.numberOfShards()) / nodes.size();
         }
-
-        public float avgPrimariesOfIndexPerNode(String index) {
+        
+        /**
+         * Returns the average of primaries per node for the given index
+         */
+        public float avgPrimariesPerNode(String index) {
             return ((float) metaData.index(index).numberOfShards()) / nodes.size();
         }
 
+        /**
+         * Returns a new {@link NodeSorter} that sorts the nodes based on their
+         * current weight with respect to the index passed to the sorter. The
+         * returned sorter is already sorted with min weight first.
+         */
         private NodeSorter newNodeSorter(String index) {
             final NodeSorter sorter = new NodeSorter(nodesArray(), weight, index, this);
             sorter.quickSort(0, sorter.modelNodes.length - 1);
             return sorter;
         }
+        
+        private boolean initialize(RoutingNodes routing) {
+            Collection<MutableShardRouting> replicas = new ArrayList<MutableShardRouting>();
+            if (logger.isDebugEnabled()) {
+                logger.debug("Start distributing Replicas");
+            }
 
+            for (IndexRoutingTable index : allocation.routingTable().indicesRouting().values()) {
+                indices.add(index.index());
+                for (IndexShardRoutingTable shard : index.getShards().values()) {
+                    replicas.addAll(routing.shardsRoutingFor(index.index(), shard.shardId().id()));
+                }
+            }
+            buildModelFromAssigned(Iterables.filter(replicas, assignedFilter));
+            final boolean changed = allocateUnassigned(Iterables.filter(replicas, Predicates.not(assignedFilter)));
+            return changed;
+        }
+        
+        /**
+         * balance the shards allocated on the nodes according to a given
+         * <code>treshold</code>. Operations below this value will not be
+         * handled.
+         * 
+         * @param treshold
+         *            operations treshold
+         * 
+         * @return <code>true</code> if the current configuration has been
+         *         changed
+         */
+        public boolean balance() {
+            if (this.nodes.isEmpty()) {
+                return false;
+            }
+            if (logger.isDebugEnabled()) {
+                logger.debug("Start balancing cluster");
+            }
+            
+            boolean changed = initialize(allocation.routingNodes());
+            if (nodes.size() > 1) {
+                for (String index : indices) {
+                    final NodeSorter sorter = newNodeSorter(index); // already sorted
+                    final float[] weights = sorter.weights;
+                    final ModelNode[] modelNodes = sorter.modelNodes;
+                    int lowIdx = 0;
+                    int highIdx = weights.length - 1;
+                    while (true) {
+
+                        final ModelNode minNode = modelNodes[lowIdx];
+                        final ModelNode maxNode = modelNodes[highIdx];
+                        boolean relocated = false;
+                        if (maxNode.numReplicas(index) > 0) {
+                            if ((weights[highIdx] - weights[lowIdx]) <= treshold) {
+                                break;
+                            }
+                            if (logger.isDebugEnabled()) {
+                                logger.debug("Balancing from node [{}] weight: [{}] to node [{}] weight: [{}]  delta: [{}]",
+                                        maxNode.getNodeId(), weights[highIdx], minNode.getNodeId(), weights[lowIdx], (weights[highIdx] - weights[lowIdx]));
+                            }
+                            relocated = tryRelocateReplica(minNode, maxNode, index);
+                        }
+                        if (relocated) {
+                            /*
+                             * TODO we could be a bit smarter here, we don't need to fully sort necessarily
+                             * we could just find the place to insert linearly but the win might be minor
+                             * compared to the added complexity
+                             */
+                            weights[lowIdx] = sorter.weight(modelNodes[lowIdx]);
+                            weights[highIdx] = sorter.weight(modelNodes[highIdx]);
+                            sorter.quickSort(0, weights.length - 1);
+                            lowIdx = 0;
+                            highIdx = weights.length - 1;
+                            changed = true;
+                        } else if (lowIdx < highIdx - 1) {
+                            /* we can't move from any shard from the min node lets move on to the next node
+                             * and see if the threshold still holds. We either don't have any shard of this
+                             * index on this node of allocation deciders prevent any relocation.*/
+                            lowIdx++;
+                        } else if (lowIdx > 0) {
+                            lowIdx = 0;
+                            highIdx--;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            return changed;
+        }
+
+        /**
+         * This function executes a move operation moving the given replica from
+         * the given node to the minimal eligable node with respect to the
+         * weight function. Iff the replica is moved the replica will be set to
+         * {@link ShardRoutingState#RELOCATING} and a shadow instance of this
+         * replica is created with an incremented version in the state
+         * {@link ShardRoutingState#INITIALIZING}.
+         * 
+         * @return <code>true</code> iff the shard has successfully been moved.
+         */
         public boolean move(MutableShardRouting replica, RoutingNode node) {
-            if (!replica.started()) {
+            if (nodes.isEmpty() || !replica.started()) {
                 return false;
             }
             if (logger.isDebugEnabled()) {
@@ -266,20 +381,25 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             final NodeSorter sorter = newNodeSorter(replica.getIndex());
             final ModelNode[] nodes = sorter.modelNodes;
             assert sourceNode.containsReplica(replica);
-
+            /*
+             * the sorter holds the minimum weight node first for the shards index.
+             * We now walk through the nodes until we find a node to allocate the shard.
+             * This is not guaranteed to be balanced after this operation we still try best effort to 
+             * allocate on the minimal eligable node.
+             */
             for (ModelNode currentNode : nodes) {
                 if (currentNode.getNodeId().equals(node.nodeId())) {
                     continue;
                 }
                 RoutingNode target = allocation.routingNodes().node(currentNode.getNodeId());
                 Decision decision = allocation.deciders().canAllocate(replica, target, allocation);
-                if (decision.type() == Type.YES) {
+                if (decision.type() == Type.YES) { // TODO maybe we can respect throtteling here too?
                     sourceNode.removeReplica(replica);
-                    MutableShardRouting initializingShard = new MutableShardRouting(replica.index(), replica.id(), currentNode.getNodeId(),
-                            replica.currentNodeId(), replica.primary(), ShardRoutingState.INITIALIZING, replica.version() + 1);
+                    final MutableShardRouting initializingShard = new MutableShardRouting(replica.index(), replica.id(), currentNode.getNodeId(),
+                            replica.currentNodeId(), replica.primary(), INITIALIZING, replica.version() + 1);
                     currentNode.addReplica(initializingShard, decision);
                     target.add(initializingShard);
-                    replica.relocate(target.nodeId());
+                    replica.relocate(target.nodeId()); // set the node to relocate after we added the initializing shard
                     if (logger.isDebugEnabled()) {
                         logger.debug("Moved Replica [{}] to node [{}]", replica, currentNode.getNodeId());
                     }
@@ -290,33 +410,51 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             return changed;
         }
 
+        /**
+         * Builds the internal model from all shards in the given
+         * {@link Iterable}. All shards in the {@link Iterable} must be assigned
+         * to a node. This method will skip replicas in the state
+         * {@link ShardRoutingState#RELOCATING} since each relocating shard has
+         * a shadow replica in the state {@link ShardRoutingState#INITIALIZING}
+         * on the target node which we respect during the allocation / balancing
+         * process. In short, this method recreates the status-quo in the cluster.
+         */
         private void buildModelFromAssigned(Iterable<MutableShardRouting> replicas) {
             for (MutableShardRouting replica : replicas) {
                 assert replica.assignedToNode();
                 /* we skip relocating shards here since we expect an initializing shard with the same id coming in */
-                if (replica.state() == ShardRoutingState.RELOCATING) {
+                if (replica.state() == RELOCATING) {
                     continue; 
                 }
                 ModelNode node = nodes.get(replica.currentNodeId());
                 assert node != null;
                 if (node.addReplica(replica, Decision.single(Type.YES, "Already allocated on node", node.getNodeId()))) {
                     if (logger.isDebugEnabled()) {
-                        logger.info("Assigned Replica [{}] to node [{}]", replica, node.getNodeId());
+                        logger.debug("Assigned Replica [{}] to node [{}]", replica, node.getNodeId());
                     }
                 }
             }
         }
 
+        /**
+         *  Allocates all given replicas on the minimal eligable node for the replicas index
+         *  with respect to the weight function. Allo given replicas must be unassigned.
+         */
         private boolean allocateUnassigned(Iterable<MutableShardRouting> replicas) {
+            assert !nodes.isEmpty();
             boolean changed = false;
             if (logger.isDebugEnabled()) {
                 logger.debug("Start allocating unassigned replicas");
             }
+
+            /*
+             * TODO: We could be smarter here and group the replicas by index and then
+             * use the sorter to save some iterations. 
+             */
             final RoutingNodes routingNodes = allocation.routingNodes();
             final AllocationDeciders deciders = allocation.deciders();
             for (MutableShardRouting replica : replicas) {
                 assert !replica.assignedToNode();
-                assert !nodes.isEmpty();
                 /* find an allocatable node with minimal weight */
                 float minWeight = Float.POSITIVE_INFINITY;
                 ModelNode minNode = null;
@@ -358,14 +496,19 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             return changed;
         }
 
-        protected MutableShardRouting simulateRelocation(ModelNode srcNode, ModelNode dstNode, String idx) {
-            final ModelIndex index = srcNode.getIndexInfo(idx);
+        /**
+         *  Tries to find a relocation from the max node to the min node for an arbitrary shard of the given index on the
+         *  balance model. Iff this method returns a <code>true</code> the relocation has already been executed on the
+         *  simulation model as well as on the cluster.
+         */
+        private boolean tryRelocateReplica(ModelNode minNode, ModelNode maxNode, String idx) {
+            final ModelIndex index = maxNode.getIndex(idx);
             if (index != null) {
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Try relocating replica for index index [{}] from node [{}] to node [{}]", idx, srcNode.getNodeId(),
-                            dstNode.getNodeId());
+                    logger.debug("Try relocating replica for index index [{}] from node [{}] to node [{}]", idx, maxNode.getNodeId(),
+                            minNode.getNodeId());
                 }
-                final RoutingNode node = allocation.routingNodes().node(dstNode.getNodeId());
+                final RoutingNode node = allocation.routingNodes().node(minNode.getNodeId());
                 float minCost = Float.POSITIVE_INFINITY;
                 MutableShardRouting candidate = null;
                 Decision decision = null;
@@ -373,141 +516,57 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
                 /* make a copy since we modify this list in the loop */
                 final ArrayList<MutableShardRouting> replicas = new ArrayList<MutableShardRouting>(index.getAllReplicas());
                 for (MutableShardRouting replica : replicas) {
-
+                    if (replica.initializing() || replica.relocating()) {
+                        // skip initializing and relocating shards we can't relocate them anyway
+                        continue;
+                    }
                     Decision allocationDecision = deciders.canAllocate(replica, node, allocation);
                     Decision rebalanceDecission = deciders.canRebalance(replica, allocation);
 
                     if (((allocationDecision.type() == Type.YES) || (allocationDecision.type() == Type.THROTTLE))
                             && ((rebalanceDecission.type() == Type.YES) || (rebalanceDecission.type() == Type.THROTTLE))) {
                         Decision srcDecision;
-                        if ((srcDecision = srcNode.removeReplica(replica)) != null) {
-                            if (dstNode.addReplica(replica, srcDecision)) {
-                                final float delta = weight.weight(this, dstNode, idx) - weight.weight(this, srcNode, idx);
+                        if ((srcDecision = maxNode.removeReplica(replica)) != null) {
+                            if (minNode.addReplica(replica, srcDecision)) {
+                                final float delta = weight.weight(this, minNode, idx) - weight.weight(this, maxNode, idx);
                                 if (delta < minCost) {
                                     minCost = delta;
                                     candidate = replica;
                                     decision = new Decision.Multi().add(allocationDecision).add(rebalanceDecission);
                                 }
-                                dstNode.removeReplica(replica);
+                                minNode.removeReplica(replica);
                             }
-                            srcNode.addReplica(replica, srcDecision);
+                            maxNode.addReplica(replica, srcDecision);
                         }
                     }
                 }
 
                 if (candidate != null) {
-                    if (logger.isDebugEnabled()) {
-                        logger.debug("Relocate replica [{}] from node [{}] to node [{}]", candidate, srcNode.getNodeId(),
-                                dstNode.getNodeId());
-                    }
-                    srcNode.removeReplica(candidate);
-                    dstNode.addReplica(candidate, decision);
-                    return candidate;
-                }
-            }
-            return null;
-        }
-
-        private boolean initialize(RoutingNodes routing) {
-            Collection<MutableShardRouting> replicas = new ArrayList<MutableShardRouting>();
-            if (logger.isDebugEnabled()) {
-                logger.debug("Start distributing Replicas");
-            }
-
-            for (IndexRoutingTable index : allocation.routingTable().indicesRouting().values()) {
-                indices.add(index.index());
-                for (IndexShardRoutingTable shard : index.getShards().values()) {
-                    replicas.addAll(routing.shardsRoutingFor(index.index(), shard.shardId().id()));
-                }
-            }
-            buildModelFromAssigned(Iterables.filter(replicas, assignedFilter));
-            final boolean changed = allocateUnassigned(Iterables.filter(replicas, Predicates.not(assignedFilter)));
-            return changed;
-        }
-
-        /**
-         * balance the shards allocated on the nodes according to a given
-         * <code>treshold</code>. Operations below this value will not be
-         * handled.
-         * 
-         * @param treshold
-         *            operations treshold
-         * 
-         * @return <code>true</code> if the current configuration has been
-         *         changed
-         */
-        public boolean balance() {
-            if (logger.isDebugEnabled()) {
-                logger.debug("Start balancing cluster");
-            }
-            boolean changed = initialize(allocation.routingNodes());
-            if (nodes.size() > 1) {
-                for (String index : indices) {
-                    final NodeSorter sorter = newNodeSorter(index); // already sorted
-                    final float[] weights = sorter.weights;
-                    final ModelNode[] modelNodes = sorter.modelNodes;
-                    int lowIdx = 0;
-                    int highIdx = weights.length - 1;
-                    while (true) {
-
-                        final ModelNode minNode = modelNodes[lowIdx];
-                        final ModelNode maxNode = modelNodes[highIdx];
-                        boolean relocated = false;
-                        if (maxNode.numReplicas(index) > 0) {
-                            if ((weights[highIdx] - weights[lowIdx]) <= treshold) {
-                                break;
-                            }
-                            if (logger.isDebugEnabled()) {
-                                logger.debug("Balancing from node [{}] weight: [{}] to node [{}] weight: [{}]  delta: [{}]",
-                                        maxNode.getNodeId(), weights[highIdx], minNode.getNodeId(), weights[lowIdx], (weights[highIdx] - weights[lowIdx]));
-                            }
-                            relocated = tryRelocateReplica(index, minNode, maxNode);
+                  
+                    /* allocate on the model even if not throttled */
+                    maxNode.removeReplica(candidate);
+                    minNode.addReplica(candidate, decision);
+                    if (decision.type() == Type.YES) { /* only allocate on the cluster if we are not throttled */
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Relocate replica [{}] from node [{}] to node [{}]", candidate, maxNode.getNodeId(),
+                                    minNode.getNodeId());
                         }
-
-                        if (relocated) {
-                            weights[lowIdx] = sorter.weight(modelNodes[lowIdx]);
-                            weights[highIdx] = sorter.weight(modelNodes[highIdx]);
-                            sorter.quickSort(0, weights.length - 1);
-                            lowIdx = 0;
-                            highIdx = weights.length - 1;
-                            changed = true;
-                        } else if (lowIdx < highIdx - 1) {
-                            lowIdx++;
-                        } else if (lowIdx > 0) {
-                            lowIdx = 0;
-                            highIdx--;
+                        /* now allocate on the cluster - if we are started we need to relocate the shard */
+                        if (candidate.started()) {
+                            RoutingNode lowRoutingNode = allocation.routingNodes().node(minNode.getNodeId());
+                            lowRoutingNode.add(new MutableShardRouting(candidate.index(), candidate.id(), lowRoutingNode.nodeId(), candidate
+                                    .currentNodeId(), candidate.primary(), INITIALIZING, candidate.version() + 1));
+                            candidate.relocate(lowRoutingNode.nodeId());
+                            
                         } else {
-                            break;
+                            assert candidate.unassigned();
+                            allocation.routingNodes().node(minNode.getNodeId()).add(candidate);
                         }
                     }
+                    return true;
                 }
             }
-            return changed;
-        }
-
-        private boolean tryRelocateReplica(String index, ModelNode minNode, ModelNode maxNode) {
-            boolean relocated = false;
-            final MutableShardRouting replica = simulateRelocation(maxNode, minNode, index);
-            if (replica != null) {
-                // Move on Cluster
-                if (replica.started()) {
-                    String rId = replica.relocating() ? replica.relocatingNodeId() : replica.currentNodeId();
-
-                    if (!minNode.getNodeId().equals(rId)) {
-                        RoutingNode lowRoutingNode = allocation.routingNodes().node(minNode.getNodeId());
-
-                        lowRoutingNode.add(new MutableShardRouting(replica.index(), replica.id(), lowRoutingNode.nodeId(), replica
-                                .currentNodeId(), replica.primary(), INITIALIZING, replica.version() + 1));
-
-                        replica.relocate(lowRoutingNode.nodeId());
-                        relocated = true;
-                    }
-                } else if (replica.unassigned()) {
-                    allocation.routingNodes().node(minNode.getNodeId()).add(replica);
-                    relocated = true;
-                }
-            }
-            return relocated;
+            return false;
         }
 
     }
@@ -523,7 +582,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             this.id = id;
         }
 
-        public ModelIndex getIndexInfo(String indexId) {
+        public ModelIndex getIndex(String indexId) {
             return indices.get(indexId);
         }
 
@@ -571,24 +630,24 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             return result;
         }
 
-        public boolean addReplica(MutableShardRouting info, Decision decision) {
+        public boolean addReplica(MutableShardRouting replica, Decision decision) {
             numPrimaries = numReplicas = -1;
-            ModelIndex index = indices.get(info.index());
+            ModelIndex index = indices.get(replica.index());
             if (index == null) {
-                index = new ModelIndex(info.index());
+                index = new ModelIndex(replica.index());
                 indices.put(index.getIndexId(), index);
             }
-            return index.addReplica(info, decision);
+            return index.addReplica(replica, decision);
         }
 
-        public Decision removeReplica(MutableShardRouting info) {
+        public Decision removeReplica(MutableShardRouting replica) {
             numPrimaries = numReplicas = -1;
-            ModelIndex index = indices.get(info.index());
+            ModelIndex index = indices.get(replica.index());
             Decision removed = null;
             if (index != null) {
-                removed = index.removeReplica(info);
+                removed = index.removeReplica(replica);
                 if (removed != null && index.numReplicas() == 0) {
-                    indices.remove(info.index());
+                    indices.remove(replica.index());
                 }
             }
             return removed;
@@ -606,8 +665,8 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
         }
 
         public boolean containsReplica(MutableShardRouting replica) {
-            ModelIndex info = getIndexInfo(replica.getIndex());
-            return info == null ? false : info.containsReplica(replica);
+            ModelIndex index = getIndex(replica.getIndex());
+            return index == null ? false : index.containsReplica(replica);
         }
 
     }
@@ -625,8 +684,8 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             return id;
         }
 
-        public Decision getDecicion(MutableShardRouting info) {
-            return replicas.get(info);
+        public Decision getDecicion(MutableShardRouting replica) {
+            return replicas.get(replica);
         }
 
         public int numReplicas() {
@@ -640,8 +699,8 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
         public int numPrimaries() {
             if (numPrimaries == -1) {
                 int num = 0;
-                for (MutableShardRouting info : replicas.keySet()) {
-                    if (info.primary()) {
+                for (MutableShardRouting replica : replicas.keySet()) {
+                    if (replica.primary()) {
                         num++;
                     }
                 }
@@ -694,12 +753,12 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
 
         @Override
         protected void swap(int i, int j) {
-            ModelNode tmp = modelNodes[i];
+            final ModelNode tmpNode = modelNodes[i];
             modelNodes[i] = modelNodes[j];
-            modelNodes[j] = tmp;
-            float tmpW = weights[i];
+            modelNodes[j] = tmpNode;
+            final float tmpWeight = weights[i];
             weights[i] = weights[j];
-            weights[j] = tmpW;
+            weights[j] = tmpWeight;
         }
 
         @Override
