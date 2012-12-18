@@ -195,6 +195,9 @@ public class AwarenessAllocationTests {
                 .put("cluster.routing.allocation.allow_rebalance", "always")
                 .put("cluster.routing.allocation.cluster_concurrent_rebalance", -1)
                 .put("cluster.routing.allocation.awareness.attributes", "rack_id")
+                .put("cluster.routing.allocation.balance.index", 0.0f)
+                .put("cluster.routing.allocation.balance.replica", 1.0f)
+                .put("cluster.routing.allocation.balance.primary", 0.0f)
                 .build());
 
         logger.info("Building initial routing table for 'moveShardOnceNewNodeWithAttributeAdded3'");
@@ -677,6 +680,9 @@ public class AwarenessAllocationTests {
                 .put("cluster.routing.allocation.cluster_concurrent_rebalance", -1)
                 .put("cluster.routing.allocation.awareness.force.rack_id.values", "1,2")
                 .put("cluster.routing.allocation.awareness.attributes", "rack_id")
+                .put("cluster.routing.allocation.balance.index", 0.0f)
+                .put("cluster.routing.allocation.balance.replica", 1.0f)
+                .put("cluster.routing.allocation.balance.primary", 0.0f)
                 .build());
 
         logger.info("Building initial routing table for 'fullAwareness3'");

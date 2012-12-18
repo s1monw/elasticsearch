@@ -45,7 +45,6 @@ public class ShardsAllocators extends AbstractComponent implements ShardsAllocat
     }
 
     public ShardsAllocators(Settings settings) {
-//      this(settings, new NoneGatewayAllocator(), new EvenShardsCountAllocator(settings));
       this(settings, new NoneGatewayAllocator(), new BalancedShardsAllocator(settings));
     }
 
