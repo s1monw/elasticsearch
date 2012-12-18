@@ -58,11 +58,13 @@ import static org.elasticsearch.cluster.routing.ShardRoutingState.RELOCATING;;
 
 
 /**
- * 1) Maximize the number of nodes that keep a primary 2) Minimize the number of
- * primaries per node 3) Minimize the distance of the maximal and the minimal
- * number of shards per node 4) Maximize the Number of Indices per Node 5) Keep
- * care of replicas of the same shard on the same Node 6) Minimize the Number of
- * Move-Operations
+ * TODO documentation!
+ * 1) Maximize the number of nodes that keep a primary 
+ * 2) Minimize the number of primaries per node 
+ * 3) Minimize the distance of the maximal and the minimal number of shards per node 
+ * 4) Maximize the Number of Indices per Node 
+ * 5) Keep care of replicas of the same shard on the same Node 
+ * 6) Minimize the Number of Move-Operations
  */
 public class BalancedShardsAllocator extends AbstractComponent implements ShardsAllocator {
     
@@ -83,8 +85,8 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
     class ApplySettings implements NodeSettingsService.Listener {
         @Override
         public void onRefreshSettings(Settings settings) {
-            float indexBalance = settings.getAsFloat(SETTING_INDEX_BALANCE_FACTOR, 0.4f);
-            float replicaBalance = settings.getAsFloat(SETTING_REPLICA_BALANCE_FACTOR, 0.5f);
+            float indexBalance = settings.getAsFloat(SETTING_INDEX_BALANCE_FACTOR, 0.5f);
+            float replicaBalance = settings.getAsFloat(SETTING_REPLICA_BALANCE_FACTOR, 0.4f);
             float primaryBalance = settings.getAsFloat(SETTING_PRIMARY_BALANCE_FACTOR, 0.1f);
             BalancedShardsAllocator.this.treshold = settings.getAsFloat(SETTING_TRESHOLD, 1.0f);
             BalancedShardsAllocator.this.weightFunction = new WeightFunction(indexBalance, replicaBalance, primaryBalance);
@@ -132,22 +134,19 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
 
 
     /**
-     *  It is based on three
-     * values:
+     * This class is the primary weight function used to create balanced over nodes and shards in the cluster. 
+     * Currently this function has 3 properties:
      * <ul>
-     * <li><code>index balance</code></li>
-     * <li><code>replica balance</code></li>
-     * <li><code>primary balance</code></li>
+     * <li><code>index balance</code> - balance property over shards per index</li>
+     * <li><code>replica balance</code> - balance property over shards per cluster</li>
+     * <li><code>primary balance</code> - balance property over primaries per cluster</li>
      * </ul>
      * <p>
-     * The <code>index balance</code> defines the factor of the distribution of
-     * shards per index on nodes is weighted. The factor
-     * <code>replica balance</code> defines the weight of the current number of
-     * replicas allocated on a node compared to the average number of replicas
-     * per node. Analogically the <code>primary balance</code> factor defines
-     * the number of allocated primaries per node according to the average
-     * number of primaries per node.
+     * Each of these properties are expressed as factor such that the properties factor defines the relative imporance of the property for the
+     * weight function. For example if the weight function should calculate the weights only based on a global (replica) balance the index and primary balance 
+     * can be set to <tt>0.0</tt> and will in turn have no effect on the distribution.  
      * </p>
+     * The weight per index is calculated based on the following formula:
      * <ul>
      * <li>
      * <code>weight<sub>index</sub>(node, index) = indexBalance * (node.numReplicas(index) - avgReplicasPerNode(index))</code>
@@ -285,20 +284,24 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             final boolean changed = allocateUnassigned(Iterables.filter(replicas, Predicates.not(assignedFilter)));
             return changed;
         }
-        
+
         /**
-         * balance the shards allocated on the nodes according to a given
-         * <code>treshold</code>. Operations below this value will not be
-         * handled.
-         * 
-         * @param treshold
-         *            operations treshold
+         * Balances the nodes on the cluster model according to the weight
+         * funtion. The configured treshold is the minimum delta between the
+         * weight of the maximum node and the minimum node according to the
+         * {@link WeightFunction}. This weight is calcualted per index to
+         * distribute replicas evenly per index. The balancer tries to relocate
+         * replicas only if the delta exceeds the threshold. If the default case
+         * the threshold is set to <tt>1.0</tt> to enforce gaining relocation
+         * only, or in other words relocations that move the weight delta closer
+         * to <tt>0.0</tt>
          * 
          * @return <code>true</code> if the current configuration has been
-         *         changed
+         *         changed, otherwise <code>false</code>
          */
         public boolean balance() {
             if (this.nodes.isEmpty()) {
+                /* with no nodes this is pointless */
                 return false;
             }
             if (logger.isDebugEnabled()) {
@@ -306,7 +309,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             }
             
             boolean changed = initialize(allocation.routingNodes());
-            if (nodes.size() > 1) {
+            if (nodes.size() > 1) { /* skip if we only have one node */
                 for (String index : indices) {
                     final NodeSorter sorter = newNodeSorter(index); // already sorted
                     final float[] weights = sorter.weights;
@@ -314,10 +317,8 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
                     int lowIdx = 0;
                     int highIdx = weights.length - 1;
                     while (true) {
-
                         final ModelNode minNode = modelNodes[lowIdx];
                         final ModelNode maxNode = modelNodes[highIdx];
-                        boolean relocated = false;
                         if (maxNode.numReplicas(index) > 0) {
                             if ((weights[highIdx] - weights[lowIdx]) <= treshold) {
                                 break;
@@ -326,29 +327,33 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
                                 logger.debug("Balancing from node [{}] weight: [{}] to node [{}] weight: [{}]  delta: [{}]",
                                         maxNode.getNodeId(), weights[highIdx], minNode.getNodeId(), weights[lowIdx], (weights[highIdx] - weights[lowIdx]));
                             }
-                            relocated = tryRelocateReplica(minNode, maxNode, index);
+                            if (tryRelocateReplica(minNode, maxNode, index)) {
+                                /*
+                                 * TODO we could be a bit smarter here, we don't need to fully sort necessarily
+                                 * we could just find the place to insert linearly but the win might be minor
+                                 * compared to the added complexity
+                                 */
+                                weights[lowIdx] = sorter.weight(modelNodes[lowIdx]);
+                                weights[highIdx] = sorter.weight(modelNodes[highIdx]);
+                                sorter.quickSort(0, weights.length - 1);
+                                lowIdx = 0;
+                                highIdx = weights.length - 1;
+                                changed = true;
+                                continue;
+                            } 
                         }
-                        if (relocated) {
-                            /*
-                             * TODO we could be a bit smarter here, we don't need to fully sort necessarily
-                             * we could just find the place to insert linearly but the win might be minor
-                             * compared to the added complexity
-                             */
-                            weights[lowIdx] = sorter.weight(modelNodes[lowIdx]);
-                            weights[highIdx] = sorter.weight(modelNodes[highIdx]);
-                            sorter.quickSort(0, weights.length - 1);
-                            lowIdx = 0;
-                            highIdx = weights.length - 1;
-                            changed = true;
-                        } else if (lowIdx < highIdx - 1) {
+                        if (lowIdx < highIdx - 1) {
                             /* we can't move from any shard from the min node lets move on to the next node
                              * and see if the threshold still holds. We either don't have any shard of this
                              * index on this node of allocation deciders prevent any relocation.*/
                             lowIdx++;
                         } else if (lowIdx > 0) {
+                            /* now we go max to min since obviously we can't move anything to the max node 
+                             * lets pick the next highest */
                             lowIdx = 0;
                             highIdx--;
                         } else {
+                            /* we are done here, we either can't relocate anymore or we are balanced */  
                             break;
                         }
                     }
@@ -369,6 +374,7 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
          */
         public boolean move(MutableShardRouting replica, RoutingNode node) {
             if (nodes.isEmpty() || !replica.started()) {
+                /* with no nodes or a not started replica this is pointless */
                 return false;
             }
             if (logger.isDebugEnabled()) {
