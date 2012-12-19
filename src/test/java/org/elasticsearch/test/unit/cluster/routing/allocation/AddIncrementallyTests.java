@@ -78,7 +78,79 @@ public class AddIncrementallyTests {
     @Test
     public void testMinimalRelocations() {
         ImmutableSettings.Builder settings = settingsBuilder();
-        settings.put("cluster.routing.allocation.allow_rebalance", ClusterRebalanceAllocationDecider.ClusterRebalanceType.ALWAYS.toString());
+        settings.put("cluster.routing.allocation.allow_rebalance", ClusterRebalanceAllocationDecider.ClusterRebalanceType.ALWAYS.toString())
+        .put("cluster.routing.allocation.node_concurrent_recoveries", 2);
+        AllocationService service = new AllocationService(settings.build());
+
+        ClusterState clusterState = initCluster(service, 1, 3, 3, 1);
+        assertThat(clusterState.routingNodes().node("node0").shardsWithState(STARTED).size(), Matchers.equalTo(9));
+        assertThat(clusterState.routingNodes().getUnassigned().size(), Matchers.equalTo(9));
+        int nodeOffset = 1;
+        clusterState = addNodes(clusterState, service, 1, nodeOffset++);
+        assertThat(clusterState.routingNodes().node("node0").shardsWithState(STARTED).size(), Matchers.equalTo(9));
+        assertThat(clusterState.routingNodes().node("node1").shardsWithState(STARTED).size(), Matchers.equalTo(9));
+        assertThat(clusterState.routingNodes().getUnassigned().size(), Matchers.equalTo(0));
+        assertNumIndexShardsPerNode(clusterState, Matchers.equalTo(3));
+        
+        logger.info("now, start one more node, check that rebalancing will happen because we set it to always");
+        DiscoveryNodes.Builder nodes = newNodesBuilder().putAll(clusterState.nodes());
+            nodes.put(newNode("node2"));
+        clusterState = newClusterStateBuilder().state(clusterState).nodes(nodes.build()).build();
+
+        RoutingTable routingTable = service.reroute(clusterState).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        RoutingNodes routingNodes = clusterState.routingNodes();
+
+        assertThat(clusterState.routingNodes().node("node2").shardsWithState(INITIALIZING).size(), Matchers.equalTo(2));
+        assertThat(clusterState.routingNodes().node("node0").shardsWithState(INITIALIZING).size(), Matchers.equalTo(0));
+        assertThat(clusterState.routingNodes().node("node1").shardsWithState(INITIALIZING).size(), Matchers.equalTo(0));
+
+        RoutingTable prev = routingTable;
+        routingTable = service.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING)).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        routingNodes = clusterState.routingNodes();
+        assertThat(prev, Matchers.not(Matchers.sameInstance(routingTable)));
+        assertThat(clusterState.routingNodes().node("node2").shardsWithState(STARTED).size(), Matchers.equalTo(2));
+        assertThat(clusterState.routingNodes().node("node2").shardsWithState(INITIALIZING).size(), Matchers.equalTo(2));
+        assertThat(clusterState.routingNodes().node("node0").shardsWithState(INITIALIZING).size(), Matchers.equalTo(0));
+        assertThat(clusterState.routingNodes().node("node1").shardsWithState(INITIALIZING).size(), Matchers.equalTo(0));
+        assertThat(prev, Matchers.not(Matchers.sameInstance(routingTable)));
+        
+        prev = routingTable;
+        routingTable = service.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING)).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        routingNodes = clusterState.routingNodes();
+        assertThat(clusterState.routingNodes().node("node2").shardsWithState(STARTED).size(), Matchers.equalTo(4));
+        assertThat(clusterState.routingNodes().node("node2").shardsWithState(INITIALIZING).size(), Matchers.equalTo(2));
+        assertThat(clusterState.routingNodes().node("node0").shardsWithState(INITIALIZING).size(), Matchers.equalTo(0));
+        assertThat(clusterState.routingNodes().node("node1").shardsWithState(INITIALIZING).size(), Matchers.equalTo(0));
+        assertThat(prev, Matchers.not(Matchers.sameInstance(routingTable)));
+        
+        prev = routingTable;
+        routingTable = service.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING)).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        routingNodes = clusterState.routingNodes();
+        assertThat(clusterState.routingNodes().node("node2").shardsWithState(STARTED).size(), Matchers.equalTo(6));
+        assertThat(clusterState.routingNodes().node("node2").shardsWithState(INITIALIZING).size(), Matchers.equalTo(0));
+        assertThat(clusterState.routingNodes().node("node0").shardsWithState(INITIALIZING).size(), Matchers.equalTo(0));
+        assertThat(clusterState.routingNodes().node("node1").shardsWithState(INITIALIZING).size(), Matchers.equalTo(0));
+        assertThat(prev, Matchers.not(Matchers.sameInstance(routingTable)));
+        
+        prev = routingTable;
+        routingTable = service.applyStartedShards(clusterState, routingNodes.shardsWithState(INITIALIZING)).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        routingNodes = clusterState.routingNodes();
+        assertThat(prev, Matchers.sameInstance(routingTable));
+        assertNumIndexShardsPerNode(clusterState, Matchers.equalTo(2));
+        logger.debug("ClusterState: {}", clusterState.getRoutingNodes().prettyPrint());
+    }
+    
+    @Test
+    public void testMinimalRelocationsNoLimit() {
+        ImmutableSettings.Builder settings = settingsBuilder();
+        settings.put("cluster.routing.allocation.allow_rebalance", ClusterRebalanceAllocationDecider.ClusterRebalanceType.ALWAYS.toString())
+        .put("cluster.routing.allocation.node_concurrent_recoveries", 100)
+        .put("cluster.routing.allocation.node_initial_primaries_recoveries", 100);
         AllocationService service = new AllocationService(settings.build());
 
         ClusterState clusterState = initCluster(service, 1, 3, 3, 1);

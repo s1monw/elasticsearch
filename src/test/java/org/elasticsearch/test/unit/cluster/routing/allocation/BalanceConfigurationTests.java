@@ -69,7 +69,7 @@ public class BalanceConfigurationTests {
         settings.put(BalancedShardsAllocator.SETTING_INDEX_BALANCE_FACTOR, indexBalance);
         settings.put(BalancedShardsAllocator.SETTING_REPLICA_BALANCE_FACTOR, replicaBalance);
         settings.put(BalancedShardsAllocator.SETTING_PRIMARY_BALANCE_FACTOR, primaryBalance);
-        settings.put(BalancedShardsAllocator.SETTING_TRESHOLD, balanceTreshold);
+        settings.put(BalancedShardsAllocator.SETTING_THRESHOLD, balanceTreshold);
         
         AllocationService strategy = new AllocationService(settings.build());
 
@@ -97,7 +97,7 @@ public class BalanceConfigurationTests {
         settings.put(BalancedShardsAllocator.SETTING_INDEX_BALANCE_FACTOR, indexBalance);
         settings.put(BalancedShardsAllocator.SETTING_REPLICA_BALANCE_FACTOR, replicaBalance);
         settings.put(BalancedShardsAllocator.SETTING_PRIMARY_BALANCE_FACTOR, primaryBalance);
-        settings.put(BalancedShardsAllocator.SETTING_TRESHOLD, balanceTreshold);
+        settings.put(BalancedShardsAllocator.SETTING_THRESHOLD, balanceTreshold);
         
         AllocationService strategy = new AllocationService(settings.build());
 
@@ -125,7 +125,7 @@ public class BalanceConfigurationTests {
         settings.put(BalancedShardsAllocator.SETTING_INDEX_BALANCE_FACTOR, indexBalance);
         settings.put(BalancedShardsAllocator.SETTING_REPLICA_BALANCE_FACTOR, replicaBalance);
         settings.put(BalancedShardsAllocator.SETTING_PRIMARY_BALANCE_FACTOR, primaryBalance);
-        settings.put(BalancedShardsAllocator.SETTING_TRESHOLD, balanceTreshold);
+        settings.put(BalancedShardsAllocator.SETTING_THRESHOLD, balanceTreshold);
         
         AllocationService strategy = new AllocationService(settings.build());
 
