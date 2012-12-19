@@ -44,9 +44,9 @@ import static org.hamcrest.Matchers.*;
 /**
  *
  */
-public class IndexBalanceTest {
+public class IndexBalanceTests {
 
-    private final ESLogger logger = Loggers.getLogger(IndexBalanceTest.class);
+    private final ESLogger logger = Loggers.getLogger(IndexBalanceTests.class);
 
     @Test
     public void testBalanceAllNodesStarted() {

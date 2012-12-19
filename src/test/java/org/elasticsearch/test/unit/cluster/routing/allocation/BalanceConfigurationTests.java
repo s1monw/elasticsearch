@@ -47,9 +47,9 @@ import org.elasticsearch.common.settings.ImmutableSettings;
 import org.hamcrest.Matchers;
 import org.testng.annotations.Test;
 
-public class BalanceConfigurationTest {
+public class BalanceConfigurationTests {
 
-    private final ESLogger logger = Loggers.getLogger(BalanceConfigurationTest.class);
+    private final ESLogger logger = Loggers.getLogger(BalanceConfigurationTests.class);
     // TODO maybe we can randomize these numbers somehow
     final int numberOfNodes = 50;
     final int numberOfIndices = 25;
