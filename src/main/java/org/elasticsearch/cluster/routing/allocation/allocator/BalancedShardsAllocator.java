@@ -28,6 +28,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.lucene.util.SorterTemplate;
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
@@ -525,112 +527,134 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             if (logger.isDebugEnabled()) {
                 logger.debug("Start allocating unassigned replicas");
             }
+            if (unassigned.isEmpty()) {
+            	return false;
+            }
             boolean changed = false;
-            // TODO this is WIP 
-            Collections.sort(unassigned, new Comparator<MutableShardRouting>() {
-
-                @Override
-                public int compare(MutableShardRouting o1, MutableShardRouting o2) {
-                    return o1.index().compareTo(o2.index());
-                }
-            });
+          
             /*
              * TODO: We could be smarter here and group the replicas by index and then
              * use the sorter to save some iterations. 
              */
             final RoutingNodes routingNodes = allocation.routingNodes();
             final AllocationDeciders deciders = allocation.deciders();
-            for (MutableShardRouting replica : unassigned) {
-                
-                assert !replica.assignedToNode();
-                /* find an allocatable node with minimal weight */
-                float minWeight = Float.POSITIVE_INFINITY;
-                ModelNode minNode = null;
-                Decision decision = null;
-                for (ModelNode node : nodes.values()) {
-                    /*
-                     * The replica we add is removed below to simulate the
-                     * addition for weight calculation we use Decision.ALWAYS to
-                     * not violate the not null condition.
-                     */
-                    if (!node.containsReplica(replica)) {
-                        node.addReplica(replica, Decision.ALWAYS);
-                        float currentWeight = weight.weight(this, node, replica.index());
-                        /*
-                         * Remove the replica from the node again this is only a
-                         * simulation
-                         */
-                        Decision removed = node.removeReplica(replica);
-                        assert removed != null;
-                        /*
-                         * Unless the operation is not providing any gains we
-                         * don't check deciders
-                         */
-                        if (currentWeight <= minWeight) {
-                            Decision currentDecision = deciders.canAllocate(replica, routingNodes.node(node.getNodeId()), allocation);
-                            if (currentDecision.type() == Type.YES || currentDecision.type() == Type.THROTTLE) {
-                                if (currentWeight == minWeight) {
-                                    /*  we have an equal weight tie breaking:
-                                     *  1. if one decison is YES prefer it
-                                     *  2. prefer the node that holds the primary for this index with the next id in the ring ie.
-                                     *  for the 3 shards 2 replica case we try to build up:
-                                     *    1 2 0
-                                     *    2 0 1
-                                     *    0 1 2
-                                     *    
-                                     *  such that if we need to tiebreak we try to add
-                                     *              // TODO this is WIP 
-                                     */
-                                    if (currentDecision.type() == decision.type()) {
-                                        int repId = replica.id();
-                                        int nodeHigh = node.highestPrimary(replica.index());
-                                        int minNodeHigh = minNode.highestPrimary(replica.index());
-                                        if (((nodeHigh > repId && minNodeHigh > repId) 
-                                             || (nodeHigh < repId && minNodeHigh < repId) && (nodeHigh < minNodeHigh)
-                                             )
-                                             ||  nodeHigh > minNodeHigh && nodeHigh > repId) {
-                                            System.out.println("Tie Break: prefer " + node.highestPrimary(replica.index()) + " over "
-                                                    + minNode.highestPrimary(replica.index()) + " for " + replica);
-                                            minNode = node;
-                                            minWeight = currentWeight;
-                                            decision = currentDecision;
-                                        } else {
-                                            System.out.println("Tie Break: DON't " + node.highestPrimary(replica.index()) + " over "
-                                                    + minNode.highestPrimary(replica.index()) + " for " + replica);
-                                        }
-                                    } else if (currentDecision.type() == Type.YES) {
-                                        minNode = node;
-                                        minWeight = currentWeight;
-                                        decision = currentDecision;
-                                    }
-                                } else {
-                                    minNode = node;
-                                    minWeight = currentWeight;
-                                    decision = currentDecision;
-                                }
-                            }
-                        }
-
-                    }
+            
+            
+         
+            final Set<MutableShardRouting> currentRound = new TreeSet<MutableShardRouting>(new Comparator<MutableShardRouting>() {
+				@Override
+				public int compare(MutableShardRouting o1,
+						MutableShardRouting o2) {
+					final int indexCmp;
+					if ((indexCmp = o1.index().compareTo(o2.index())) == 0) {
+						if (o1.getId() - o2.getId() == 0) {
+							return o1.primary() ? -1 : o2.primary() ? 1 : 0;
+						}
+						return o1.getId() - o2.getId();
+							
+					} 
+					return indexCmp;
+				}
+			});
+            do {
+            	Iterator<MutableShardRouting> iterator = unassigned.iterator();
+                while(iterator.hasNext()) { 
+                	/* we treat every index equally here once chunk a time such that we fill up 
+                	 * nodes with all indices at the same time. Only on replica of a shard a time.
+                	 * Although there might be a primary and a replica of a shard in the set but
+                	 * primaries will be started first.*/
+                	if (currentRound.add(iterator.next())) {
+                		iterator.remove();
+                	}
                 }
-                assert decision != null && minNode != null || decision == null && minNode == null;
-                if (minNode != null) {
-                    minNode.addReplica(replica, decision);
-                    if (decision.type() == Type.YES) {
-                        if (logger.isDebugEnabled()) {
-                            logger.debug("Assigned Replica [{}] to [{}]", replica, minNode.getNodeId());
-                        }
-                        routingNodes.node(minNode.getNodeId()).add(replica);
-                        changed = true;
-                        continue; // don't add to ignoreUnassigned
-                    }
-                } else if (logger.isDebugEnabled()) {
-                    logger.debug("No Node found to assign replica [{}]", replica);
-                }
-                ignoredUnassigned.add(replica);
-            }
+            	boolean iterationChanged = false;
+	            for (MutableShardRouting replica : currentRound) {
+	                assert !replica.assignedToNode();
+	                /* find an node with minimal weight we can allocate on*/
+	                float minWeight = Float.POSITIVE_INFINITY;
+	                ModelNode minNode = null;
+	                Decision decision = null;
+	                for (ModelNode node : nodes.values()) {
+	                    /*
+	                     * The replica we add is removed below to simulate the
+	                     * addition for weight calculation we use Decision.ALWAYS to
+	                     * not violate the not null condition.
+	                     */
+	                    if (!node.containsReplica(replica)) {
+	                        node.addReplica(replica, Decision.ALWAYS);
+	                        float currentWeight = weight.weight(this, node, replica.index());
+	                        /*
+	                         * Remove the replica from the node again this is only a
+	                         * simulation
+	                         */
+	                        Decision removed = node.removeReplica(replica);
+	                        assert removed != null;
+	                        /*
+	                         * Unless the operation is not providing any gains we
+	                         * don't check deciders
+	                         */
+	                        if (currentWeight <= minWeight) {
+	                            Decision currentDecision = deciders.canAllocate(replica, routingNodes.node(node.getNodeId()), allocation);
+	                            NOUPDATE:
+	                            if (currentDecision.type() == Type.YES || currentDecision.type() == Type.THROTTLE) {
+	                                if (currentWeight == minWeight) {
+	                                    /*  we have an equal weight tie breaking:
+	                                     *  1. if one decison is YES prefer it
+	                                     *  2. prefer the node that holds the primary for this index with the next id in the ring ie.
+	                                     *  for the 3 shards 2 replica case we try to build up:
+	                                     *    1 2 0
+	                                     *    2 0 1
+	                                     *    0 1 2
+	                                     *  such that if we need to tiebreak we try to prefer the node holding a replica with the min id greater
+	                                     *  than the id of the replica we need to assign. This works find when new indices are created since 
+	                                     *  primaries are added first and we only add one replica set a time in this algorithm.
+	                                     */
+	                                    if (currentDecision.type() == decision.type()) {
+	                                        final int repId = replica.id();
+	                                        final int nodeHigh = node.highestPrimary(replica.index());
+	                                        final int minNodeHigh = minNode.highestPrimary(replica.index());
+	                                        if ((((nodeHigh > repId && minNodeHigh > repId) || (nodeHigh < repId && minNodeHigh < repId)) && (nodeHigh < minNodeHigh))
+	                                             || (nodeHigh > minNodeHigh && nodeHigh > repId && minNodeHigh < repId)) {
+	                                            minNode = node;
+	                                            minWeight = currentWeight;
+	                                            decision = currentDecision;
+											} else { break NOUPDATE; }
+										} else if (currentDecision.type() != Type.YES) {
+											break NOUPDATE;
+										}
+									}
+									minNode = node;
+									minWeight = currentWeight;
+									decision = currentDecision;
+								}
+							}
+						}
+					}
+	                assert decision != null && minNode != null || decision == null && minNode == null;
+	                if (minNode != null) {
+	                	iterationChanged = true;
+	                    minNode.addReplica(replica, decision);
+	                    if (decision.type() == Type.YES) {
+	                        if (logger.isDebugEnabled()) {
+	                            logger.debug("Assigned Replica [{}] to [{}]", replica, minNode.getNodeId());
+	                        }
+	                        routingNodes.node(minNode.getNodeId()).add(replica);
+	                        changed = true;
+	                        continue; // don't add to ignoreUnassigned
+	                    }
+	                } else if (logger.isDebugEnabled()) {
+	                    logger.debug("No Node found to assign replica [{}]", replica);
+	                }
+	                ignoredUnassigned.add(replica);
+	            }
+	            if (!iterationChanged && !unassigned.isEmpty()) {
+	            	ignoredUnassigned.addAll(unassigned);
+	            	unassigned.clear();
+	            	return changed;
+	            }
+	            currentRound.clear();
+            } while(!unassigned.isEmpty());
             // clear everything we have either added it or moved to ingoreUnassigned
-            unassigned.clear();
             return changed;
         }
 
