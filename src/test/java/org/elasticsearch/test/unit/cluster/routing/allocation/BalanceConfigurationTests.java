@@ -51,8 +51,8 @@ public class BalanceConfigurationTests {
 
     private final ESLogger logger = Loggers.getLogger(BalanceConfigurationTests.class);
     // TODO maybe we can randomize these numbers somehow
-    final int numberOfNodes = 50;
-    final int numberOfIndices = 25;
+    final int numberOfNodes = 25;
+    final int numberOfIndices = 12;
     final int numberOfShards = 2;
     final int numberOfReplicas = 2;
     
@@ -85,7 +85,7 @@ public class BalanceConfigurationTests {
     }
     
     @Test
-    public void testShardBalance() {
+    public void testReplicaBalance() {
         /* Tests balance over replicas only */
         final float indexBalance = 0.0f;
         final float replicaBalance = 1.0f;
@@ -102,13 +102,13 @@ public class BalanceConfigurationTests {
         AllocationService strategy = new AllocationService(settings.build());
 
         ClusterState clusterState = initCluster(strategy);
-        assertShardBalance(logger, clusterState.getRoutingNodes(), numberOfNodes, numberOfIndices, numberOfReplicas, numberOfShards, balanceTreshold);
+        assertReplicaBalance(logger, clusterState.getRoutingNodes(), numberOfNodes, numberOfIndices, numberOfReplicas, numberOfShards, balanceTreshold);
 
         clusterState = addNode(clusterState, strategy);
-        assertShardBalance(logger, clusterState.getRoutingNodes(), numberOfNodes+1, numberOfIndices, numberOfReplicas, numberOfShards, balanceTreshold);
+        assertReplicaBalance(logger, clusterState.getRoutingNodes(), numberOfNodes+1, numberOfIndices, numberOfReplicas, numberOfShards, balanceTreshold);
 
         clusterState = removeNodes(clusterState, strategy);
-        assertShardBalance(logger, clusterState.getRoutingNodes(), (numberOfNodes+1)-(numberOfNodes+1)/2, numberOfIndices, numberOfReplicas, numberOfShards, balanceTreshold);
+        assertReplicaBalance(logger, clusterState.getRoutingNodes(), (numberOfNodes+1)-(numberOfNodes+1)/2, numberOfIndices, numberOfReplicas, numberOfShards, balanceTreshold);
         
     }
     
@@ -259,7 +259,7 @@ public class BalanceConfigurationTests {
     }
     
 
-    private void assertShardBalance(ESLogger logger, RoutingNodes nodes, int numberOfNodes, int numberOfIndices, int numberOfReplicas, int numberOfShards, float treshold) {
+    private void assertReplicaBalance(ESLogger logger, RoutingNodes nodes, int numberOfNodes, int numberOfIndices, int numberOfReplicas, int numberOfShards, float treshold) {
         final int numShards = numberOfIndices * numberOfShards * (numberOfReplicas+1);
         final float avgNumShards = (float)(numShards) / (float)(numberOfNodes);
         final int minAvgNumberOfShards = Math.round(Math.round(Math.floor(avgNumShards-treshold))); 
