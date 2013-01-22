@@ -557,6 +557,7 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
                 }
             }
         } catch (Exception e) {
+            e.printStackTrace();
             String sSource = "_na_";
             try {
                 sSource = XContentHelper.convertToJson(source, false);
