@@ -19,13 +19,12 @@
 
 package org.elasticsearch.test.integration.mlt;
 
-import java.util.Collections;
-
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.indices.IndexMissingException;
 import org.elasticsearch.test.integration.AbstractNodesTests;
@@ -34,6 +33,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import static org.elasticsearch.client.Requests.*;
+import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.index.query.FilterBuilders.termFilter;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -50,8 +50,11 @@ public class MoreLikeThisActionTests extends AbstractNodesTests {
 
     @BeforeClass
     public void startServers() {
-        startNode("server1");
-        startNode("server2");
+        Settings settings = settingsBuilder().put("index.number_of_replicas", 0).build();
+        /* using 0 replicas to make sure the index operations always reach all replica ie. the primary and we don't 
+         * hit a replica in a test that hasn't seen the document yet*/
+        startNode("server1", settings);
+        startNode("server2", settings);
         client1 = getClient1();
         client2 = getClient2();
     }
