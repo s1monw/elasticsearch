@@ -1,3 +1,5 @@
+package org.apache.lucene.spatial.prefix.tree;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,8 +17,6 @@
  * limitations under the License.
  */
 
-package org.elasticsearch.common.lucene.spatial.prefix.tree;
-
 import com.spatial4j.core.context.SpatialContext;
 import com.spatial4j.core.shape.Point;
 import com.spatial4j.core.shape.Rectangle;
@@ -31,9 +31,31 @@ import java.util.List;
 import java.util.Locale;
 
 /**
+ * A {@link SpatialPrefixTree} which uses a
+ * <a href="http://en.wikipedia.org/wiki/Quadtree">quad tree</a> in which an
+ * indexed term will be generated for each node, 'A', 'B', 'C', 'D'.
+ *
  * @lucene.experimental
  */
 public class QuadPrefixTree extends SpatialPrefixTree {
+
+  /**
+   * Factory for creating {@link QuadPrefixTree} instances with useful defaults
+   */
+  public static class Factory extends SpatialPrefixTreeFactory {
+
+    @Override
+    protected int getLevelForDistance(double degrees) {
+      QuadPrefixTree grid = new QuadPrefixTree(ctx, MAX_LEVELS_POSSIBLE);
+      return grid.getLevelForDistance(degrees);
+    }
+
+    @Override
+    protected SpatialPrefixTree newSPT() {
+      return new QuadPrefixTree(ctx,
+          maxLevels != null ? maxLevels : MAX_LEVELS_POSSIBLE);
+    }
+  }
 
   public static final int MAX_LEVELS_POSSIBLE = 50;//not really sure how big this should be
 
@@ -50,8 +72,8 @@ public class QuadPrefixTree extends SpatialPrefixTree {
 
   final double[] levelW;
   final double[] levelH;
-  final int[] levelS; // side
-  final int[] levelN; // number
+  final int[]    levelS; // side
+  final int[]    levelN; // number
 
   public QuadPrefixTree(
       SpatialContext ctx, Rectangle bounds, int maxLevels) {
@@ -68,10 +90,10 @@ public class QuadPrefixTree extends SpatialPrefixTree {
 
     gridW = xmax - xmin;
     gridH = ymax - ymin;
-    this.xmid = xmin + gridW / 2.0;
-    this.ymid = ymin + gridH / 2.0;
-    levelW[0] = gridW / 2.0;
-    levelH[0] = gridH / 2.0;
+    this.xmid = xmin + gridW/2.0;
+    this.ymid = ymin + gridH/2.0;
+    levelW[0] = gridW/2.0;
+    levelH[0] = gridH/2.0;
     levelS[0] = 2;
     levelN[0] = 4;
 
@@ -108,10 +130,10 @@ public class QuadPrefixTree extends SpatialPrefixTree {
   public int getLevelForDistance(double dist) {
     if (dist == 0)//short circuit
       return maxLevels;
-    for (int i = 0; i < maxLevels - 1; i++) {
+    for (int i = 0; i < maxLevels-1; i++) {
       //note: level[i] is actually a lookup for level i+1
-      if (dist > levelW[i] && dist > levelH[i]) {
-        return i + 1;
+      if(dist > levelW[i] && dist > levelH[i]) {
+        return i+1;
       }
     }
     return maxLevels;
@@ -120,7 +142,7 @@ public class QuadPrefixTree extends SpatialPrefixTree {
   @Override
   public Node getNode(Point p, int level) {
     List<Node> cells = new ArrayList<Node>(1);
-    build(xmid, ymid, 0, cells, new StringBuilder(), ctx.makePoint(p.getX(), p.getY()), level);
+    build(xmid, ymid, 0, cells, new StringBuilder(), ctx.makePoint(p.getX(),p.getY()), level);
     return cells.get(0);//note cells could be longer if p on edge
   }
 
@@ -132,14 +154,6 @@ public class QuadPrefixTree extends SpatialPrefixTree {
   @Override
   public Node getNode(byte[] bytes, int offset, int len) {
     return new QuadCell(bytes, offset, len);
-  }
-
-  @Override //for performance
-  public List<Node> getNodes(Shape shape, int detailLevel, boolean inclParents) {
-    if (shape instanceof Point)
-      return super.getNodesAltPoint((Point) shape, detailLevel, inclParents);
-    else
-      return super.getNodes(shape, detailLevel, inclParents);
   }
 
   private void build(
@@ -186,16 +200,16 @@ public class QuadPrefixTree extends SpatialPrefixTree {
     if (SpatialRelation.CONTAINS == v) {
       str.append(c);
       //str.append(SpatialPrefixGrid.COVER);
-      matches.add(new QuadCell(str.toString(), v.transpose()));
+      matches.add(new QuadCell(str.toString(),v.transpose()));
     } else if (SpatialRelation.DISJOINT == v) {
       // nothing
     } else { // SpatialRelation.WITHIN, SpatialRelation.INTERSECTS
       str.append(c);
 
-      int nextLevel = level + 1;
+      int nextLevel = level+1;
       if (nextLevel >= maxLevel) {
         //str.append(SpatialPrefixGrid.INTERSECTS);
-        matches.add(new QuadCell(str.toString(), v.transpose()));
+        matches.add(new QuadCell(str.toString(),v.transpose()));
       } else {
         build(cx, cy, nextLevel, matches, str, shape, maxLevel);
       }
@@ -206,16 +220,16 @@ public class QuadPrefixTree extends SpatialPrefixTree {
   class QuadCell extends Node {
 
     public QuadCell(String token) {
-      super(QuadPrefixTree.this, token);
+      super(token);
     }
 
     public QuadCell(String token, SpatialRelation shapeRel) {
-      super(QuadPrefixTree.this, token);
+      super(token);
       this.shapeRel = shapeRel;
     }
 
     QuadCell(byte[] bytes, int off, int len) {
-      super(QuadPrefixTree.this, bytes, off, len);
+      super(bytes, off, len);
     }
 
     @Override
@@ -227,10 +241,10 @@ public class QuadPrefixTree extends SpatialPrefixTree {
     @Override
     public Collection<Node> getSubCells() {
       List<Node> cells = new ArrayList<Node>(4);
-      cells.add(new QuadCell(getTokenString() + "A"));
-      cells.add(new QuadCell(getTokenString() + "B"));
-      cells.add(new QuadCell(getTokenString() + "C"));
-      cells.add(new QuadCell(getTokenString() + "D"));
+      cells.add(new QuadCell(getTokenString()+"A"));
+      cells.add(new QuadCell(getTokenString()+"B"));
+      cells.add(new QuadCell(getTokenString()+"C"));
+      cells.add(new QuadCell(getTokenString()+"D"));
       return cells;
     }
 
@@ -241,7 +255,7 @@ public class QuadPrefixTree extends SpatialPrefixTree {
 
     @Override
     public Node getSubCell(Point p) {
-      return QuadPrefixTree.this.getNode(p, getLevel() + 1);//not performant!
+      return QuadPrefixTree.this.getNode(p,getLevel()+1);//not performant!
     }
 
     private Shape shape;//cache
@@ -267,7 +281,8 @@ public class QuadPrefixTree extends SpatialPrefixTree {
           ymin += levelH[i];
         } else if ('C' == c || 'c' == c) {
           // nothing really
-        } else if ('D' == c || 'd' == c) {
+        }
+        else if('D' == c || 'd' == c) {
           xmin += levelW[i];
         } else {
           throw new RuntimeException("unexpected char: " + c);
@@ -276,8 +291,8 @@ public class QuadPrefixTree extends SpatialPrefixTree {
       int len = token.length();
       double width, height;
       if (len > 0) {
-        width = levelW[len - 1];
-        height = levelH[len - 1];
+        width = levelW[len-1];
+        height = levelH[len-1];
       } else {
         width = gridW;
         height = gridH;

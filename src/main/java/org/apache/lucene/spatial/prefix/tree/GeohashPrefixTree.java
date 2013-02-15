@@ -1,3 +1,5 @@
+package org.apache.lucene.spatial.prefix.tree;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -15,8 +17,6 @@
  * limitations under the License.
  */
 
-package org.elasticsearch.common.lucene.spatial.prefix.tree;
-
 import com.spatial4j.core.context.SpatialContext;
 import com.spatial4j.core.io.GeohashUtils;
 import com.spatial4j.core.shape.Point;
@@ -29,25 +29,43 @@ import java.util.List;
 
 
 /**
- * A SpatialPrefixGrid based on Geohashes.  Uses {@link GeohashUtils} to do all the geohash work.
+ * A {@link SpatialPrefixTree} based on
+ * <a href="http://en.wikipedia.org/wiki/Geohash">Geohashes</a>.
+ * Uses {@link GeohashUtils} to do all the geohash work.
  *
  * @lucene.experimental
  */
 public class GeohashPrefixTree extends SpatialPrefixTree {
 
+  /**
+   * Factory for creating {@link GeohashPrefixTree} instances with useful defaults
+   */
+  public static class Factory extends SpatialPrefixTreeFactory {
+
+    @Override
+    protected int getLevelForDistance(double degrees) {
+      GeohashPrefixTree grid = new GeohashPrefixTree(ctx, GeohashPrefixTree.getMaxLevelsPossible());
+      return grid.getLevelForDistance(degrees);
+    }
+
+    @Override
+    protected SpatialPrefixTree newSPT() {
+      return new GeohashPrefixTree(ctx,
+          maxLevels != null ? maxLevels : GeohashPrefixTree.getMaxLevelsPossible());
+    }
+  }
+
   public GeohashPrefixTree(SpatialContext ctx, int maxLevels) {
     super(ctx, maxLevels);
     Rectangle bounds = ctx.getWorldBounds();
     if (bounds.getMinX() != -180)
-      throw new IllegalArgumentException("Geohash only supports lat-lon world bounds. Got " + bounds);
+      throw new IllegalArgumentException("Geohash only supports lat-lon world bounds. Got "+bounds);
     int MAXP = getMaxLevelsPossible();
     if (maxLevels <= 0 || maxLevels > MAXP)
-      throw new IllegalArgumentException("maxLen must be [1-" + MAXP + "] but got " + maxLevels);
+      throw new IllegalArgumentException("maxLen must be [1-"+MAXP+"] but got "+ maxLevels);
   }
 
-  /**
-   * Any more than this and there's no point (double lat & lon are the same).
-   */
+  /** Any more than this and there's no point (double lat & lon are the same). */
   public static int getMaxLevelsPossible() {
     return GeohashUtils.MAX_PRECISION;
   }
@@ -75,19 +93,13 @@ public class GeohashPrefixTree extends SpatialPrefixTree {
     return new GhCell(bytes, offset, len);
   }
 
-  @Override
-  public List<Node> getNodes(Shape shape, int detailLevel, boolean inclParents) {
-    return shape instanceof Point ? super.getNodesAltPoint((Point) shape, detailLevel, inclParents) :
-        super.getNodes(shape, detailLevel, inclParents);
-  }
-
   class GhCell extends Node {
     GhCell(String token) {
-      super(GeohashPrefixTree.this, token);
+      super(token);
     }
 
     GhCell(byte[] bytes, int off, int len) {
-      super(GeohashPrefixTree.this, bytes, off, len);
+      super(bytes, off, len);
     }
 
     @Override
@@ -113,7 +125,7 @@ public class GeohashPrefixTree extends SpatialPrefixTree {
 
     @Override
     public Node getSubCell(Point p) {
-      return GeohashPrefixTree.this.getNode(p, getLevel() + 1);//not performant!
+      return GeohashPrefixTree.this.getNode(p,getLevel()+1);//not performant!
     }
 
     private Shape shape;//cache
