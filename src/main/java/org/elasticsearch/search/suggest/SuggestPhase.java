@@ -19,7 +19,13 @@
 
 package org.elasticsearch.search.suggest;
 
-import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
@@ -45,14 +51,12 @@ import org.elasticsearch.common.text.Text;
 import org.elasticsearch.search.SearchParseElement;
 import org.elasticsearch.search.SearchPhase;
 import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.search.suggest.FuzzySuggest.FuzzySuggestion;
+import org.elasticsearch.search.suggest.Suggest.Suggestion;
+import org.elasticsearch.search.suggest.Suggest.Suggestion.Entry;
+import org.elasticsearch.search.suggest.Suggest.Suggestion.Entry.Option;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-
-import static org.elasticsearch.search.suggest.Suggest.Suggestion;
+import com.google.common.collect.ImmutableMap;
 
 /**
  */
@@ -83,10 +87,10 @@ public class SuggestPhase extends AbstractComponent implements SearchPhase {
 
         try {
             CharsRef spare = new CharsRef(); // Maybe add CharsRef to CacheRecycler?
-            List<Suggestion> suggestions = new ArrayList<Suggestion>(2);
+            final Map<String, Suggestion<? extends Entry<? extends Option>>> suggestions = new HashMap<String,  Suggestion<? extends Entry<? extends Option>>>(2);
             for (Map.Entry<String, SuggestionSearchContext.Suggestion> entry : suggest.suggestions().entrySet()) {
                 SuggestionSearchContext.Suggestion suggestion = entry.getValue();
-                suggestions.add(executeDirectSpellChecker(entry.getKey(), suggestion, context, spare));
+                suggestions.put(entry.getKey(), executeDirectSpellChecker(entry.getKey(), suggestion, context, spare));
             }
             context.queryResult().suggest(new Suggest(suggestions));
         } catch (IOException e) {
@@ -94,7 +98,7 @@ public class SuggestPhase extends AbstractComponent implements SearchPhase {
         }
     }
 
-    private Suggestion executeDirectSpellChecker(String name, SuggestionSearchContext.Suggestion suggestion, SearchContext context, CharsRef spare) throws IOException {
+    private FuzzySuggestion executeDirectSpellChecker(String name, SuggestionSearchContext.Suggestion suggestion, SearchContext context, CharsRef spare) throws IOException {
         DirectSpellChecker directSpellChecker = new DirectSpellChecker();
         directSpellChecker.setAccuracy(suggestion.accuracy());
         Comparator<SuggestWord> comparator;
@@ -118,7 +122,7 @@ public class SuggestPhase extends AbstractComponent implements SearchPhase {
         directSpellChecker.setMinQueryLength(suggestion.minWordLength());
         directSpellChecker.setThresholdFrequency(suggestion.minDocFreq());
 
-        Suggestion response = new Suggestion(
+        FuzzySuggestion response = new FuzzySuggestion(
                 name, suggestion.size(), suggestion.sort()
         );
         List<Token> tokens = queryTerms(suggestion, spare);
@@ -129,10 +133,10 @@ public class SuggestPhase extends AbstractComponent implements SearchPhase {
                     token.term, suggestion.shardSize(), indexReader, suggestion.suggestMode()
             );
             Text key = new BytesText(new BytesArray(token.term.bytes()));
-            Suggestion.Entry resultEntry = new Suggestion.Entry(key, token.startOffset, token.endOffset - token.startOffset);
+            FuzzySuggestion.FuzzyEntry resultEntry = new FuzzySuggestion.FuzzyEntry(key, token.startOffset, token.endOffset - token.startOffset);
             for (SuggestWord suggestWord : suggestedWords) {
                 Text word = new StringText(suggestWord.string);
-                resultEntry.addOption(new Suggestion.Entry.Option(word, suggestWord.freq, suggestWord.score));
+                resultEntry.addOption(new FuzzySuggestion.FuzzyEntry.FuzzyOption(word, suggestWord.freq, suggestWord.score));
             }
             response.addTerm(resultEntry);
         }
@@ -160,56 +164,7 @@ public class SuggestPhase extends AbstractComponent implements SearchPhase {
     }
 
     private static Comparator<SuggestWord> LUCENE_FREQUENCY = new SuggestWordFrequencyComparator();
-    public static Comparator<Suggestion.Entry.Option> SCORE = new Score();
-    public static Comparator<Suggestion.Entry.Option> FREQUENCY = new Frequency();
-
-    // Same behaviour as comparators in suggest module, but for SuggestedWord
-    // Highest score first, then highest freq first, then lowest term first
-    public static class Score implements Comparator<Suggestion.Entry.Option> {
-
-        @Override
-        public int compare(Suggestion.Entry.Option first, Suggestion.Entry.Option second) {
-            // first criteria: the distance
-            int cmp = Float.compare(second.getScore(), first.getScore());
-            if (cmp != 0) {
-                return cmp;
-            }
-
-            // second criteria (if first criteria is equal): the popularity
-            cmp = second.getFreq() - first.getFreq();
-            if (cmp != 0) {
-                return cmp;
-            }
-            // third criteria: term text
-            return first.getText().compareTo(second.getText());
-        }
-
-    }
-
-    // Same behaviour as comparators in suggest module, but for SuggestedWord
-    // Highest freq first, then highest score first, then lowest term first
-    public static class Frequency implements Comparator<Suggestion.Entry.Option> {
-
-        @Override
-        public int compare(Suggestion.Entry.Option first, Suggestion.Entry.Option second) {
-            // first criteria: the popularity
-            int cmp = second.getFreq() - first.getFreq();
-            if (cmp != 0) {
-                return cmp;
-            }
-
-            // second criteria (if first criteria is equal): the distance
-            cmp = Float.compare(second.getScore(), first.getScore());
-            if (cmp != 0) {
-                return cmp;
-            }
-
-            // third criteria: term text
-            return first.getText().compareTo(second.getText());
-        }
-
-    }
-
+   
     private static class Token {
 
         public final Term term;

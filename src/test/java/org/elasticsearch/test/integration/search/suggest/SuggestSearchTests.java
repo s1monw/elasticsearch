@@ -113,14 +113,14 @@ public class SuggestSearchTests extends AbstractNodesTests {
 
         assertThat(Arrays.toString(search.getShardFailures()), search.getFailedShards(), equalTo(0));
         assertThat(search.getSuggest(), notNullValue());
-        assertThat(search.getSuggest().getSuggestions().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getName(), equalTo("test"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getText().string(), equalTo("abcd"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().size(), equalTo(3));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(0).getText().string(), equalTo("aacd"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(1).getText().string(), equalTo("abbd"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(2).getText().string(), equalTo("abcc"));
+        assertThat(search.getSuggest().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("test").getName(), equalTo("test"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getText().string(), equalTo("abcd"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().size(), equalTo(3));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().get(0).getText().string(), equalTo("aacd"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().get(1).getText().string(), equalTo("abbd"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().get(2).getText().string(), equalTo("abcc"));
 
         client.prepareSearch()
                 .addSuggestion(
@@ -131,13 +131,13 @@ public class SuggestSearchTests extends AbstractNodesTests {
 
         assertThat(Arrays.toString(search.getShardFailures()), search.getFailedShards(), equalTo(0));
         assertThat(search.getSuggest(), notNullValue());
-        assertThat(search.getSuggest().getSuggestions().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getName(), equalTo("test"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().size(), equalTo(3));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(0).getText().string(), equalTo("aacd"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(1).getText().string(), equalTo("abbd"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(2).getText().string(), equalTo("abcc"));
+        assertThat(search.getSuggest().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("test").getName(), equalTo("test"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().size(), equalTo(3));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().get(0).getText().string(), equalTo("aacd"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().get(1).getText().string(), equalTo("abbd"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().get(2).getText().string(), equalTo("abcc"));
     }
 
     @Test
@@ -160,11 +160,11 @@ public class SuggestSearchTests extends AbstractNodesTests {
 
         assertThat(Arrays.toString(search.getShardFailures()), search.getFailedShards(), equalTo(0));
         assertThat(search.getSuggest(), notNullValue());
-        assertThat(search.getSuggest().getSuggestions().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getName(), equalTo("test"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getText().string(), equalTo("abcd"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().size(), equalTo(0));
+        assertThat(search.getSuggest().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("test").getName(), equalTo("test"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getText().string(), equalTo("abcd"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().size(), equalTo(0));
 
         client.prepareSearch()
                 .addSuggestion(
@@ -175,10 +175,10 @@ public class SuggestSearchTests extends AbstractNodesTests {
 
         assertThat(Arrays.toString(search.getShardFailures()), search.getFailedShards(), equalTo(0));
         assertThat(search.getSuggest(), notNullValue());
-        assertThat(search.getSuggest().getSuggestions().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getName(), equalTo("test"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().size(), equalTo(0));
+        assertThat(search.getSuggest().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("test").getName(), equalTo("test"));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("test").getEntries().get(0).getOptions().size(), equalTo(0));
     }
 
     @Test
@@ -239,26 +239,26 @@ public class SuggestSearchTests extends AbstractNodesTests {
 
         assertThat(Arrays.toString(search.getShardFailures()), search.getFailedShards(), equalTo(0));
         assertThat(search.getSuggest(), notNullValue());
-        assertThat(search.getSuggest().getSuggestions().size(), equalTo(3));
-        assertThat(search.getSuggest().getSuggestions().get(0).getName(), equalTo("size1"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aacd"));
-        assertThat(search.getSuggest().getSuggestions().get(1).getName(), equalTo("field2"));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().size(), equalTo(2));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(0).getText().string(), equalTo("prefix_eeeh"));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(0).getOffset(), equalTo(0));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(0).getLength(), equalTo(11));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(0).getOptions().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(1).getText().string(), equalTo("prefix_efgh"));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(1).getOffset(), equalTo(12));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(1).getLength(), equalTo(11));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(1).getOptions().size(), equalTo(3));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(1).getOptions().get(0).getText().string(), equalTo("prefix_eeeh"));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(1).getOptions().get(1).getText().string(), equalTo("prefix_efff"));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(1).getOptions().get(2).getText().string(), equalTo("prefix_eggg"));
-        assertThat(search.getSuggest().getSuggestions().get(2).getName(), equalTo("accuracy"));
-        assertThat(search.getSuggest().getSuggestions().get(2).getEntries().get(0).getOptions().isEmpty(), equalTo(true));
+        assertThat(search.getSuggest().size(), equalTo(3));
+        assertThat(search.getSuggest().getSuggestion("size1").getName(), equalTo("size1"));
+        assertThat(search.getSuggest().getSuggestion("size1").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("size1").getEntries().get(0).getOptions().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("size1").getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aacd"));
+        assertThat(search.getSuggest().getSuggestion("field2").getName(), equalTo("field2"));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().size(), equalTo(2));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(0).getText().string(), equalTo("prefix_eeeh"));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(0).getOffset(), equalTo(0));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(0).getLength(), equalTo(11));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(0).getOptions().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(1).getText().string(), equalTo("prefix_efgh"));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(1).getOffset(), equalTo(12));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(1).getLength(), equalTo(11));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(1).getOptions().size(), equalTo(3));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(1).getOptions().get(0).getText().string(), equalTo("prefix_eeeh"));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(1).getOptions().get(1).getText().string(), equalTo("prefix_efff"));
+        assertThat(search.getSuggest().getSuggestion("field2").getEntries().get(1).getOptions().get(2).getText().string(), equalTo("prefix_eggg"));
+        assertThat(search.getSuggest().getSuggestion("accuracy").getName(), equalTo("accuracy"));
+        assertThat(search.getSuggest().getSuggestion("accuracy").getEntries().get(0).getOptions().isEmpty(), equalTo(true));
     }
 
     @Test
@@ -315,46 +315,93 @@ public class SuggestSearchTests extends AbstractNodesTests {
 
         assertThat(Arrays.toString(search.getShardFailures()), search.getFailedShards(), equalTo(0));
         assertThat(search.getSuggest(), notNullValue());
-        assertThat(search.getSuggest().getSuggestions().size(), equalTo(4));
-        assertThat(search.getSuggest().getSuggestions().get(0).getName(), equalTo("size3SortScoreFirst"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().size(), equalTo(3));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aacd"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(1).getText().string(), equalTo("prefix_abcc"));
-        assertThat(search.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions().get(2).getText().string(), equalTo("prefix_accd"));
+        assertThat(search.getSuggest().size(), equalTo(4));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirst").getName(), equalTo("size3SortScoreFirst"));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirst").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirst").getEntries().get(0).getOptions().size(), equalTo(3));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirst").getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aacd"));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirst").getEntries().get(0).getOptions().get(1).getText().string(), equalTo("prefix_abcc"));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirst").getEntries().get(0).getOptions().get(2).getText().string(), equalTo("prefix_accd"));
 
-        assertThat(search.getSuggest().getSuggestions().get(1).getName(), equalTo("size10SortScoreFirst"));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(0).getOptions().size(), equalTo(10));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aacd"));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(0).getOptions().get(1).getText().string(), equalTo("prefix_abcc"));
-        assertThat(search.getSuggest().getSuggestions().get(1).getEntries().get(0).getOptions().get(2).getText().string(), equalTo("prefix_accd"));
+        assertThat(search.getSuggest().getSuggestion("size10SortScoreFirst").getName(), equalTo("size10SortScoreFirst"));
+        assertThat(search.getSuggest().getSuggestion("size10SortScoreFirst").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("size10SortScoreFirst").getEntries().get(0).getOptions().size(), equalTo(10));
+        assertThat(search.getSuggest().getSuggestion("size10SortScoreFirst").getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aacd"));
+        assertThat(search.getSuggest().getSuggestion("size10SortScoreFirst").getEntries().get(0).getOptions().get(1).getText().string(), equalTo("prefix_abcc"));
+        assertThat(search.getSuggest().getSuggestion("size10SortScoreFirst").getEntries().get(0).getOptions().get(2).getText().string(), equalTo("prefix_accd"));
         // This fails sometimes. Depending on how the docs are sharded. The suggested suggest corrections get the df on shard level, which
         // isn't correct comparing it to the index level.
 //        assertThat(search.suggest().suggestions().get(1).getSuggestedWords().get("prefix_abcd").get(3).getTerm(), equalTo("prefix_aaad"));
 
-        assertThat(search.getSuggest().getSuggestions().get(2).getName(), equalTo("size3SortScoreFirstMaxEdits1"));
-        assertThat(search.getSuggest().getSuggestions().get(2).getEntries().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(2).getEntries().get(0).getOptions().size(), equalTo(3));
-        assertThat(search.getSuggest().getSuggestions().get(2).getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aacd"));
-        assertThat(search.getSuggest().getSuggestions().get(2).getEntries().get(0).getOptions().get(1).getText().string(), equalTo("prefix_abcc"));
-        assertThat(search.getSuggest().getSuggestions().get(2).getEntries().get(0).getOptions().get(2).getText().string(), equalTo("prefix_accd"));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirstMaxEdits1").getName(), equalTo("size3SortScoreFirstMaxEdits1"));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirstMaxEdits1").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirstMaxEdits1").getEntries().get(0).getOptions().size(), equalTo(3));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirstMaxEdits1").getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aacd"));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirstMaxEdits1").getEntries().get(0).getOptions().get(1).getText().string(), equalTo("prefix_abcc"));
+        assertThat(search.getSuggest().getSuggestion("size3SortScoreFirstMaxEdits1").getEntries().get(0).getOptions().get(2).getText().string(), equalTo("prefix_accd"));
 
-        assertThat(search.getSuggest().getSuggestions().get(3).getName(), equalTo("size10SortFrequencyFirst"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().size(), equalTo(1));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().size(), equalTo(10));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aaad"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(1).getText().string(), equalTo("prefix_abbb"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(2).getText().string(), equalTo("prefix_aaca"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(3).getText().string(), equalTo("prefix_abba"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(4).getText().string(), equalTo("prefix_accc"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(5).getText().string(), equalTo("prefix_addd"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(6).getText().string(), equalTo("prefix_abaa"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(7).getText().string(), equalTo("prefix_dbca"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(8).getText().string(), equalTo("prefix_cbad"));
-        assertThat(search.getSuggest().getSuggestions().get(3).getEntries().get(0).getOptions().get(9).getText().string(), equalTo("prefix_aacd"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getName(), equalTo("size10SortFrequencyFirst"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().size(), equalTo(10));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(0).getText().string(), equalTo("prefix_aaad"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(1).getText().string(), equalTo("prefix_abbb"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(2).getText().string(), equalTo("prefix_aaca"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(3).getText().string(), equalTo("prefix_abba"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(4).getText().string(), equalTo("prefix_accc"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(5).getText().string(), equalTo("prefix_addd"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(6).getText().string(), equalTo("prefix_abaa"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(7).getText().string(), equalTo("prefix_dbca"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(8).getText().string(), equalTo("prefix_cbad"));
+        assertThat(search.getSuggest().getSuggestion("size10SortFrequencyFirst").getEntries().get(0).getOptions().get(9).getText().string(), equalTo("prefix_aacd"));
 //        assertThat(search.suggest().suggestions().get(3).getSuggestedWords().get("prefix_abcd").get(4).getTerm(), equalTo("prefix_abcc"));
 //        assertThat(search.suggest().suggestions().get(3).getSuggestedWords().get("prefix_abcd").get(4).getTerm(), equalTo("prefix_accd"));
+    }
+    
+    @Test
+    public void testDifferentShardSize() throws Exception {
+        // test suggestion with explicitly added different shard sizes
+        client.admin().indices().prepareDelete().execute().actionGet();
+        client.admin().indices().prepareCreate("test")
+                .setSettings(settingsBuilder()
+                        .put(SETTING_NUMBER_OF_SHARDS, 5)
+                        .put(SETTING_NUMBER_OF_REPLICAS, 0))
+                .execute().actionGet();
+        client.admin().cluster().prepareHealth("test").setWaitForGreenStatus().execute().actionGet();
+
+        client.prepareIndex("test", "type1", "1")
+        .setSource(XContentFactory.jsonBuilder()
+                .startObject()
+                .field("field1", "foobar1")
+                .endObject()
+        ).setRouting("1").execute().actionGet();
+
+        client.prepareIndex("test", "type1", "2")
+        .setSource(XContentFactory.jsonBuilder()
+                .startObject()
+                .field("field1", "foobar2")
+                .endObject()
+        ).setRouting("2").execute().actionGet();
+        
+        client.prepareIndex("test", "type1", "3")
+        .setSource(XContentFactory.jsonBuilder()
+                .startObject()
+                .field("field1", "foobar3")
+                .endObject()
+        ).setRouting("1").execute().actionGet();
+
+        client.admin().indices().prepareRefresh().execute().actionGet();
+
+        SearchResponse search = client.prepareSearch()
+                .setSuggestText("foobar")
+                .addSuggestion(fuzzySuggestion("simple")
+                        .setSize(10).setMinDocFreq(0).setField("field1").setSuggestMode("always"))
+                .execute().actionGet();
+        assertThat(Arrays.toString(search.getShardFailures()), search.getFailedShards(), equalTo(0));
+        assertThat(search.getSuggest(), notNullValue());
+        assertThat(search.getSuggest().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("simple").getName(), equalTo("simple"));
+        assertThat(search.getSuggest().getSuggestion("simple").getEntries().size(), equalTo(1));
+        assertThat(search.getSuggest().getSuggestion("simple").getEntries().get(0).getOptions().size(), equalTo(3));
     }
 
 

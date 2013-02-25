@@ -49,6 +49,9 @@ import org.elasticsearch.search.internal.InternalSearchResponse;
 import org.elasticsearch.search.query.QuerySearchResult;
 import org.elasticsearch.search.query.QuerySearchResultProvider;
 import org.elasticsearch.search.suggest.Suggest;
+import org.elasticsearch.search.suggest.Suggest.Suggestion;
+import org.elasticsearch.search.suggest.Suggest.Suggestion.Entry;
+import org.elasticsearch.search.suggest.Suggest.Suggestion.Entry.Option;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -376,7 +379,7 @@ public class SearchPhaseController extends AbstractComponent {
         // merge suggest results
         Suggest suggest = null;
         if (!queryResults.isEmpty()) {
-            List<Suggest.Suggestion> mergedSuggestions = null;
+            Map<String, Suggest.Suggestion<? extends Entry<? extends Option>>> mergedSuggestions = null;
             for (QuerySearchResultProvider resultProvider : queryResults.values()) {
                 Suggest shardResult = resultProvider.queryResult().suggest();
                 if (shardResult == null) {
@@ -384,21 +387,21 @@ public class SearchPhaseController extends AbstractComponent {
                 }
 
                 if (mergedSuggestions == null) {
-                    mergedSuggestions = shardResult.getSuggestions();
+                    mergedSuggestions = shardResult.getSuggestionMap();
                     continue;
                 }
-
-                for (Suggest.Suggestion shardCommand : shardResult.getSuggestions()) {
-                    for (Suggest.Suggestion mergedSuggestion : mergedSuggestions) {
-                        if (mergedSuggestion.getName().equals(shardCommand.getName())) {
-                            mergedSuggestion.reduce(shardCommand);
-                        }
+                for (Suggest.Suggestion shardCommand : shardResult) {
+                    final Suggestion<? extends Entry<? extends Option>> suggestion = mergedSuggestions.get(shardCommand.getName());
+                    if (suggestion == null) {
+                        mergedSuggestions.put(shardCommand.getName(), shardCommand);
+                    } else {
+                        suggestion.reduce(shardCommand);
                     }
                 }
             }
             if (mergedSuggestions != null) {
                 suggest = new Suggest(mergedSuggestions);
-                for (Suggest.Suggestion suggestion : mergedSuggestions) {
+                for (Suggest.Suggestion<? extends Entry<? extends Option>> suggestion : mergedSuggestions.values()) {
                     suggestion.trim();
                 }
             }

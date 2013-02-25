@@ -31,7 +31,7 @@ import org.elasticsearch.common.unit.SizeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.node.Node;
-import org.elasticsearch.search.suggest.Suggest;
+import org.elasticsearch.search.suggest.Suggest.Suggestion.Entry.Option;
 import org.elasticsearch.search.suggest.SuggestBuilder;
 
 import java.io.IOException;
@@ -142,7 +142,7 @@ public class SuggestSearchBenchMark {
                 System.err.println("No suggestions");
                 continue;
             }
-            List<Suggest.Suggestion.Entry.Option> options = response.getSuggest().getSuggestions().get(0).getEntries().get(0).getOptions();
+            List<? extends Option> options = response.getSuggest().getSuggestion("field").getEntries().get(0).getOptions();
             if (options == null || options.isEmpty()) {
                 System.err.println("No suggestions");
             }
