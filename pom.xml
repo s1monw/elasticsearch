@@ -30,7 +30,7 @@
     </parent>
 
     <properties>
-        <lucene.version>4.1.0</lucene.version>
+        <lucene.version>4.2.0</lucene.version>
     </properties>
 
     <repositories>
@@ -38,6 +38,12 @@
             <id>elasticsearch</id>
             <name>elasticsearch repo</name>
             <url>http://elasticsearch.googlecode.com/svn/maven</url>
+        </repository>
+        
+        <repository>
+        <id>lucene</id>
+        <name>lucene release</name>
+        <url>http://people.apache.org/~rmuir/staging_area/lucene_solr_4_2_r1453694/lucene/maven/</url>
         </repository>
     </repositories>
 
