@@ -20,8 +20,6 @@ package org.elasticsearch.search.suggest.phrase;
 import java.io.IOException;
 
 import org.apache.lucene.util.PriorityQueue;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.Candidate;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.CandidateSet;
 
 final class CandidateScorer {
     private final WordScorer scorer;

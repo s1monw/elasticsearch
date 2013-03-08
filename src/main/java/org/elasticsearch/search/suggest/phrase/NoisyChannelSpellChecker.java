@@ -33,8 +33,6 @@ import org.apache.lucene.util.CharsRef;
 import org.apache.lucene.util.UnicodeUtil;
 import org.elasticsearch.common.io.FastCharArrayReader;
 import org.elasticsearch.search.suggest.SuggestUtils;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.Candidate;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.CandidateSet;
 
 //TODO public for tests
 public final class NoisyChannelSpellChecker {
@@ -58,7 +56,7 @@ public final class NoisyChannelSpellChecker {
     public Correction[] getCorrections(TokenStream stream, final CandidateGenerator generator,
             float maxErrors, int numCorrections, IndexReader reader, WordScorer wordScorer, BytesRef separator, float confidence, int gramSize) throws IOException {
         
-        final List<CandidateSet> candidateSetsList = new ArrayList<DirectCandidateGenerator.CandidateSet>();
+        final List<CandidateSet> candidateSetsList = new ArrayList<CandidateSet>();
         SuggestUtils.analyze(stream, new SuggestUtils.TokenConsumer() {
             CandidateSet currentSet = null;
             private TypeAttribute typeAttribute;

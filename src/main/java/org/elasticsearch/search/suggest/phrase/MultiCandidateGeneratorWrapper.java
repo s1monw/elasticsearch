@@ -23,8 +23,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.Candidate;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.CandidateSet;
 //TODO public for tests
 public final class MultiCandidateGeneratorWrapper extends CandidateGenerator {
 
@@ -36,11 +34,7 @@ public final class MultiCandidateGeneratorWrapper extends CandidateGenerator {
         this.candidateGenerator = candidateGenerators;
         this.numCandidates = numCandidates;
     }
-    @Override
-    public boolean isKnownWord(BytesRef term) throws IOException {
-        return candidateGenerator[0].isKnownWord(term);
-    }
-
+   
     @Override
     public long frequency(BytesRef term) throws IOException {
         return candidateGenerator[0].frequency(term);
@@ -71,9 +65,10 @@ public final class MultiCandidateGeneratorWrapper extends CandidateGenerator {
         
         return set;
     }
+
     @Override
-    public Candidate createCandidate(BytesRef term, long frequency, double channelScore) throws IOException {
-        return candidateGenerator[0].createCandidate(term, frequency, channelScore);
+    protected double score(long frequency, double errorScore) {
+        return candidateGenerator[0].score(frequency, errorScore);
     }
 
 }

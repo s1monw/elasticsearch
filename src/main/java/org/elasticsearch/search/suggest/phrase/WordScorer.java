@@ -26,8 +26,6 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.Candidate;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.CandidateSet;
 
 //TODO public for tests
 public abstract class WordScorer {

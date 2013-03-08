@@ -21,13 +21,13 @@ package org.elasticsearch.search.suggest.phrase;
 import java.io.IOException;
 
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.Candidate;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.CandidateSet;
 
 //TODO public for tests
 public abstract class CandidateGenerator {
 
-    public abstract boolean isKnownWord(BytesRef term) throws IOException;
+    public boolean isKnownWord(BytesRef term) throws IOException {
+        return frequency(term) > 0;
+    }
 
     public abstract long frequency(BytesRef term) throws IOException;
 
@@ -39,8 +39,13 @@ public abstract class CandidateGenerator {
     public Candidate createCandidate(BytesRef term) throws IOException {
         return createCandidate(term, frequency(term), 1.0);
     }
-    public abstract Candidate createCandidate(BytesRef term, long frequency, double channelScore) throws IOException;
-
+    
+    protected abstract double score(long frequency, double errorScore);
+    
+    
+    public Candidate createCandidate(BytesRef term, long frequency, double channelScore) throws IOException {
+        return new Candidate(term, frequency, channelScore, score(frequency, channelScore));
+    }
+    
     public abstract CandidateSet drawCandidates(CandidateSet set) throws IOException;
-
 }

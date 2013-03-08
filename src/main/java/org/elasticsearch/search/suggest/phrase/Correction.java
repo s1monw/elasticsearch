@@ -22,7 +22,6 @@ import java.util.Arrays;
 
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.search.suggest.SuggestUtils;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.Candidate;
 //TODO public for tests
 public final class Correction {
 

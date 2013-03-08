@@ -23,7 +23,6 @@ import java.io.IOException;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.search.suggest.SuggestUtils;
-import org.elasticsearch.search.suggest.phrase.DirectCandidateGenerator.Candidate;
 
 //TODO public for tests
 public final class LinearInterpoatingScorer extends WordScorer {
