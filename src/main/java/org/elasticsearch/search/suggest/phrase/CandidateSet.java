@@ -18,6 +18,7 @@
  */
 package org.elasticsearch.search.suggest.phrase;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -44,6 +45,11 @@ public final class CandidateSet {
         System.arraycopy(this.candidates, 0, candidates, 0, this.candidates.length);
         candidates[candidates.length - 1] = candidate;
         this.candidates = candidates;
+    }
+
+    @Override
+    public String toString() {
+        return "CandidateSet [candidates=" + Arrays.toString(candidates) + ", originalTerm=" + originalTerm + "]";
     }
 
 }

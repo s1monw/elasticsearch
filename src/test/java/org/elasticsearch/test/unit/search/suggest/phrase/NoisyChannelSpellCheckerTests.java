@@ -1,4 +1,3 @@
-package org.elasticsearch.test.unit.search.suggest.phrase;
 /*
  * Licensed to ElasticSearch and Shay Banon under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,6 +16,8 @@ package org.elasticsearch.test.unit.search.suggest.phrase;
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.elasticsearch.test.unit.search.suggest.phrase;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
