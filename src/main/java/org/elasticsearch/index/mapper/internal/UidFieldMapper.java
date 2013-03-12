@@ -23,6 +23,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.index.FieldInfo.DocValuesType;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.common.lucene.uid.UidField;
@@ -57,7 +58,8 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
             FIELD_TYPE.setTokenized(false);
             FIELD_TYPE.setStored(true);
             FIELD_TYPE.setOmitNorms(true);
-            FIELD_TYPE.setIndexOptions(FieldInfo.IndexOptions.DOCS_AND_FREQS_AND_POSITIONS); // we store payload (otherwise, we really need just docs)
+            FIELD_TYPE.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
+            FIELD_TYPE.setDocValueType(DocValuesType.NUMERIC);
             FIELD_TYPE.freeze();
 
             NESTED_FIELD_TYPE.setIndexed(true);

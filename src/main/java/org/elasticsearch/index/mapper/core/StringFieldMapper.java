@@ -25,6 +25,7 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
+import org.apache.lucene.index.FieldInfo.DocValuesType;
 import org.apache.lucene.index.FieldInfo.IndexOptions;
 import org.apache.lucene.search.Filter;
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
@@ -45,6 +46,7 @@ import org.elasticsearch.index.similarity.SimilarityProvider;
 import java.io.IOException;
 import java.util.Map;
 
+import static org.elasticsearch.common.xcontent.support.XContentMapValues.nodeBooleanValue;
 import static org.elasticsearch.index.mapper.MapperBuilders.stringField;
 import static org.elasticsearch.index.mapper.core.TypeParsers.parseField;
 
@@ -66,6 +68,7 @@ public class StringFieldMapper extends AbstractFieldMapper<String> implements Al
         public static final String NULL_VALUE = null;
         public static final int POSITION_OFFSET_GAP = 0;
         public static final int IGNORE_ABOVE = -1;
+        public static final DocValuesType DOCVALUES_TYPE = DocValuesType.SORTED_SET;
     }
 
     public static class Builder extends AbstractFieldMapper.OpenBuilder<Builder, StringFieldMapper> {
@@ -77,6 +80,8 @@ public class StringFieldMapper extends AbstractFieldMapper<String> implements Al
         protected NamedAnalyzer searchQuotedAnalyzer;
 
         protected int ignoreAbove = Defaults.IGNORE_ABOVE;
+        
+        protected DocValuesType docValuesType = null;
 
         public Builder(String name) {
             super(name, new FieldType(Defaults.FIELD_TYPE));
@@ -117,6 +122,11 @@ public class StringFieldMapper extends AbstractFieldMapper<String> implements Al
             this.ignoreAbove = ignoreAbove;
             return this;
         }
+        
+        public Builder useDocValues(DocValuesType type) {
+            this.docValuesType = type;
+            return builder;
+        }
 
         @Override
         public StringFieldMapper build(BuilderContext context) {
@@ -135,6 +145,9 @@ public class StringFieldMapper extends AbstractFieldMapper<String> implements Al
                 if (!indexOptionsSet) {
                     fieldType.setIndexOptions(IndexOptions.DOCS_ONLY);
                 }
+            }
+            if (docValuesType != null) {
+                fieldType.setDocValueType(docValuesType);
             }
             StringFieldMapper fieldMapper = new StringFieldMapper(buildNames(context),
                     boost, fieldType, nullValue, indexAnalyzer, searchAnalyzer, searchQuotedAnalyzer,
@@ -175,6 +188,10 @@ public class StringFieldMapper extends AbstractFieldMapper<String> implements Al
                     }
                 } else if (propName.equals("ignore_above")) {
                     builder.ignoreAbove(XContentMapValues.nodeIntegerValue(propNode, -1));
+                } else if (propName.equals("docvalues")) {
+                    if (nodeBooleanValue(propNode)) { // only one type for now
+                        builder.useDocValues(Defaults.DOCVALUES_TYPE);
+                    }
                 }
             }
             return builder;

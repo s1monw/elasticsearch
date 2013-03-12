@@ -21,11 +21,12 @@ package org.elasticsearch.test.unit.common.lucene.uid;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.*;
 import org.apache.lucene.store.RAMDirectory;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.common.lucene.uid.UidField;
-import org.elasticsearch.index.mapper.internal.UidFieldMapper;
+import org.elasticsearch.index.mapper.core.AbstractFieldMapper;
 import org.hamcrest.MatcherAssert;
 import org.testng.annotations.Test;
 
@@ -45,9 +46,15 @@ public class UidFieldTests {
         DirectoryReader directoryReader = DirectoryReader.open(writer, true);
         AtomicReader atomicReader = SlowCompositeReaderWrapper.wrap(directoryReader);
         MatcherAssert.assertThat(UidField.loadVersion(atomicReader.getContext(), new Term("_uid", "1")), equalTo(-1l));
-
+        FieldType legacyFieldType = new FieldType(AbstractFieldMapper.Defaults.FIELD_TYPE);
+        legacyFieldType.setIndexed(true);
+        legacyFieldType.setTokenized(false);
+        legacyFieldType.setStored(true);
+        legacyFieldType.setOmitNorms(true);
+        legacyFieldType.setIndexOptions(FieldInfo.IndexOptions.DOCS_AND_FREQS_AND_POSITIONS);
+        legacyFieldType.freeze();
         Document doc = new Document();
-        doc.add(new Field("_uid", "1", UidFieldMapper.Defaults.FIELD_TYPE));
+        doc.add(new Field("_uid", "1", legacyFieldType));
         writer.addDocument(doc);
         directoryReader = DirectoryReader.openIfChanged(directoryReader);
         atomicReader = SlowCompositeReaderWrapper.wrap(directoryReader);

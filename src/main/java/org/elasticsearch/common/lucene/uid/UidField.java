@@ -19,20 +19,14 @@
 
 package org.elasticsearch.common.lucene.uid;
 
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.common.Numbers;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.index.codec.postingsformat.BloomFilterPostingsFormat;
 import org.elasticsearch.index.mapper.internal.UidFieldMapper;
 
-import java.io.IOException;
 import java.io.Reader;
 
 /**
@@ -56,9 +50,11 @@ public class UidField extends Field {
     // this works fine for nested docs since they don't have the payload which has the version
     // so we iterate till we find the one with the payload
     public static DocIdAndVersion loadDocIdAndVersion(AtomicReaderContext context, Term term) {
+        final String field = term.field();
+        final AtomicReader reader = context.reader();
         int docId = Lucene.NO_DOC;
         try {
-            Terms terms = context.reader().terms(term.field());
+            final Terms terms = reader.terms(field);
             if (terms == null) {
                 return null;
             }
@@ -68,33 +64,42 @@ public class UidField extends Field {
                     return null;
                 }
             }
-            TermsEnum termsEnum = terms.iterator(null);
-            if (termsEnum == null) {
-                return null;
-            }
+            final TermsEnum termsEnum = terms.iterator(null);
             if (!termsEnum.seekExact(term.bytes(), true)) {
                 return null;
             }
-            DocsAndPositionsEnum uid = termsEnum.docsAndPositions(context.reader().getLiveDocs(), null, DocsAndPositionsEnum.FLAG_PAYLOADS);
-            if (uid == null || uid.nextDoc() == DocIdSetIterator.NO_MORE_DOCS) {
-                return null; // no doc
+            final NumericDocValues numericDocValues = reader.getNumericDocValues(term.field());
+            if (numericDocValues == null) {
+                DocsAndPositionsEnum uid = termsEnum.docsAndPositions(reader.getLiveDocs(), null, DocsAndPositionsEnum.FLAG_PAYLOADS);
+                if (uid == null || uid.nextDoc() == DocIdSetIterator.NO_MORE_DOCS) {
+                    return null; // no doc
+                }
+                // Note, only master docs uid have version payload, so we can use that info to not
+                // take them into account
+                do {
+                    docId = uid.docID();
+                    uid.nextPosition();
+                    if (uid.getPayload() == null) {
+                        continue;
+                    }
+                    if (uid.getPayload().length < 8) {
+                        continue;
+                    }
+                    byte[] payload = new byte[uid.getPayload().length];
+                    System.arraycopy(uid.getPayload().bytes, uid.getPayload().offset, payload, 0, uid.getPayload().length);
+                    return new DocIdAndVersion(docId, Numbers.bytesToLong(payload), context);
+                } while (uid.nextDoc() != DocIdSetIterator.NO_MORE_DOCS);
+                return new DocIdAndVersion(docId, -2, context);
+            } else {
+                final DocsEnum uid = termsEnum.docs(context.reader().getLiveDocs(), null);
+                if (uid == null || uid.nextDoc() == DocIdSetIterator.NO_MORE_DOCS) {
+                    return null; // no doc
+                }
+                do {
+                    docId = uid.docID();
+                } while (uid.nextDoc() != DocIdSetIterator.NO_MORE_DOCS);
+                return new DocIdAndVersion(docId, numericDocValues.get(docId), context);
             }
-            // Note, only master docs uid have version payload, so we can use that info to not
-            // take them into account
-            do {
-                docId = uid.docID();
-                uid.nextPosition();
-                if (uid.getPayload() == null) {
-                    continue;
-                }
-                if (uid.getPayload().length < 8) {
-                    continue;
-                }
-                byte[] payload = new byte[uid.getPayload().length];
-                System.arraycopy(uid.getPayload().bytes, uid.getPayload().offset, payload, 0, uid.getPayload().length);
-                return new DocIdAndVersion(docId, Numbers.bytesToLong(payload), context);
-            } while (uid.nextDoc() != DocIdSetIterator.NO_MORE_DOCS);
-            return new DocIdAndVersion(docId, -2, context);
         } catch (Exception e) {
             return new DocIdAndVersion(docId, -2, context);
         }
@@ -106,7 +111,9 @@ public class UidField extends Field {
      */
     public static long loadVersion(AtomicReaderContext context, Term term) {
         try {
-            Terms terms = context.reader().terms(term.field());
+            final String field = term.field();
+            final AtomicReader reader = context.reader();
+            final Terms terms = reader.terms(field);
             if (terms == null) {
                 return -1;
             }
@@ -116,32 +123,42 @@ public class UidField extends Field {
                     return -1;
                 }
             }
-            TermsEnum termsEnum = terms.iterator(null);
-            if (termsEnum == null) {
-                return -1;
-            }
+            final TermsEnum termsEnum = terms.iterator(null);
             if (!termsEnum.seekExact(term.bytes(), true)) {
                 return -1;
             }
-            DocsAndPositionsEnum uid = termsEnum.docsAndPositions(context.reader().getLiveDocs(), null, DocsAndPositionsEnum.FLAG_PAYLOADS);
-            if (uid == null || uid.nextDoc() == DocIdSetIterator.NO_MORE_DOCS) {
-                return -1;
+            final NumericDocValues numericDocValues = context.reader().getNumericDocValues(term.field());
+            if (numericDocValues == null) {
+                DocsAndPositionsEnum uid = termsEnum.docsAndPositions(context.reader().getLiveDocs(), null, DocsAndPositionsEnum.FLAG_PAYLOADS);
+                if (uid == null || uid.nextDoc() == DocIdSetIterator.NO_MORE_DOCS) {
+                    return -1;
+                }
+                // Note, only master docs uid have version payload, so we can use that info to not
+                // take them into account
+                do {
+                    uid.nextPosition();
+                    if (uid.getPayload() == null) {
+                        continue;
+                    }
+                    if (uid.getPayload().length < 8) {
+                        continue;
+                    }
+                    byte[] payload = new byte[uid.getPayload().length];
+                    System.arraycopy(uid.getPayload().bytes, uid.getPayload().offset, payload, 0, uid.getPayload().length);
+                    return Numbers.bytesToLong(payload);
+                } while (uid.nextDoc() != DocIdSetIterator.NO_MORE_DOCS);
+                return -2;
+            } else {
+                int docId = DocIdSetIterator.NO_MORE_DOCS;
+                final DocsEnum uid = termsEnum.docs(context.reader().getLiveDocs(), null);
+                if (uid == null || uid.nextDoc() == DocIdSetIterator.NO_MORE_DOCS) {
+                    return -2; // no doc
+                }
+                do {
+                    docId = uid.docID();
+                } while (uid.nextDoc() != DocIdSetIterator.NO_MORE_DOCS);
+                return numericDocValues.get(docId);
             }
-            // Note, only master docs uid have version payload, so we can use that info to not
-            // take them into account
-            do {
-                uid.nextPosition();
-                if (uid.getPayload() == null) {
-                    continue;
-                }
-                if (uid.getPayload().length < 8) {
-                    continue;
-                }
-                byte[] payload = new byte[uid.getPayload().length];
-                System.arraycopy(uid.getPayload().bytes, uid.getPayload().offset, payload, 0, uid.getPayload().length);
-                return Numbers.bytesToLong(payload);
-            } while (uid.nextDoc() != DocIdSetIterator.NO_MORE_DOCS);
-            return -2;
         } catch (Exception e) {
             return -2;
         }
@@ -159,7 +176,6 @@ public class UidField extends Field {
         super(name, UidFieldMapper.Defaults.FIELD_TYPE);
         this.uid = uid;
         this.version = version;
-        this.tokenStream = new UidPayloadTokenStream(this);
     }
 
     public String uid() {
@@ -189,38 +205,8 @@ public class UidField extends Field {
     }
 
     @Override
-    public TokenStream tokenStream(Analyzer analyzer) throws IOException {
-        return tokenStream;
+    public Number numericValue() {
+        return version;
     }
-
-    public static final class UidPayloadTokenStream extends TokenStream {
-
-        private final PayloadAttribute payloadAttribute = addAttribute(PayloadAttribute.class);
-        private final CharTermAttribute termAtt = addAttribute(CharTermAttribute.class);
-
-        private final UidField field;
-
-        private boolean added = false;
-
-        public UidPayloadTokenStream(UidField field) {
-            this.field = field;
-        }
-
-        @Override
-        public void reset() throws IOException {
-            added = false;
-        }
-
-        @Override
-        public final boolean incrementToken() throws IOException {
-            if (added) {
-                return false;
-            }
-            termAtt.setLength(0);
-            termAtt.append(field.uid);
-            payloadAttribute.setPayload(new BytesRef(Numbers.longToBytes(field.version())));
-            added = true;
-            return true;
-        }
-    }
+   
 }
