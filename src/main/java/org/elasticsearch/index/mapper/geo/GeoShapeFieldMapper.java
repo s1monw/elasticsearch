@@ -15,6 +15,7 @@ import org.elasticsearch.common.geo.GeoJSONShapeParser;
 import org.elasticsearch.common.geo.GeoShapeConstants;
 import org.elasticsearch.common.geo.SpatialStrategy;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatProvider;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
 import org.elasticsearch.index.fielddata.FieldDataType;
 import org.elasticsearch.index.mapper.FieldMapper;
@@ -124,7 +125,7 @@ public class GeoShapeFieldMapper extends AbstractFieldMapper<String> {
                 throw new ElasticSearchIllegalArgumentException("Unknown prefix tree type [" + tree + "]");
             }
 
-            return new GeoShapeFieldMapper(names, prefixTree, strategyName, distanceErrorPct, fieldType, provider);
+            return new GeoShapeFieldMapper(names, prefixTree, strategyName, distanceErrorPct, fieldType, postings, docValues);
         }
     }
 
@@ -156,8 +157,8 @@ public class GeoShapeFieldMapper extends AbstractFieldMapper<String> {
     private final TermQueryPrefixTreeStrategy termStrategy;
 
     public GeoShapeFieldMapper(FieldMapper.Names names, SpatialPrefixTree tree, String defaultStrategyName, double distanceErrorPct,
-                               FieldType fieldType, PostingsFormatProvider provider) {
-        super(names, 1, fieldType, null, null, provider, null, null);
+                               FieldType fieldType, PostingsFormatProvider provider, DocValuesFormatProvider docValues) {
+        super(names, 1, fieldType, null, null, provider, docValues, null, null);
         this.recursiveStrategy = new RecursivePrefixTreeStrategy(tree, names.indexName());
         this.recursiveStrategy.setDistErrPct(distanceErrorPct);
         this.termStrategy = new TermQueryPrefixTreeStrategy(tree, names.indexName());

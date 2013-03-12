@@ -19,6 +19,8 @@
 
 package org.elasticsearch.index.mapper.internal;
 
+import org.apache.lucene.codecs.DocValuesFormat;
+import org.apache.lucene.codecs.diskdv.DiskDocValuesFormat;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
 import org.apache.lucene.index.FieldInfo;
@@ -28,6 +30,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.common.lucene.uid.UidField;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatProvider;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
 import org.elasticsearch.index.fielddata.FieldDataType;
 import org.elasticsearch.index.mapper.*;
@@ -35,6 +38,8 @@ import org.elasticsearch.index.mapper.core.AbstractFieldMapper;
 
 import java.io.IOException;
 import java.util.Map;
+
+import javax.print.DocFlavor.STRING;
 
 import static org.elasticsearch.index.mapper.MapperBuilders.uid;
 
@@ -52,7 +57,7 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
 
         public static final FieldType FIELD_TYPE = new FieldType(AbstractFieldMapper.Defaults.FIELD_TYPE);
         public static final FieldType NESTED_FIELD_TYPE = new FieldType(AbstractFieldMapper.Defaults.FIELD_TYPE);
-
+        static final FieldType STORED_ONLY_FIELD_TYPE = new FieldType(AbstractFieldMapper.Defaults.FIELD_TYPE);
         static {
             FIELD_TYPE.setIndexed(true);
             FIELD_TYPE.setTokenized(false);
@@ -66,9 +71,12 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
             NESTED_FIELD_TYPE.setTokenized(false);
             NESTED_FIELD_TYPE.setStored(false);
             NESTED_FIELD_TYPE.setOmitNorms(true);
-            // we can set this to another index option when we move away from storing payload..
-            //NESTED_FIELD_TYPE.setIndexOptions(FieldInfo.IndexOptions.DOCS_ONLY);
             NESTED_FIELD_TYPE.freeze();
+            
+            STORED_ONLY_FIELD_TYPE.setStored(true);
+            STORED_ONLY_FIELD_TYPE.setIndexed(false);
+            STORED_ONLY_FIELD_TYPE.setTokenized(false);
+            STORED_ONLY_FIELD_TYPE.freeze();
         }
     }
 
@@ -76,6 +84,7 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
 
         protected String indexName;
         protected PostingsFormatProvider postingsFormat;
+        protected DocValuesFormatProvider docValues;
 
         public Builder() {
             super(Defaults.NAME);
@@ -84,7 +93,7 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
 
         @Override
         public UidFieldMapper build(BuilderContext context) {
-            return new UidFieldMapper(name, indexName, postingsFormat);
+            return new UidFieldMapper(name, indexName, postingsFormat, docValues);
         }
     }
 
@@ -98,30 +107,27 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
                 if (fieldName.equals("postings_format")) {
                     String postingFormatName = fieldNode.toString();
                     builder.postingsFormat = parserContext.postingFormatService().get(postingFormatName);
+                } else if (fieldName.equals("docvalues_format")) {
+                    String docValuesFormatName = fieldNode.toString();
+                    builder.docValues = parserContext.docValuesFormatService().get(docValuesFormatName);
                 }
             }
             return builder;
         }
     }
 
-    private ThreadLocal<UidField> fieldCache = new ThreadLocal<UidField>() {
-        @Override
-        protected UidField initialValue() {
-            return new UidField(names().indexName(), "", 0);
-        }
-    };
 
     public UidFieldMapper() {
         this(Defaults.NAME);
     }
 
     protected UidFieldMapper(String name) {
-        this(name, name, null);
+        this(name, name, null, null);
     }
 
-    protected UidFieldMapper(String name, String indexName, PostingsFormatProvider postingsFormat) {
+    protected UidFieldMapper(String name, String indexName, PostingsFormatProvider postingsFormat, DocValuesFormatProvider docValues) {
         super(new Names(name, indexName, indexName, name), Defaults.BOOST, new FieldType(Defaults.FIELD_TYPE),
-                Lucene.KEYWORD_ANALYZER, Lucene.KEYWORD_ANALYZER, postingsFormat, null, null);
+                Lucene.KEYWORD_ANALYZER, Lucene.KEYWORD_ANALYZER, postingsFormat, docValues, null, null);
     }
 
     @Override
@@ -138,13 +144,17 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
     protected String defaultPostingFormat() {
         return "bloom_default";
     }
+    
+    protected String defaultDocValuesFormat() {
+        return "Disk";
+    }
 
     @Override
     public void preParse(ParseContext context) throws IOException {
         // if we have the id provided, fill it, and parse now
         if (context.sourceToParse().id() != null) {
             context.id(context.sourceToParse().id());
-            super.parse(context);
+            innerParse(context);
         }
     }
 
@@ -156,7 +166,7 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
         // if we did not have the id as part of the sourceToParse, then we need to parse it here
         // it would have been filled in the _id parse phase
         if (context.sourceToParse().id() == null) {
-            super.parse(context);
+            innerParse(context);
             // since we did not have the uid in the pre phase, we did not add it automatically to the nested docs
             // as they were created we need to make sure we add it to all the nested docs...
             if (context.docs().size() > 1) {
@@ -175,6 +185,22 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
     public void parse(ParseContext context) throws IOException {
         // nothing to do here, we either do it in post parse, or in pre parse.
     }
+    
+    
+    final void innerParse(ParseContext context) throws IOException {
+        try {
+            Field field = parseCreateField(context);
+            if (!customBoost()) {
+                field.setBoost(boost);
+            }
+            if (context.listener().beforeFieldAdded(this, field, context)) {
+                context.doc().add(new Field(field.name(), field.stringValue(), Defaults.STORED_ONLY_FIELD_TYPE));
+                context.doc().add(field);
+            }
+        } catch (Exception e) {
+            throw new MapperParsingException("failed to parse [" + names.fullName() + "]", e);
+        }
+    }
 
     @Override
     public void validate(ParseContext context) throws MapperParsingException {
@@ -190,10 +216,10 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
         // so, caching uid stream and field is fine
         // since we don't do any mapping parsing without immediate indexing
         // and, when percolating, we don't index the uid
-        UidField field = fieldCache.get();
-        field.setUid(Uid.createUid(context.stringBuilder(), context.type(), context.id()));
+        UidField field = new UidField(Uid.createUid(context.stringBuilder(), context.type(), context.id()));
+        // version get updated by the engine
         context.uid(field);
-        return field; // version get updated by the engine
+        return field;
     }
 
     @Override
@@ -214,7 +240,6 @@ public class UidFieldMapper extends AbstractFieldMapper<Uid> implements Internal
 
     @Override
     public void close() {
-        fieldCache.remove();
     }
 
     @Override

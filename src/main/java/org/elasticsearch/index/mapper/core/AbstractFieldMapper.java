@@ -38,6 +38,8 @@ import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.analysis.NamedAnalyzer;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatProvider;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormats;
 import org.elasticsearch.index.codec.postingsformat.PostingFormats;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
 import org.elasticsearch.index.fielddata.FieldDataType;
@@ -160,10 +162,12 @@ public abstract class AbstractFieldMapper<T> implements FieldMapper<T>, Mapper {
         protected NamedAnalyzer searchAnalyzer;
         protected Boolean includeInAll;
         protected boolean indexOptionsSet = false;
-        protected PostingsFormatProvider provider;
+        protected PostingsFormatProvider postings;
+        protected DocValuesFormatProvider docValues;
         protected SimilarityProvider similarity;
         @Nullable
         protected Settings fieldDataSettings;
+        
 
         protected Builder(String name, FieldType fieldType) {
             super(name);
@@ -246,7 +250,12 @@ public abstract class AbstractFieldMapper<T> implements FieldMapper<T>, Mapper {
         }
 
         protected T postingsFormat(PostingsFormatProvider postingsFormat) {
-            this.provider = postingsFormat;
+            this.postings = postingsFormat;
+            return builder;
+        }
+        
+        protected T docValuesFormat(DocValuesFormatProvider docValuesFormat) {
+            this.docValues = docValuesFormat;
             return builder;
         }
 
@@ -280,13 +289,15 @@ public abstract class AbstractFieldMapper<T> implements FieldMapper<T>, Mapper {
     protected final NamedAnalyzer indexAnalyzer;
     protected NamedAnalyzer searchAnalyzer;
     protected PostingsFormatProvider postingsFormat;
+    protected DocValuesFormatProvider docValuesFormat;
+
     protected final SimilarityProvider similarity;
 
     protected Settings customFieldDataSettings;
     protected FieldDataType fieldDataType;
-
+    
     protected AbstractFieldMapper(Names names, float boost, FieldType fieldType, NamedAnalyzer indexAnalyzer,
-                                  NamedAnalyzer searchAnalyzer, PostingsFormatProvider postingsFormat, SimilarityProvider similarity,
+                                  NamedAnalyzer searchAnalyzer, PostingsFormatProvider postingsFormat, DocValuesFormatProvider docValuesFormat, SimilarityProvider similarity,
                                   @Nullable Settings fieldDataSettings) {
         this.names = names;
         this.boost = boost;
@@ -310,6 +321,12 @@ public abstract class AbstractFieldMapper<T> implements FieldMapper<T>, Mapper {
                 postingsFormat = PostingFormats.getAsProvider(defaultPostingFormat());
             }
         }
+        
+        if (docValuesFormat == null) {
+            if (defaultDocValuesFormat() != null) {
+                docValuesFormat = DocValuesFormats.getAsProvider(defaultDocValuesFormat());
+            }
+        }
         this.postingsFormat = postingsFormat;
         this.similarity = similarity;
 
@@ -328,6 +345,12 @@ public abstract class AbstractFieldMapper<T> implements FieldMapper<T>, Mapper {
     protected String defaultPostingFormat() {
         return null;
     }
+    
+    @Nullable
+    protected String defaultDocValuesFormat() {
+        return null;
+    }
+
 
     @Override
     public String name() {
@@ -586,6 +609,11 @@ public abstract class AbstractFieldMapper<T> implements FieldMapper<T>, Mapper {
     @Override
     public PostingsFormatProvider postingsFormatProvider() {
         return postingsFormat;
+    }
+    
+    @Override
+    public DocValuesFormatProvider docValuesFormatProvider() {
+        return docValuesFormat;
     }
 
     @Override

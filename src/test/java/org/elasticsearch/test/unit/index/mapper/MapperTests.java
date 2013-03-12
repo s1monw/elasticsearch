@@ -19,8 +19,6 @@
 
 package org.elasticsearch.test.unit.index.mapper;
 
-import com.google.common.collect.Maps;
-import org.apache.lucene.search.similarities.Similarity;
 import org.elasticsearch.common.inject.Injector;
 import org.elasticsearch.common.inject.ModulesBuilder;
 import org.elasticsearch.common.settings.ImmutableSettings;
@@ -32,6 +30,7 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexNameModule;
 import org.elasticsearch.index.analysis.AnalysisModule;
 import org.elasticsearch.index.analysis.AnalysisService;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatService;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatService;
 import org.elasticsearch.index.mapper.DocumentMapperParser;
 import org.elasticsearch.index.mapper.MapperService;
@@ -40,27 +39,24 @@ import org.elasticsearch.index.similarity.SimilarityLookupService;
 import org.elasticsearch.indices.analysis.IndicesAnalysisModule;
 import org.elasticsearch.indices.analysis.IndicesAnalysisService;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  *
  */
 public class MapperTests {
 
     public static DocumentMapperParser newParser() {
-        return new DocumentMapperParser(new Index("test"), newAnalysisService(), new PostingsFormatService(new Index("test")),
+        return new DocumentMapperParser(new Index("test"), newAnalysisService(), new PostingsFormatService(new Index("test")), new DocValuesFormatService(new Index("test")),
                 newSimilarityLookupService());
     }
 
     public static DocumentMapperParser newParser(Settings indexSettings) {
-        return new DocumentMapperParser(new Index("test"), indexSettings, newAnalysisService(), new PostingsFormatService(new Index("test")),
+        return new DocumentMapperParser(new Index("test"), indexSettings, newAnalysisService(), new PostingsFormatService(new Index("test")), new DocValuesFormatService(new Index("test")),
                 newSimilarityLookupService());
     }
 
     public static MapperService newMapperService() {
         return new MapperService(new Index("test"), ImmutableSettings.Builder.EMPTY_SETTINGS, new Environment(), newAnalysisService(),
-                new PostingsFormatService(new Index("test")), newSimilarityLookupService());
+                new PostingsFormatService(new Index("test")), new DocValuesFormatService(new Index("test")), newSimilarityLookupService());
     }
 
     public static AnalysisService newAnalysisService() {

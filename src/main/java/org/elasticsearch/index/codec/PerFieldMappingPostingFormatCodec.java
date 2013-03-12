@@ -19,8 +19,10 @@
 
 package org.elasticsearch.index.codec;
 
+import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.codecs.lucene42.Lucene42Codec;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatProvider;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
 import org.elasticsearch.index.mapper.MapperService;
 
@@ -37,10 +39,12 @@ public class PerFieldMappingPostingFormatCodec extends Lucene42Codec {
 
     private final MapperService mapperService;
     private final PostingsFormat defaultPostingFormat;
+    private final DocValuesFormat defaultDocValuesFormat;
 
-    public PerFieldMappingPostingFormatCodec(MapperService mapperService, PostingsFormat defaultPostingFormat) {
+    public PerFieldMappingPostingFormatCodec(MapperService mapperService, PostingsFormat defaultPostingFormat, DocValuesFormat defaultDocValuesFormat) {
         this.mapperService = mapperService;
         this.defaultPostingFormat = defaultPostingFormat;
+        this.defaultDocValuesFormat = defaultDocValuesFormat;
     }
 
     @Override
@@ -48,4 +52,11 @@ public class PerFieldMappingPostingFormatCodec extends Lucene42Codec {
         PostingsFormatProvider postingsFormat = mapperService.indexName(field).mapper().postingsFormatProvider();
         return postingsFormat != null ? postingsFormat.get() : defaultPostingFormat;
     }
+
+    @Override
+    public DocValuesFormat getDocValuesFormatForField(String field) {
+        DocValuesFormatProvider docValuesFormat = mapperService.indexName(field).mapper().docValuesFormatProvider();
+        return docValuesFormat != null ? docValuesFormat.get() : defaultDocValuesFormat;
+    }
+    
 }

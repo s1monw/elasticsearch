@@ -26,6 +26,10 @@ import org.elasticsearch.common.inject.Scopes;
 import org.elasticsearch.common.inject.assistedinject.FactoryProvider;
 import org.elasticsearch.common.inject.multibindings.MapBinder;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatProvider;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatService;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormats;
+import org.elasticsearch.index.codec.docvaluesformat.PreBuiltDocValuesFormatProvider;
 import org.elasticsearch.index.codec.postingsformat.PostingFormats;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatService;
@@ -71,21 +75,31 @@ public class CodecModule extends AbstractModule {
 
     private final Settings indexSettings;
 
-    private Map<String, Class<? extends PostingsFormatProvider>> customProviders = Maps.newHashMap();
+    private Map<String, Class<? extends PostingsFormatProvider>> customPostingsFormatProviders = Maps.newHashMap();
+    private Map<String, Class<? extends DocValuesFormatProvider>> customDocValuesFormatProviders = Maps.newHashMap();
+
 
     public CodecModule(Settings indexSettings) {
         this.indexSettings = indexSettings;
     }
 
     public CodecModule addPostingFormat(String name, Class<? extends PostingsFormatProvider> provider) {
-        this.customProviders.put(name, provider);
+        this.customPostingsFormatProviders.put(name, provider);
         return this;
     }
 
     @Override
     protected void configure() {
 
-        Map<String, Class<? extends PostingsFormatProvider>> postingFormatProviders = Maps.newHashMap(customProviders);
+        configurePostingsFormats();
+        configureDocValuesFormats();
+        bind(PostingsFormatService.class).asEagerSingleton();
+        bind(DocValuesFormatService.class).asEagerSingleton();
+        bind(CodecService.class).asEagerSingleton();
+    }
+
+    void configurePostingsFormats() {
+        Map<String, Class<? extends PostingsFormatProvider>> postingFormatProviders = Maps.newHashMap(customPostingsFormatProviders);
 
         Map<String, Settings> postingsFormatsSettings = indexSettings.getGroups(PostingsFormatProvider.POSTINGS_FORMAT_SETTINGS_PREFIX);
         for (Map.Entry<String, Settings> entry : postingsFormatsSettings.entrySet()) {
@@ -116,8 +130,39 @@ public class CodecModule extends AbstractModule {
             }
             postingFormatFactoryBinder.addBinding(factory.name()).toInstance(factory);
         }
+    }
+    
+    void configureDocValuesFormats() {
+        Map<String, Class<? extends DocValuesFormatProvider>> postingFormatProviders = Maps.newHashMap(customDocValuesFormatProviders);
 
-        bind(PostingsFormatService.class).asEagerSingleton();
-        bind(CodecService.class).asEagerSingleton();
+        Map<String, Settings> docValuesFormatsSettings = indexSettings.getGroups(DocValuesFormatProvider.DOCVALUES_FORMAT_SETTINGS_PREFIX);
+        for (Map.Entry<String, Settings> entry : docValuesFormatsSettings.entrySet()) {
+            String name = entry.getKey();
+            Settings settings = entry.getValue();
+
+            Class<? extends DocValuesFormatProvider> type =
+                    settings.getAsClass("type", null, "org.elasticsearch.index.codec.docvaluesformat.", "DocValuesFormatProvider");
+
+            if (type == null) {
+                // nothing found, see if its in bindings as a binding name
+                throw new ElasticSearchIllegalArgumentException("DocValuesFormat Factory [" + name + "] must have a type associated with it");
+            }
+            postingFormatProviders.put(name, type);
+        }
+
+        // now bind
+        MapBinder<String, DocValuesFormatProvider.Factory> docValuesFormatFactoryBinder
+                = MapBinder.newMapBinder(binder(), String.class, DocValuesFormatProvider.Factory.class);
+
+        for (Map.Entry<String, Class<? extends DocValuesFormatProvider>> entry : postingFormatProviders.entrySet()) {
+            docValuesFormatFactoryBinder.addBinding(entry.getKey()).toProvider(FactoryProvider.newFactory(DocValuesFormatProvider.Factory.class, entry.getValue())).in(Scopes.SINGLETON);
+        }
+
+        for (PreBuiltDocValuesFormatProvider.Factory factory : DocValuesFormats.listFactories()) {
+            if (postingFormatProviders.containsKey(factory.name())) {
+                continue;
+            }
+            docValuesFormatFactoryBinder.addBinding(factory.name()).toInstance(factory);
+        }
     }
 }

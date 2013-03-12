@@ -32,6 +32,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.index.analysis.NamedAnalyzer;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatProvider;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
 import org.elasticsearch.index.fielddata.FieldDataType;
 import org.elasticsearch.index.mapper.*;
@@ -562,7 +563,7 @@ public class GeoPointFieldMapper implements Mapper, ArrayValueMapperParser {
             @Override
             public GeoStringFieldMapper build(BuilderContext context) {
                 GeoStringFieldMapper fieldMapper = new GeoStringFieldMapper(buildNames(context),
-                        boost, fieldType, nullValue, indexAnalyzer, searchAnalyzer, provider, fieldDataSettings);
+                        boost, fieldType, nullValue, indexAnalyzer, searchAnalyzer, postings, docValues, fieldDataSettings);
                 fieldMapper.includeInAll(includeInAll);
                 return fieldMapper;
             }
@@ -572,9 +573,9 @@ public class GeoPointFieldMapper implements Mapper, ArrayValueMapperParser {
 
         public GeoStringFieldMapper(Names names, float boost, FieldType fieldType, String nullValue,
                                     NamedAnalyzer indexAnalyzer, NamedAnalyzer searchAnalyzer,
-                                    PostingsFormatProvider provider, @Nullable Settings fieldDataSettings) {
+                                    PostingsFormatProvider provider, DocValuesFormatProvider docValues, @Nullable Settings fieldDataSettings) {
             super(names, boost, fieldType, nullValue, indexAnalyzer, searchAnalyzer, searchAnalyzer, Defaults.POSITION_OFFSET_GAP, Defaults.IGNORE_ABOVE,
-                    provider, null, fieldDataSettings);
+                    provider, docValues, null, fieldDataSettings);
         }
 
         @Override

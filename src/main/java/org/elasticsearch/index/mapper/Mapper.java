@@ -27,6 +27,7 @@ import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.index.analysis.AnalysisService;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatService;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatService;
 import org.elasticsearch.index.similarity.SimilarityLookupService;
 
@@ -96,12 +97,15 @@ public interface Mapper extends ToXContent {
 
             private final ImmutableMap<String, TypeParser> typeParsers;
 
-            public ParserContext(PostingsFormatService postingsFormatService, AnalysisService analysisService,
+            private final DocValuesFormatService docValuesFormatService;
+
+            public ParserContext(PostingsFormatService postingsFormatService, DocValuesFormatService docValuesFormatService, AnalysisService analysisService,
                                  SimilarityLookupService similarityLookupService, ImmutableMap<String, TypeParser> typeParsers) {
                 this.postingsFormatService = postingsFormatService;
                 this.analysisService = analysisService;
                 this.similarityLookupService = similarityLookupService;
                 this.typeParsers = typeParsers;
+                this.docValuesFormatService = docValuesFormatService;
             }
 
             public AnalysisService analysisService() {
@@ -110,6 +114,10 @@ public interface Mapper extends ToXContent {
 
             public PostingsFormatService postingFormatService() {
                 return postingsFormatService;
+            }
+            
+            public DocValuesFormatService docValuesFormatService() {
+                return docValuesFormatService;
             }
 
             public SimilarityLookupService similarityLookupService() {

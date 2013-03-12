@@ -25,6 +25,7 @@ import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.index.codec.docvaluesformat.DocValuesFormatProvider;
 import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
 import org.elasticsearch.index.mapper.*;
 import org.elasticsearch.index.mapper.core.IntegerFieldMapper;
@@ -73,7 +74,7 @@ public class SizeFieldMapper extends IntegerFieldMapper implements RootMapper {
 
         @Override
         public SizeFieldMapper build(BuilderContext context) {
-            return new SizeFieldMapper(enabled, fieldType, provider, fieldDataSettings);
+            return new SizeFieldMapper(enabled, fieldType, postings, docValues, fieldDataSettings);
         }
     }
 
@@ -97,12 +98,12 @@ public class SizeFieldMapper extends IntegerFieldMapper implements RootMapper {
     private final boolean enabled;
 
     public SizeFieldMapper() {
-        this(Defaults.ENABLED, new FieldType(Defaults.SIZE_FIELD_TYPE), null, null);
+        this(Defaults.ENABLED, new FieldType(Defaults.SIZE_FIELD_TYPE), null, null, null);
     }
 
-    public SizeFieldMapper(boolean enabled, FieldType fieldType, PostingsFormatProvider provider, @Nullable Settings fieldDataSettings) {
+    public SizeFieldMapper(boolean enabled, FieldType fieldType, PostingsFormatProvider provider, DocValuesFormatProvider docValues, @Nullable Settings fieldDataSettings) {
         super(new Names(Defaults.NAME), Defaults.PRECISION_STEP,
-                Defaults.BOOST, fieldType, Defaults.NULL_VALUE, Defaults.IGNORE_MALFORMED, provider, null, fieldDataSettings);
+                Defaults.BOOST, fieldType, Defaults.NULL_VALUE, Defaults.IGNORE_MALFORMED, provider, docValues, null, fieldDataSettings);
         this.enabled = enabled;
     }
 
