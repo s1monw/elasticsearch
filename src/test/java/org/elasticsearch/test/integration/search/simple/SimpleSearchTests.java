@@ -24,12 +24,14 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.test.integration.AbstractNodesTests;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import static org.elasticsearch.cluster.metadata.AliasAction.newAddAliasAction;
 import static org.elasticsearch.index.query.QueryBuilders.boolQuery;
 import static org.elasticsearch.index.query.QueryBuilders.rangeQuery;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -159,5 +161,20 @@ public class SimpleSearchTests extends AbstractNodesTests {
 
         searchResponse = client.prepareSearch("test").setQuery(QueryBuilders.queryString("field:[2010-01-03||+2d TO 2010-01-04||+2d]")).execute().actionGet();
         assertThat(searchResponse.getHits().totalHits(), equalTo(2l));
+    }
+    
+    @Test
+    public void filteredAliasTest() {
+        client.admin().indices().prepareDelete().execute().actionGet();
+        client.admin().indices().prepareCreate("testindex").setSettings(ImmutableSettings.settingsBuilder()).execute().actionGet();
+        client.admin().indices().prepareAliases().addAliasAction(newAddAliasAction("testindex", "testalias").filter(FilterBuilders.termFilter("numeric", 1))).execute().actionGet();
+        client.prepareIndex("testindex", "type1", "1").setSource("name", "bob", "numeric", 1).execute().actionGet();
+        client.admin().indices().prepareRefresh().execute().actionGet();
+
+        SearchResponse searchResponse = client.prepareSearch("testindex").setQuery(QueryBuilders.termQuery("name", "bob")).setFilter(FilterBuilders.termFilter("numeric", 1)).execute().actionGet();
+        assertThat(searchResponse.getHits().totalHits(), equalTo(1l));
+
+        searchResponse = client.prepareSearch("testalias").setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
+        assertThat(searchResponse.getHits().totalHits(), equalTo(1l));
     }
 }
