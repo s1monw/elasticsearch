@@ -668,6 +668,13 @@ public abstract class AbstractFieldMapper<T> implements FieldMapper<T>, Mapper {
                 builder.field("postings_format", postingsFormat.name());
             }
         }
+        
+        if (docValuesFormat != null) {
+            if (!docValuesFormat.name().equals(defaultDocValuesFormat())) {
+                builder.field("docvalues_format", docValuesFormat.name());
+            }
+        }
+
 
         if (similarity() != null) {
             builder.field("similarity", similarity().name());

@@ -115,6 +115,9 @@ public class TypeParsers {
             } else if (propName.equals("postings_format")) {
                 String postingFormatName = propNode.toString();
                 builder.postingsFormat(parserContext.postingFormatService().get(postingFormatName));
+            } else if (propName.equals("docvalues_format")) {
+                String docValuesFormatName = propNode.toString();
+                builder.docValuesFormat(parserContext.docValuesFormatService().get(docValuesFormatName));
             } else if (propName.equals("similarity")) {
                 builder.similarity(parserContext.similarityLookupService().similarity(propNode.toString()));
             } else if (propName.equals("fielddata")) {
