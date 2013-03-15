@@ -49,7 +49,6 @@ import org.elasticsearch.index.analysis.NamedAnalyzer;
 import org.elasticsearch.index.analysis.ShingleTokenFilterFactory;
 import org.elasticsearch.index.analysis.TokenFilterFactory;
 import org.elasticsearch.index.mapper.MapperService;
-import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.suggest.SuggestionSearchContext.SuggestionContext;
 
 public final class SuggestUtils {
@@ -206,26 +205,26 @@ public final class SuggestUtils {
                 DirectSpellcheckerSettings suggestion) throws IOException {
             if ("accuracy".equals(fieldName)) {
                 suggestion.accuracy(parser.floatValue());
-            } else if ("suggest_mode".equals(fieldName) || "suggestMode".equals(fieldName)) {
+            } else if ("suggest_mode".equals(fieldName)) {
                 suggestion.suggestMode(SuggestUtils.resolveSuggestMode(parser.text()));
             } else if ("sort".equals(fieldName)) {
                 suggestion.sort(SuggestUtils.resolveSort(parser.text()));
-            } else if ("string_distance".equals(fieldName) || "stringDistance".equals(fieldName)) {
+            } else if ("string_distance".equals(fieldName)) {
                 suggestion.stringDistance(SuggestUtils.resolveDistance(parser.text()));
-            } else if ("max_edits".equals(fieldName) || "maxEdits".equals(fieldName) || "fuzziness".equals(fieldName)) {
+            } else if ("max_edits".equals(fieldName)) {
                 suggestion.maxEdits(parser.intValue());
                 if (suggestion.maxEdits() < 1 || suggestion.maxEdits() > LevenshteinAutomata.MAXIMUM_SUPPORTED_DISTANCE) {
                     throw new ElasticSearchIllegalArgumentException("Illegal max_edits value " + suggestion.maxEdits());
                 }
             } else if ("max_inspections".equals(fieldName)) {
                 suggestion.maxInspections(parser.intValue());
-            } else if ("max_term_freq".equals(fieldName) || "maxTermFreq".equals(fieldName)) {
+            } else if ("max_term_freq".equals(fieldName)) {
                 suggestion.maxTermFreq(parser.floatValue());
-            } else if ("prefix_length".equals(fieldName) || "prefixLength".equals(fieldName)) {
+            } else if ("prefix_length".equals(fieldName)) {
                 suggestion.prefixLength(parser.intValue());
-            } else if ("min_word_len".equals(fieldName) || "minWordLen".equals(fieldName)) {
+            } else if ("min_word_len".equals(fieldName)) {
                 suggestion.minQueryLength(parser.intValue());
-            } else if ("min_doc_freq".equals(fieldName) || "minDocFreq".equals(fieldName)) {
+            } else if ("min_doc_freq".equals(fieldName)) {
                 suggestion.minDocFreq(parser.floatValue());
             } else {
                 return false;
@@ -247,7 +246,7 @@ public final class SuggestUtils {
             suggestion.setField(parser.text());
         } else if ("size".equals(fieldName)) {
             suggestion.setSize(parser.intValue());
-        } else if ("shard_size".equals(fieldName) || "shardSize".equals(fieldName)) {
+        } else if ("shard_size".equals(fieldName)) {
             suggestion.setShardSize(parser.intValue());
         } else {
            return false;
