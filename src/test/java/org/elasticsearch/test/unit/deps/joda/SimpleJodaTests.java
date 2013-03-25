@@ -25,7 +25,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.joda.time.DateTimeZone;
 import org.joda.time.MutableDateTime;
 import org.joda.time.format.*;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.util.Date;
 

@@ -25,9 +25,9 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
@@ -43,7 +43,7 @@ public class SimpleDeleteMappingTests extends AbstractNodesTests {
     protected Client client1;
     protected Client client2;
 
-    @BeforeMethod
+    @Before
     public void startNodes() {
         startNode("node1");
         startNode("node2");
@@ -58,7 +58,7 @@ public class SimpleDeleteMappingTests extends AbstractNodesTests {
         client1.admin().indices().create(createIndexRequest("test")).actionGet();
     }
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         client1.close();
         client2.close();

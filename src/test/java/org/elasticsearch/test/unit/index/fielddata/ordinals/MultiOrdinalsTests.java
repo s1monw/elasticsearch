@@ -23,7 +23,7 @@ import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.index.fielddata.ordinals.Ordinals;
 import org.elasticsearch.index.fielddata.ordinals.OrdinalsBuilder;
 import org.elasticsearch.index.fielddata.util.IntArrayRef;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.util.*;
 

@@ -25,9 +25,9 @@ import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
@@ -44,7 +44,7 @@ public class UpdateNumberOfReplicasTests extends AbstractNodesTests {
     protected Client client1;
     protected Client client2;
 
-    @BeforeMethod
+    @Before
     public void startNodes() {
         startNode("node1");
         startNode("node2");
@@ -53,7 +53,7 @@ public class UpdateNumberOfReplicasTests extends AbstractNodesTests {
 
     }
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         client1.close();
         client2.close();

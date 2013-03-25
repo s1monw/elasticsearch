@@ -59,7 +59,7 @@ import org.elasticsearch.search.suggest.phrase.MultiCandidateGeneratorWrapper;
 import org.elasticsearch.search.suggest.phrase.NoisyChannelSpellChecker;
 import org.elasticsearch.search.suggest.phrase.StupidBackoffScorer;
 import org.elasticsearch.search.suggest.phrase.WordScorer;
-import org.testng.annotations.Test;
+import org.junit.Test;
 public class NoisyChannelSpellCheckerTests {
 
     @Test

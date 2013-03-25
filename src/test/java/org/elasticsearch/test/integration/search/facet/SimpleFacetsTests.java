@@ -43,9 +43,9 @@ import org.elasticsearch.search.facet.termsstats.TermsStatsFacet;
 import org.elasticsearch.test.integration.AbstractNodesTests;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.ISODateTimeFormat;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;

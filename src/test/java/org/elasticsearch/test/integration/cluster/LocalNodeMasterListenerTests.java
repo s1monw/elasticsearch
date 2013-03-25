@@ -32,8 +32,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,7 +48,7 @@ import static org.hamcrest.Matchers.*;
  */
 public class LocalNodeMasterListenerTests extends AbstractZenNodesTests {
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         closeAllNodes();
     }

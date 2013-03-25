@@ -32,8 +32,8 @@ import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.search.warmer.IndexWarmersMetaData;
 import org.elasticsearch.test.integration.AbstractNodesTests;
 import org.hamcrest.Matchers;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -45,7 +45,7 @@ public class LocalGatewayIndicesWarmerTests extends AbstractNodesTests {
 
     private final ESLogger logger = Loggers.getLogger(LocalGatewayIndicesWarmerTests.class);
 
-    @AfterMethod
+    @After
     public void cleanAndCloseNodes() throws Exception {
         for (int i = 0; i < 10; i++) {
             if (node("node" + i) != null) {

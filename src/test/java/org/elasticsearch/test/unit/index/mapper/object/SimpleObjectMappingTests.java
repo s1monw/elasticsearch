@@ -24,11 +24,10 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.test.unit.index.mapper.MapperTests;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 /**
  */
-@Test
 public class SimpleObjectMappingTests {
 
     public void testDifferentInnerObjectTokenFailure() throws Exception {

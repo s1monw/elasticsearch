@@ -23,7 +23,7 @@ import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.common.bytes.BytesArray;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.elasticsearch.common.io.Streams.copyToStringFromClasspath;
 import static org.hamcrest.MatcherAssert.assertThat;

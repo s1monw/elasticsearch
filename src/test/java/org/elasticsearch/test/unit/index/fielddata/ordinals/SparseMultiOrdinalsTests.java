@@ -26,11 +26,11 @@ import org.elasticsearch.index.fielddata.ordinals.Ordinals;
 import org.elasticsearch.index.fielddata.ordinals.OrdinalsBuilder;
 import org.elasticsearch.index.fielddata.ordinals.SparseMultiArrayOrdinals;
 import org.elasticsearch.index.fielddata.util.IntArrayRef;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.testng.Assert.fail;
+import static org.junit.Assert.fail;
 
 /**
  */

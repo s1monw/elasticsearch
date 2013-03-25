@@ -63,9 +63,9 @@ import org.elasticsearch.indices.query.IndicesQueriesModule;
 import org.elasticsearch.script.ScriptModule;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPoolModule;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -83,7 +83,6 @@ import static org.hamcrest.Matchers.*;
 /**
  *
  */
-@Test
 public class SimpleIndexQueryParserTests {
 
     private Injector injector;

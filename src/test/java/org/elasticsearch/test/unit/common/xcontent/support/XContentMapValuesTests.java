@@ -24,7 +24,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
@@ -34,7 +34,6 @@ import static org.hamcrest.Matchers.*;
 
 /**
  */
-@Test
 public class XContentMapValuesTests {
 
     @Test

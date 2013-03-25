@@ -21,7 +21,7 @@ package org.elasticsearch.test.unit.index.mapper.path;
 
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.test.unit.index.mapper.MapperTests;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.io.IOException;
 

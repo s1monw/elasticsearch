@@ -14,7 +14,7 @@ import org.elasticsearch.index.fieldvisitor.CustomFieldsVisitor;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.ParsedDocument;
 import org.elasticsearch.test.unit.index.mapper.MapperTests;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.util.*;
 
@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.equalTo;
 /**
  *
  */
-@Test
 public class StoredNumericValuesTest {
 
     @Test

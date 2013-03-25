@@ -54,10 +54,9 @@ import org.elasticsearch.indices.query.IndicesQueriesModule;
 import org.elasticsearch.script.ScriptModule;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPoolModule;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.Test;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.index.query.QueryBuilders.constantScoreQuery;
 import static org.elasticsearch.index.query.QueryBuilders.termQuery;
@@ -67,14 +66,13 @@ import static org.hamcrest.Matchers.*;
 /**
  *
  */
-@Test
 public class PercolatorExecutorTests {
 
     private Injector injector;
 
     private PercolatorExecutor percolatorExecutor;
 
-    @BeforeTest
+    @Before
     public void buildPercolatorService() {
         Settings settings = ImmutableSettings.settingsBuilder()
                 //.put("index.cache.filter.type", "none")

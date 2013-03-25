@@ -19,7 +19,7 @@
 
 package org.elasticsearch.test.unit.common.io;
 
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.io.*;
 import java.util.Arrays;

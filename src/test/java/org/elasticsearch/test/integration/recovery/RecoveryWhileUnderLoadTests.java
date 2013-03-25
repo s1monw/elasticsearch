@@ -24,8 +24,8 @@ import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,7 +42,7 @@ public class RecoveryWhileUnderLoadTests extends AbstractNodesTests {
 
     private final ESLogger logger = Loggers.getLogger(RecoveryWhileUnderLoadTests.class);
 
-    @AfterMethod
+    @After
     public void shutdownNodes() {
         closeAllNodes();
     }

@@ -27,7 +27,7 @@ import org.apache.lucene.search.FieldCache.Ints;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.RAMDirectory;
 import org.elasticsearch.common.lucene.Lucene;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -35,7 +35,6 @@ import static org.hamcrest.Matchers.equalTo;
 /**
  *
  */
-@Test
 public class LuceneFieldCacheTests {
 
     /**

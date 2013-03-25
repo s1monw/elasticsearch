@@ -20,7 +20,7 @@
 package org.elasticsearch.test.integration.cluster;
 
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.BeforeClass;
+import org.junit.BeforeClass;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 

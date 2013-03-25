@@ -4,8 +4,8 @@ import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -19,10 +19,9 @@ import static org.hamcrest.Matchers.nullValue;
 /**
  *
  */
-@Test
 public class ConcurrentDocumentOperationTests extends AbstractNodesTests {
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         closeAllNodes();
     }

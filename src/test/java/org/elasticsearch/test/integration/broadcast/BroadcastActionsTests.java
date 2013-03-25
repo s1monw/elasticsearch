@@ -30,8 +30,8 @@ import org.elasticsearch.common.Unicode;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import java.io.IOException;
 
@@ -46,7 +46,7 @@ import static org.hamcrest.Matchers.equalTo;
  */
 public class BroadcastActionsTests extends AbstractNodesTests {
 
-    @AfterMethod
+    @After
     public void closeServers() {
         closeAllNodes();
     }

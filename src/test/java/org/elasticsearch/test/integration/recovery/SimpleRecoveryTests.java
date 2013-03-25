@@ -27,8 +27,8 @@ import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import static org.elasticsearch.client.Requests.*;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -39,7 +39,7 @@ import static org.hamcrest.Matchers.equalTo;
  */
 public class SimpleRecoveryTests extends AbstractNodesTests {
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         closeAllNodes();
     }

@@ -28,14 +28,13 @@ import org.elasticsearch.index.fielddata.*;
 import org.elasticsearch.index.fielddata.fieldcomparator.SortMode;
 import org.elasticsearch.index.fielddata.util.DoubleArrayRef;
 import org.elasticsearch.index.fielddata.util.LongArrayRef;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 /**
  */
-@Test
 public abstract class NumericFieldDataTests extends StringFieldDataTests {
 
     protected abstract FieldDataType getFieldDataType();

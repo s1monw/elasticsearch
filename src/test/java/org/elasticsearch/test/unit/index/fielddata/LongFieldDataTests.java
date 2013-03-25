@@ -32,7 +32,7 @@ import org.elasticsearch.index.fielddata.plain.IntArrayAtomicFieldData;
 import org.elasticsearch.index.fielddata.plain.LongArrayAtomicFieldData;
 import org.elasticsearch.index.fielddata.plain.ShortArrayAtomicFieldData;
 import org.elasticsearch.index.mapper.FieldMapper;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;

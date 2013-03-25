@@ -20,7 +20,7 @@ package org.apache.lucene.store;
 
 import java.util.concurrent.TimeUnit;
 
-import org.testng.annotations.Test;
+import org.junit.Test;
 import org.apache.lucene.store.RateLimiter.SimpleRateLimiter;
 import org.apache.lucene.util.Version;
 import org.elasticsearch.common.lucene.Lucene;

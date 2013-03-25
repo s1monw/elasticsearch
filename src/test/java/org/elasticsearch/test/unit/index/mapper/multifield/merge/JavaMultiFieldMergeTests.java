@@ -26,7 +26,7 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.DocumentMapperParser;
 import org.elasticsearch.test.unit.index.mapper.MapperTests;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.util.Arrays;
 
@@ -39,7 +39,6 @@ import static org.hamcrest.Matchers.*;
 /**
  *
  */
-@Test
 public class JavaMultiFieldMergeTests {
 
     @Test

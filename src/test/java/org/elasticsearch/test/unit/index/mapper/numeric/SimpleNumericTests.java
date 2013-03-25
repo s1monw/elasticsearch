@@ -29,7 +29,7 @@ import org.elasticsearch.index.mapper.core.DoubleFieldMapper;
 import org.elasticsearch.index.mapper.core.LongFieldMapper;
 import org.elasticsearch.index.mapper.core.StringFieldMapper;
 import org.elasticsearch.test.unit.index.mapper.MapperTests;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -37,7 +37,6 @@ import static org.hamcrest.Matchers.*;
 
 /**
  */
-@Test
 public class SimpleNumericTests {
 
     public void testNumericDetectionEnabled() throws Exception {

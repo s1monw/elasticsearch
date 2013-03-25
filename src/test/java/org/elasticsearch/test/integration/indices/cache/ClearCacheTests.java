@@ -25,9 +25,9 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import static org.elasticsearch.index.query.QueryBuilders.filteredQuery;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
@@ -37,7 +37,6 @@ import static org.hamcrest.Matchers.greaterThan;
 
 /**
  */
-@Test
 public class ClearCacheTests extends AbstractNodesTests {
 
     private Client client;

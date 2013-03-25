@@ -45,7 +45,7 @@ import org.elasticsearch.index.similarity.SimilarityModule;
 import org.elasticsearch.indices.InvalidAliasNameException;
 import org.elasticsearch.indices.query.IndicesQueriesModule;
 import org.elasticsearch.script.ScriptModule;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.io.IOException;
 
@@ -132,7 +132,7 @@ public class IndexAliasesServiceTests {
         assertThat(indexAliasesService.aliasFilter("dogs", "cats").toString(), equalTo("BooleanFilter(cache(animal:canine) cache(animal:feline))"));
     }
 
-    @Test(expectedExceptions = InvalidAliasNameException.class)
+    @Test(expected = InvalidAliasNameException.class)
     public void testRemovedAliasFilter() throws Exception {
         IndexAliasesService indexAliasesService = newIndexAliasesService();
         indexAliasesService.add("cats", filter(termFilter("animal", "cat")));

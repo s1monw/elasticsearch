@@ -26,9 +26,9 @@ import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -42,12 +42,11 @@ import static org.hamcrest.Matchers.equalTo;
 /**
  *
  */
-@Test
 public class ScriptFilterSearchTests extends AbstractNodesTests {
 
     private Client client;
 
-    @BeforeMethod
+    @Before
     public void createNodes() throws Exception {
         Settings nodeSettings = ImmutableSettings.settingsBuilder()
                 .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
@@ -57,7 +56,7 @@ public class ScriptFilterSearchTests extends AbstractNodesTests {
         client = getClient();
     }
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         client.close();
         closeAllNodes();

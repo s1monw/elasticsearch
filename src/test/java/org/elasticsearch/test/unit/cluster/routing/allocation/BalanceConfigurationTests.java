@@ -45,7 +45,7 @@ import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.hamcrest.Matchers;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 public class BalanceConfigurationTests {
 

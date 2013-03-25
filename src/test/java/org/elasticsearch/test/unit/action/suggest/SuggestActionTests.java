@@ -32,11 +32,10 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.search.suggest.Suggest;
 import org.elasticsearch.search.suggest.SuggestBuilder.SuggestionBuilder;
 import org.elasticsearch.test.integration.search.suggest.SuggestSearchTests;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 /**
  */
-@Test
 public class SuggestActionTests extends SuggestSearchTests {
 
     protected Suggest searchSuggest(Client client, String suggestText, int expectShardsFailed, SuggestionBuilder<?>... suggestions) {

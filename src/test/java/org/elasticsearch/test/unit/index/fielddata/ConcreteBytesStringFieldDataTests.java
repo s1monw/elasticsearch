@@ -21,11 +21,10 @@ package org.elasticsearch.test.unit.index.fielddata;
 
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.index.fielddata.FieldDataType;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 /**
  */
-@Test
 public class ConcreteBytesStringFieldDataTests extends StringFieldDataTests {
 
     @Override

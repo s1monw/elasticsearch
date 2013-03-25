@@ -25,7 +25,7 @@ import org.elasticsearch.cluster.node.DiscoveryNodeFilters;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.DummyTransportAddress;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -33,7 +33,6 @@ import static org.elasticsearch.cluster.node.DiscoveryNodeFilters.OpType.*;
 
 /**
  */
-@Test
 public class DiscoveryNodeFiltersTests {
 
     @Test

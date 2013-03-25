@@ -32,8 +32,8 @@ import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.Unicode;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import java.io.IOException;
 
@@ -49,7 +49,7 @@ import static org.hamcrest.Matchers.instanceOf;
  */
 public class TransportSearchFailuresTests extends AbstractNodesTests {
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         closeAllNodes();
     }

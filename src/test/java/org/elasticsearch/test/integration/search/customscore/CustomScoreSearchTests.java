@@ -26,9 +26,9 @@ import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.util.Arrays;
 
@@ -41,12 +41,11 @@ import static org.elasticsearch.search.builder.SearchSourceBuilder.searchSource;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.equalTo;
-import static org.testng.Assert.assertNotNull;
+import static org.junit.Assert.assertNotNull;
 
 /**
  *
  */
-@Test
 public class CustomScoreSearchTests extends AbstractNodesTests {
 
     private Client client;

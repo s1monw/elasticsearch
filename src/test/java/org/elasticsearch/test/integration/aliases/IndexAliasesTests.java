@@ -39,9 +39,9 @@ import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.util.Random;
 import java.util.Set;
@@ -59,7 +59,6 @@ import static org.hamcrest.Matchers.*;
 /**
  *
  */
-@Test
 public class IndexAliasesTests extends AbstractNodesTests {
 
     protected Client client1;

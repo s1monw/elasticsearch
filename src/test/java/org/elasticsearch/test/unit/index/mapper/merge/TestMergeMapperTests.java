@@ -23,7 +23,7 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.analysis.NamedAnalyzer;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.test.unit.index.mapper.MapperTests;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.elasticsearch.index.mapper.DocumentMapper.MergeFlags.mergeFlags;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -32,7 +32,6 @@ import static org.hamcrest.Matchers.*;
 /**
  *
  */
-@Test
 public class TestMergeMapperTests {
 
     @Test

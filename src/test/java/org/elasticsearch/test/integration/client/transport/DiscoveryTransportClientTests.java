@@ -23,7 +23,7 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.network.NetworkUtils;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
+import org.junit.After;
 
 import static org.elasticsearch.client.Requests.createIndexRequest;
 
@@ -34,7 +34,7 @@ public class DiscoveryTransportClientTests extends AbstractNodesTests {
 
     private TransportClient client;
 
-    @AfterMethod
+    @After
     public void closeServers() {
         if (client != null) {
             client.close();

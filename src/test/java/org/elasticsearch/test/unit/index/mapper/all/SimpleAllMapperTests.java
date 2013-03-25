@@ -31,7 +31,7 @@ import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.test.unit.index.mapper.MapperTests;
 import org.hamcrest.Matchers;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.elasticsearch.common.io.Streams.copyToBytesFromClasspath;
 import static org.elasticsearch.common.io.Streams.copyToStringFromClasspath;
@@ -41,7 +41,6 @@ import static org.hamcrest.Matchers.equalTo;
 /**
  *
  */
-@Test
 public class SimpleAllMapperTests {
 
     @Test

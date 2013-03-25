@@ -29,8 +29,8 @@ import org.elasticsearch.index.analysis.AnalysisService;
 import org.elasticsearch.index.analysis.KeepWordFilterFactory;
 import org.elasticsearch.index.analysis.ShingleTokenFilterFactory;
 import org.elasticsearch.index.analysis.TokenFilterFactory;
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import org.junit.Assert;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.io.StringReader;

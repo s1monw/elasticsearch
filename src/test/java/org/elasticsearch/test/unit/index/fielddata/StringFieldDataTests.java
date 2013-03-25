@@ -31,7 +31,7 @@ import org.elasticsearch.index.fielddata.*;
 import org.elasticsearch.index.fielddata.fieldcomparator.SortMode;
 import org.elasticsearch.index.fielddata.util.BytesRefArrayRef;
 import org.elasticsearch.index.fielddata.util.StringArrayRef;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -39,7 +39,6 @@ import static org.hamcrest.Matchers.nullValue;
 
 /**
  */
-@Test
 public abstract class StringFieldDataTests extends AbstractFieldDataTests {
 
     protected String one() {

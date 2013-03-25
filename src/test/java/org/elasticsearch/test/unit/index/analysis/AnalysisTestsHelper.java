@@ -36,9 +36,10 @@ import org.elasticsearch.index.analysis.AnalysisService;
 import org.elasticsearch.index.settings.IndexSettingsModule;
 import org.elasticsearch.indices.analysis.IndicesAnalysisModule;
 import org.elasticsearch.indices.analysis.IndicesAnalysisService;
-import org.testng.Assert;
-
 import java.io.IOException;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
 public class AnalysisTestsHelper {
 
@@ -68,28 +69,28 @@ public class AnalysisTestsHelper {
     public static void assertSimpleTSOutput(TokenStream stream, String[] expected) throws IOException {
         stream.reset();
         CharTermAttribute termAttr = stream.getAttribute(CharTermAttribute.class);
-        Assert.assertNotNull(termAttr);
+        assertThat(termAttr, notNullValue());
         int i = 0;
         while (stream.incrementToken()) {
-            Assert.assertTrue(i < expected.length, "got extra term: " + termAttr.toString());
-            Assert.assertEquals(termAttr.toString(), expected[i], "expected different term at index " + i);
+            assertThat( "got extra term: " + termAttr.toString(), i, lessThan(expected.length));
+            assertThat("expected different term at index " + i, termAttr.toString(), equalTo( expected[i]));
             i++;
         }
-        Assert.assertEquals(i, expected.length, "not all tokens produced");
+        assertThat("not all tokens produced", i, equalTo(expected.length));
     }
     
     public static void assertSimpleTSOutput(TokenStream stream, String[] expected, int[] posInc) throws IOException {
         stream.reset();
         CharTermAttribute termAttr = stream.getAttribute(CharTermAttribute.class);
         PositionIncrementAttribute posIncAttr = stream.getAttribute(PositionIncrementAttribute.class);
-        Assert.assertNotNull(termAttr);
+        assertThat(termAttr, notNullValue());
         int i = 0;
         while (stream.incrementToken()) {
-            Assert.assertTrue(i < expected.length, "got extra term: " + termAttr.toString());
-            Assert.assertEquals(termAttr.toString(), expected[i], "expected different term at index " + i);
-            Assert.assertEquals(posIncAttr.getPositionIncrement(), posInc[i]);
+            assertThat( "got extra term: " + termAttr.toString(), i, lessThan(expected.length));
+            assertThat("expected different term at index " + i, termAttr.toString(), equalTo( expected[i]));
+            assertThat(posIncAttr.getPositionIncrement(), equalTo(posInc[i]));
             i++;
         }
-        Assert.assertEquals(i, expected.length, "not all tokens produced");
+        assertThat("not all tokens produced", i, equalTo(expected.length));
     }
 }

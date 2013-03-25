@@ -25,10 +25,10 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.integration.AbstractNodesTests;
 import org.elasticsearch.test.integration.rest.helper.HttpClient;
 import org.elasticsearch.test.integration.rest.helper.HttpClientResponse;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.BeforeClass;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.File;
 
@@ -51,12 +51,12 @@ public class SitePluginTests extends AbstractNodesTests {
                 .build());
     }
 
-    @BeforeMethod
+    @Before
     public void startNodes() {
         startNode("test");
     }
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         closeAllNodes();
     }

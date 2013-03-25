@@ -26,9 +26,9 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.client.Requests.*;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
@@ -40,12 +40,11 @@ import static org.hamcrest.Matchers.equalTo;
 /**
  *
  */
-@Test
 public class SimpleIndicesBoostSearchTests extends AbstractNodesTests {
 
     private Client client;
 
-    @BeforeMethod
+    @Before
     public void createNodes() throws Exception {
         Settings nodeSettings = ImmutableSettings.settingsBuilder()
                 .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
@@ -55,7 +54,7 @@ public class SimpleIndicesBoostSearchTests extends AbstractNodesTests {
         client = getClient();
     }
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         client.close();
         closeAllNodes();

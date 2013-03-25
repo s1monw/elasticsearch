@@ -23,7 +23,7 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.io.IOException;
 
@@ -38,7 +38,6 @@ import static org.hamcrest.Matchers.nullValue;
 /**
  *
  */
-@Test
 public class ToAndFromJsonMetaDataTests {
 
     @Test

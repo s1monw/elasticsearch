@@ -20,7 +20,7 @@
 package org.elasticsearch.test.unit.common.unit;
 
 import org.elasticsearch.common.unit.DistanceUnit;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -28,7 +28,6 @@ import static org.hamcrest.Matchers.*;
 /**
  *
  */
-@Test
 public class DistanceUnitTests {
 
     @Test

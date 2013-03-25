@@ -25,7 +25,7 @@ import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.index.translog.fs.FsTranslog;
 import org.elasticsearch.index.translog.fs.FsTranslogFile;
 import org.elasticsearch.test.unit.index.translog.AbstractSimpleTranslogTests;
-import org.testng.annotations.AfterClass;
+import org.junit.AfterClass;
 
 import java.io.File;
 

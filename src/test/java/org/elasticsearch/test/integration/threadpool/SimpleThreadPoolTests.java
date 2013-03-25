@@ -13,9 +13,9 @@ import org.elasticsearch.test.integration.AbstractNodesTests;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
 import org.elasticsearch.threadpool.ThreadPoolInfo;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Map;
@@ -35,7 +35,7 @@ public class SimpleThreadPoolTests extends AbstractNodesTests {
     private ThreadPool threadPool;
 
     @BeforeClass
-    public void createNodes() throws Exception {
+    public  void createNodes() throws Exception {
         startNode("node1");
         startNode("node2");
         client1 = client("node1");
@@ -50,7 +50,7 @@ public class SimpleThreadPoolTests extends AbstractNodesTests {
         closeAllNodes();
     }
 
-    @Test(timeOut = 20000)
+    @Test(timeout = 20000)
     public void testUpdatingThreadPoolSettings() throws Exception {
         // Check that settings are changed
         assertThat(((ThreadPoolExecutor) threadPool.executor(Names.SEARCH)).getKeepAliveTime(TimeUnit.MINUTES), equalTo(5L));

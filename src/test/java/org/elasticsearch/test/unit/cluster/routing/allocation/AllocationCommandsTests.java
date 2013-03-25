@@ -38,7 +38,7 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.shard.ShardId;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.elasticsearch.cluster.ClusterState.newClusterStateBuilder;
 import static org.elasticsearch.cluster.metadata.IndexMetaData.newIndexMetaDataBuilder;
@@ -54,7 +54,6 @@ import static org.hamcrest.Matchers.equalTo;
 
 /**
  */
-@Test
 public class AllocationCommandsTests {
 
     private final ESLogger logger = Loggers.getLogger(AllocationCommandsTests.class);
