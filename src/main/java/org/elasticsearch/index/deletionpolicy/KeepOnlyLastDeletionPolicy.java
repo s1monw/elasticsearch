@@ -35,7 +35,7 @@ import java.util.List;
  * all prior commits after a new commit is done.  This is
  * the default deletion policy.
  */
-public class KeepOnlyLastDeletionPolicy extends AbstractIndexShardComponent implements IndexDeletionPolicy {
+public class KeepOnlyLastDeletionPolicy extends AbstractESDeletionPolicy {
 
     @Inject
     public KeepOnlyLastDeletionPolicy(ShardId shardId, @IndexSettings Settings indexSettings) {
