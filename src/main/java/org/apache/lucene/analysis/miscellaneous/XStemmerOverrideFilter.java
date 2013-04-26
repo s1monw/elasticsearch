@@ -30,6 +30,7 @@ import org.apache.lucene.util.BytesRefHash;
 import org.apache.lucene.util.CharsRef;
 import org.apache.lucene.util.IntsRef;
 import org.apache.lucene.util.UnicodeUtil;
+import org.apache.lucene.util.Version;
 import org.apache.lucene.util.fst.ByteSequenceOutputs;
 import org.apache.lucene.util.fst.FST;
 import org.apache.lucene.util.fst.FST.Arc;
@@ -41,13 +42,15 @@ import org.apache.lucene.util.fst.FST.BytesReader;
  */
 // LUCENE UPGRADE - this is a copy of the StemmerOverrideFilter from Lucene - update with 4.3
 public final class XStemmerOverrideFilter extends TokenFilter {
+    static {
+        assert Version.LUCENE_CURRENT.ordinal()-1 == Version.LUCENE_42.ordinal() : "Replace XStemmerOverrideFilter with the new Lucene Version.";
+    }
     private final FST<BytesRef> fst;
     
     private final CharTermAttribute termAtt = addAttribute(CharTermAttribute.class);
     private final KeywordAttribute keywordAtt = addAttribute(KeywordAttribute.class);
     private final BytesReader fstReader;
     private final Arc<BytesRef> scratchArc = new FST.Arc<BytesRef>();
-  ;
     private final CharsRef spare = new CharsRef();
     private final boolean ignoreCase;
     
