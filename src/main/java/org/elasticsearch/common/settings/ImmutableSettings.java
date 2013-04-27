@@ -308,6 +308,8 @@ public class ImmutableSettings implements Settings {
             return (Class<? extends T>) getClassLoader().loadClass(sValue);
         } catch (ClassNotFoundException e) {
             throw new NoClassSettingsException("Failed to load class setting [" + setting + "] with value [" + sValue + "]", e);
+        } catch (NoClassDefFoundError e) {
+            throw new NoClassSettingsException("Failed to load class setting [" + setting + "] with value [" + sValue + "]", e);
         }
     }
 

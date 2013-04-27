@@ -19,6 +19,8 @@
 
 package org.elasticsearch.index.analysis;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
@@ -35,6 +37,7 @@ import org.elasticsearch.indices.analysis.IndicesAnalysisService;
 
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  *
@@ -93,12 +96,12 @@ public class AnalysisModule extends AbstractModule {
         }
 
         public static class AnalyzersBindings {
-            private final Map<String, Class<? extends AnalyzerProvider>> analyzers = Maps.newHashMap();
+            private final Map<String, Class<? extends AnalyzerProvider<?>>> analyzers = Maps.newHashMap();
 
             public AnalyzersBindings() {
             }
 
-            public void processAnalyzer(String name, Class<? extends AnalyzerProvider> analyzerProvider) {
+            public void processAnalyzer(String name, Class<? extends AnalyzerProvider<?>> analyzerProvider) {
                 analyzers.put(name, analyzerProvider);
             }
         }
@@ -113,7 +116,7 @@ public class AnalysisModule extends AbstractModule {
     private final Map<String, Class<? extends CharFilterFactory>> charFilters = Maps.newHashMap();
     private final Map<String, Class<? extends TokenFilterFactory>> tokenFilters = Maps.newHashMap();
     private final Map<String, Class<? extends TokenizerFactory>> tokenizers = Maps.newHashMap();
-    private final Map<String, Class<? extends AnalyzerProvider>> analyzers = Maps.newHashMap();
+    private final Map<String, Class<? extends AnalyzerProvider<?>>> analyzers = Maps.newHashMap();
 
 
     public AnalysisModule(Settings settings) {
@@ -151,266 +154,120 @@ public class AnalysisModule extends AbstractModule {
         return this;
     }
 
-    public AnalysisModule addAnalyzer(String name, Class<? extends AnalyzerProvider> analyzer) {
+    public AnalysisModule addAnalyzer(String name, Class<? extends AnalyzerProvider<?>> analyzer) {
         analyzers.put(name, analyzer);
         return this;
     }
-
+    
     @Override
     protected void configure() {
+        Predicate<String> truePrediate = Predicates.alwaysTrue();
         MapBinder<String, CharFilterFactoryFactory> charFilterBinder
                 = MapBinder.newMapBinder(binder(), String.class, CharFilterFactoryFactory.class);
 
-        // CHAR FILTERS
-
-        AnalysisBinderProcessor.CharFiltersBindings charFiltersBindings = new AnalysisBinderProcessor.CharFiltersBindings();
-        for (AnalysisBinderProcessor processor : processors) {
-            processor.processCharFilters(charFiltersBindings);
-        }
-        charFiltersBindings.charFilters.putAll(charFilters);
-
-        Map<String, Settings> charFiltersSettings = settings.getGroups("index.analysis.char_filter");
-        for (Map.Entry<String, Settings> entry : charFiltersSettings.entrySet()) {
-            String charFilterName = entry.getKey();
-            Settings charFilterSettings = entry.getValue();
-
-            Class<? extends CharFilterFactory> type = null;
-            try {
-                type = charFilterSettings.getAsClass("type", null, "org.elasticsearch.index.analysis.", "CharFilterFactory");
-            } catch (NoClassSettingsException e) {
-                // nothing found, see if its in bindings as a binding name
-                if (charFilterSettings.get("type") != null) {
-                    type = charFiltersBindings.charFilters.get(Strings.toUnderscoreCase(charFilterSettings.get("type")));
-                    if (type == null) {
-                        type = charFiltersBindings.charFilters.get(Strings.toCamelCase(charFilterSettings.get("type")));
-                    }
+        {
+            // CHAR FILTERS
+            AnalysisBinderProcessor.CharFiltersBindings charFiltersBindings = new AnalysisBinderProcessor.CharFiltersBindings();
+            for (AnalysisBinderProcessor processor : processors) {
+                processor.processCharFilters(charFiltersBindings);
+            }
+            charFiltersBindings.charFilters.putAll(charFilters);
+            Map<String, Settings> charFiltersSettings = settings.getGroups("index.analysis.char_filter");
+            resolveClassAndBind(charFilterBinder, CharFilterFactoryFactory.class, charFiltersSettings, charFiltersBindings.charFilters,
+                    "CharFilterFactory", "char filter");
+            final Predicate<String> predicate = indicesAnalysisService == null ?  truePrediate :  new Predicate<String>() {
+                public boolean apply(String name) {
+                    // don't register it here, we will use explicitly register it in the AnalysisService
+                    return !indicesAnalysisService.hasCharFilter(name);
                 }
-                if (type == null) {
-                    throw new ElasticSearchIllegalArgumentException("failed to find char filter type [" + charFilterSettings.get("type") + "] for [" + charFilterName + "]", e);
+            };
+            // go over the char filters in the bindings and register the ones that are not configured
+            for (Map.Entry<String, Class<? extends CharFilterFactory>> entry : charFiltersBindings.charFilters.entrySet()) {
+                bindUnconfigured(entry, charFiltersSettings, charFilterBinder, CharFilterFactoryFactory.class, predicate);
+            }
+        }
+
+        {
+            // TOKEN FILTERS
+            MapBinder<String, TokenFilterFactoryFactory> tokenFilterBinder
+                    = MapBinder.newMapBinder(binder(), String.class, TokenFilterFactoryFactory.class);
+    
+            // initial default bindings
+            AnalysisBinderProcessor.TokenFiltersBindings tokenFiltersBindings = new AnalysisBinderProcessor.TokenFiltersBindings();
+            for (AnalysisBinderProcessor processor : processors) {
+                processor.processTokenFilters(tokenFiltersBindings);
+            }
+            tokenFiltersBindings.tokenFilters.putAll(tokenFilters);
+    
+            Map<String, Settings> tokenFiltersSettings = settings.getGroups("index.analysis.filter");
+            resolveClassAndBind(tokenFilterBinder, TokenFilterFactoryFactory.class, tokenFiltersSettings, tokenFiltersBindings.tokenFilters,
+                    "TokenFilterFactory", "token filter");
+            final Predicate<String> predicate = indicesAnalysisService == null ?  truePrediate :  new Predicate<String>() {
+                public boolean apply(String name) {
+                    // don't register it here, we will use explicitly register it in the AnalysisService
+                    return !indicesAnalysisService.hasTokenFilter(name);
                 }
-            }
-            if (type == null) {
-                // nothing found, see if its in bindings as a binding name
-                throw new ElasticSearchIllegalArgumentException("Char Filter [" + charFilterName + "] must have a type associated with it");
-            }
-            charFilterBinder.addBinding(charFilterName).toProvider(FactoryProvider.newFactory(CharFilterFactoryFactory.class, type)).in(Scopes.SINGLETON);
-        }
-        // go over the char filters in the bindings and register the ones that are not configured
-        for (Map.Entry<String, Class<? extends CharFilterFactory>> entry : charFiltersBindings.charFilters.entrySet()) {
-            String charFilterName = entry.getKey();
-            Class<? extends CharFilterFactory> clazz = entry.getValue();
-            // we don't want to re-register one that already exists
-            if (charFiltersSettings.containsKey(charFilterName)) {
-                continue;
-            }
-            // check, if it requires settings, then don't register it, we know default has no settings...
-            if (clazz.getAnnotation(AnalysisSettingsRequired.class) != null) {
-                continue;
-            }
-            // register it as default under the name
-            if (indicesAnalysisService != null && indicesAnalysisService.hasCharFilter(charFilterName)) {
-                // don't register it here, we will use explicitly register it in the AnalysisService
-                //charFilterBinder.addBinding(charFilterName).toInstance(indicesAnalysisService.charFilterFactoryFactory(charFilterName));
-            } else {
-                charFilterBinder.addBinding(charFilterName).toProvider(FactoryProvider.newFactory(CharFilterFactoryFactory.class, clazz)).in(Scopes.SINGLETON);
+            };
+            // go over the filters in the bindings and register the ones that are not configured
+            for (Map.Entry<String, Class<? extends TokenFilterFactory>> entry : tokenFiltersBindings.tokenFilters.entrySet()) {
+                bindUnconfigured(entry, tokenFiltersSettings, tokenFilterBinder, TokenFilterFactoryFactory.class, predicate);
             }
         }
-
-
-        // TOKEN FILTERS
-
-        MapBinder<String, TokenFilterFactoryFactory> tokenFilterBinder
-                = MapBinder.newMapBinder(binder(), String.class, TokenFilterFactoryFactory.class);
-
-        // initial default bindings
-        AnalysisBinderProcessor.TokenFiltersBindings tokenFiltersBindings = new AnalysisBinderProcessor.TokenFiltersBindings();
-        for (AnalysisBinderProcessor processor : processors) {
-            processor.processTokenFilters(tokenFiltersBindings);
-        }
-        tokenFiltersBindings.tokenFilters.putAll(tokenFilters);
-
-        Map<String, Settings> tokenFiltersSettings = settings.getGroups("index.analysis.filter");
-        for (Map.Entry<String, Settings> entry : tokenFiltersSettings.entrySet()) {
-            String tokenFilterName = entry.getKey();
-            Settings tokenFilterSettings = entry.getValue();
-
-            Class<? extends TokenFilterFactory> type = null;
-            try {
-                type = tokenFilterSettings.getAsClass("type", null, "org.elasticsearch.index.analysis.", "TokenFilterFactory");
-            } catch (NoClassSettingsException e) {
-                // nothing found, see if its in bindings as a binding name
-                if (tokenFilterSettings.get("type") != null) {
-                    type = tokenFiltersBindings.tokenFilters.get(Strings.toUnderscoreCase(tokenFilterSettings.get("type")));
-                    if (type == null) {
-                        type = tokenFiltersBindings.tokenFilters.get(Strings.toCamelCase(tokenFilterSettings.get("type")));
-                    }
+        {   
+            // TOKENIZER
+            MapBinder<String, TokenizerFactoryFactory> tokenizerBinder
+                    = MapBinder.newMapBinder(binder(), String.class, TokenizerFactoryFactory.class);
+    
+            // initial default bindings
+            AnalysisBinderProcessor.TokenizersBindings tokenizersBindings = new AnalysisBinderProcessor.TokenizersBindings();
+            for (AnalysisBinderProcessor processor : processors) {
+                processor.processTokenizers(tokenizersBindings);
+            }
+            tokenizersBindings.tokenizers.putAll(tokenizers);
+            Map<String, Settings> tokenizersSettings = settings.getGroups("index.analysis.tokenizer");
+            resolveClassAndBind(tokenizerBinder, TokenizerFactoryFactory.class, tokenizersSettings, tokenizersBindings.tokenizers, 
+                    "TokenizerFactory", "tokenizer");
+            final Predicate<String> predicate = indicesAnalysisService == null ?  truePrediate :  new Predicate<String>() {
+                public boolean apply(String name) {
+                    // don't register it here, we will use explicitly register it in the AnalysisService
+                    return !indicesAnalysisService.hasTokenizer(name);
                 }
-                if (type == null) {
-                    throw new ElasticSearchIllegalArgumentException("failed to find token filter type [" + tokenFilterSettings.get("type") + "] for [" + tokenFilterName + "]", e);
+            };
+            // go over the tokenizers in the bindings and register the ones that are not configured
+            for (Map.Entry<String, Class<? extends TokenizerFactory>> entry : tokenizersBindings.tokenizers.entrySet()) {
+                bindUnconfigured(entry, tokenizersSettings, tokenizerBinder, TokenizerFactoryFactory.class, predicate);
+            }
+        }
+        { 
+            // ANALYZER
+            MapBinder<String, AnalyzerProviderFactory> analyzerBinder
+                    = MapBinder.newMapBinder(binder(), String.class, AnalyzerProviderFactory.class);
+            // initial default bindings
+            AnalysisBinderProcessor.AnalyzersBindings analyzersBindings = new AnalysisBinderProcessor.AnalyzersBindings();
+            for (AnalysisBinderProcessor processor : processors) {
+                processor.processAnalyzers(analyzersBindings);
+            }
+            analyzersBindings.analyzers.putAll(analyzers);
+            Map<String, Settings> analyzersSettings = settings.getGroups("index.analysis.analyzer");
+            for (Map.Entry<String, Settings> entry : analyzersSettings.entrySet()) {
+                final Settings analyzerSettings = entry.getValue();
+                resolveClassAndBind(analyzerBinder, AnalyzerProviderFactory.class, entry, analyzersBindings.analyzers, "AnalyzerProvider", "analyzer", 
+                        analyzerSettings.get("tokenizer") != null ? CustomAnalyzerProvider.class : null);
+            }
+            // go over the analyzers in the bindings and register the ones that are not configured
+            final Predicate<String> predicate = indicesAnalysisService == null ? truePrediate : new Predicate<String>() {
+                public boolean apply(String name) {
+                    // don't register it here, we will use explicitly register it in the AnalysisService
+                    return !indicesAnalysisService.hasAnalyzer(name);
                 }
-            }
-            if (type == null) {
-                throw new ElasticSearchIllegalArgumentException("token filter [" + tokenFilterName + "] must have a type associated with it");
-            }
-            tokenFilterBinder.addBinding(tokenFilterName).toProvider(FactoryProvider.newFactory(TokenFilterFactoryFactory.class, type)).in(Scopes.SINGLETON);
-        }
-        // go over the filters in the bindings and register the ones that are not configured
-        for (Map.Entry<String, Class<? extends TokenFilterFactory>> entry : tokenFiltersBindings.tokenFilters.entrySet()) {
-            String tokenFilterName = entry.getKey();
-            Class<? extends TokenFilterFactory> clazz = entry.getValue();
-            // we don't want to re-register one that already exists
-            if (tokenFiltersSettings.containsKey(tokenFilterName)) {
-                continue;
-            }
-            // check, if it requires settings, then don't register it, we know default has no settings...
-            if (clazz.getAnnotation(AnalysisSettingsRequired.class) != null) {
-                continue;
-            }
-            // register it as default under the name
-            if (indicesAnalysisService != null && indicesAnalysisService.hasTokenFilter(tokenFilterName)) {
-                // don't register it here, we will use explicitly register it in the AnalysisService
-                // tokenFilterBinder.addBinding(tokenFilterName).toInstance(indicesAnalysisService.tokenFilterFactoryFactory(tokenFilterName));
-            } else {
-                tokenFilterBinder.addBinding(tokenFilterName).toProvider(FactoryProvider.newFactory(TokenFilterFactoryFactory.class, clazz)).in(Scopes.SINGLETON);
+            };
+            for (Map.Entry<String, Class<? extends AnalyzerProvider<?>>> entry : analyzersBindings.analyzers.entrySet()) {
+                bindUnconfigured(entry, analyzersSettings, analyzerBinder, AnalyzerProviderFactory.class, predicate);
             }
         }
-
-        // TOKENIZER
-
-        MapBinder<String, TokenizerFactoryFactory> tokenizerBinder
-                = MapBinder.newMapBinder(binder(), String.class, TokenizerFactoryFactory.class);
-
-        // initial default bindings
-        AnalysisBinderProcessor.TokenizersBindings tokenizersBindings = new AnalysisBinderProcessor.TokenizersBindings();
-        for (AnalysisBinderProcessor processor : processors) {
-            processor.processTokenizers(tokenizersBindings);
-        }
-        tokenizersBindings.tokenizers.putAll(tokenizers);
-
-        Map<String, Settings> tokenizersSettings = settings.getGroups("index.analysis.tokenizer");
-        for (Map.Entry<String, Settings> entry : tokenizersSettings.entrySet()) {
-            String tokenizerName = entry.getKey();
-            Settings tokenizerSettings = entry.getValue();
-
-
-            Class<? extends TokenizerFactory> type = null;
-            try {
-                type = tokenizerSettings.getAsClass("type", null, "org.elasticsearch.index.analysis.", "TokenizerFactory");
-            } catch (NoClassSettingsException e) {
-                // nothing found, see if its in bindings as a binding name
-                if (tokenizerSettings.get("type") != null) {
-                    type = tokenizersBindings.tokenizers.get(Strings.toUnderscoreCase(tokenizerSettings.get("type")));
-                    if (type == null) {
-                        type = tokenizersBindings.tokenizers.get(Strings.toCamelCase(tokenizerSettings.get("type")));
-                    }
-                }
-                if (type == null) {
-                    throw new ElasticSearchIllegalArgumentException("failed to find tokenizer type [" + tokenizerSettings.get("type") + "] for [" + tokenizerName + "]", e);
-                }
-            }
-            if (type == null) {
-                throw new ElasticSearchIllegalArgumentException("token filter [" + tokenizerName + "] must have a type associated with it");
-            }
-            tokenizerBinder.addBinding(tokenizerName).toProvider(FactoryProvider.newFactory(TokenizerFactoryFactory.class, type)).in(Scopes.SINGLETON);
-        }
-        // go over the tokenizers in the bindings and register the ones that are not configured
-        for (Map.Entry<String, Class<? extends TokenizerFactory>> entry : tokenizersBindings.tokenizers.entrySet()) {
-            String tokenizerName = entry.getKey();
-            Class<? extends TokenizerFactory> clazz = entry.getValue();
-            // we don't want to re-register one that already exists
-            if (tokenizersSettings.containsKey(tokenizerName)) {
-                continue;
-            }
-            // check, if it requires settings, then don't register it, we know default has no settings...
-            if (clazz.getAnnotation(AnalysisSettingsRequired.class) != null) {
-                continue;
-            }
-            // register it as default under the name
-            if (indicesAnalysisService != null && indicesAnalysisService.hasTokenizer(tokenizerName)) {
-                // don't register it here, we will use explicitly register it in the AnalysisService
-                // tokenizerBinder.addBinding(tokenizerName).toProvider(FactoryProvider.newFactory(TokenizerFactoryFactory.class, clazz)).in(Scopes.SINGLETON);
-            } else {
-                tokenizerBinder.addBinding(tokenizerName).toProvider(FactoryProvider.newFactory(TokenizerFactoryFactory.class, clazz)).in(Scopes.SINGLETON);
-            }
-        }
-
-        // ANALYZER
-
-        MapBinder<String, AnalyzerProviderFactory> analyzerBinder
-                = MapBinder.newMapBinder(binder(), String.class, AnalyzerProviderFactory.class);
-
-        // initial default bindings
-        AnalysisBinderProcessor.AnalyzersBindings analyzersBindings = new AnalysisBinderProcessor.AnalyzersBindings();
-        for (AnalysisBinderProcessor processor : processors) {
-            processor.processAnalyzers(analyzersBindings);
-        }
-        analyzersBindings.analyzers.putAll(analyzers);
-
-        Map<String, Settings> analyzersSettings = settings.getGroups("index.analysis.analyzer");
-        for (Map.Entry<String, Settings> entry : analyzersSettings.entrySet()) {
-            String analyzerName = entry.getKey();
-            Settings analyzerSettings = entry.getValue();
-
-            Class<? extends AnalyzerProvider> type = null;
-            try {
-                type = analyzerSettings.getAsClass("type", null, "org.elasticsearch.index.analysis.", "AnalyzerProvider");
-            } catch (NoClassSettingsException e) {
-                // nothing found, see if its in bindings as a binding name
-                if (analyzerSettings.get("type") != null) {
-                    type = analyzersBindings.analyzers.get(Strings.toUnderscoreCase(analyzerSettings.get("type")));
-                    if (type == null) {
-                        type = analyzersBindings.analyzers.get(Strings.toCamelCase(analyzerSettings.get("type")));
-                    }
-                }
-                if (type == null) {
-                    // no specific type, check if it has a tokenizer associated with it
-                    String tokenizerName = analyzerSettings.get("tokenizer");
-                    if (tokenizerName != null) {
-                        // we have a tokenizer, use the CustomAnalyzer
-                        type = CustomAnalyzerProvider.class;
-                    } else {
-                        throw new ElasticSearchIllegalArgumentException("failed to find analyzer type [" + analyzerSettings.get("type") + "] or tokenizer for [" + analyzerName + "]", e);
-                    }
-                }
-            }
-            if (type == null) {
-                // no specific type, check if it has a tokenizer associated with it
-                String tokenizerName = analyzerSettings.get("tokenizer");
-                if (tokenizerName != null) {
-                    // we have a tokenizer, use the CustomAnalyzer
-                    type = CustomAnalyzerProvider.class;
-                } else {
-                    throw new ElasticSearchIllegalArgumentException("failed to find analyzer type [" + analyzerSettings.get("type") + "] or tokenizer for [" + analyzerName + "]");
-                }
-            }
-            analyzerBinder.addBinding(analyzerName).toProvider(FactoryProvider.newFactory(AnalyzerProviderFactory.class, type)).in(Scopes.SINGLETON);
-        }
-
-
-        // go over the tokenizers in the bindings and register the ones that are not configured
-        for (Map.Entry<String, Class<? extends AnalyzerProvider>> entry : analyzersBindings.analyzers.entrySet()) {
-            String analyzerName = entry.getKey();
-            Class<? extends AnalyzerProvider> clazz = entry.getValue();
-            // we don't want to re-register one that already exists
-            if (analyzersSettings.containsKey(analyzerName)) {
-                continue;
-            }
-            // check, if it requires settings, then don't register it, we know default has no settings...
-            if (clazz.getAnnotation(AnalysisSettingsRequired.class) != null) {
-                continue;
-            }
-            // register it as default under the name
-            if (indicesAnalysisService != null && indicesAnalysisService.hasAnalyzer(analyzerName)) {
-                // don't register it here, we will use explicitly register it in the AnalysisService
-                // analyzerBinder.addBinding(analyzerName).toProvider(FactoryProvider.newFactory(AnalyzerProviderFactory.class, clazz)).in(Scopes.SINGLETON);
-            } else {
-                analyzerBinder.addBinding(analyzerName).toProvider(FactoryProvider.newFactory(AnalyzerProviderFactory.class, clazz)).in(Scopes.SINGLETON);
-            }
-        }
-
-
         bind(AnalysisService.class).in(Scopes.SINGLETON);
     }
+    
 
     private static class DefaultProcessor extends AnalysisBinderProcessor {
 
@@ -545,6 +402,73 @@ public class AnalysisModule extends AbstractModule {
             analyzersBindings.processAnalyzer("swedish", SwedishAnalyzerProvider.class);
             analyzersBindings.processAnalyzer("turkish", TurkishAnalyzerProvider.class);
             analyzersBindings.processAnalyzer("thai", ThaiAnalyzerProvider.class);
+        }
+    }
+    
+    private static <T> Class<? extends T> tryGetTypeCases(Map<String, Class<? extends T>> map, String typeName) {
+        Class<? extends T> type = null;
+        if (typeName != null) {
+            type = map.get(Strings.toUnderscoreCase(typeName));
+            if (type == null) {
+                type = map.get(Strings.toCamelCase(typeName));
+            }
+        }
+        return type;
+    }
+    
+    private static <T,F> void resolveClassAndBind(MapBinder<String, F> binder, Class<F> factory, Map<String, Settings> settings, Map<String, Class<? extends T>> map, String factoryName, String errorText) {
+        resolveClassAndBind(binder, factory, settings, map, factoryName, errorText, null);
+    }
+    
+    private static <T,F> void resolveClassAndBind(MapBinder<String, F> binder, Class<F> factory,Entry<String, Settings> entry, Map<String, Class<? extends T>> map, String factoryName, String errorText, Class<? extends T> defaultType) {
+        final String entityName = entry.getKey();
+        final Settings settings = entry.getValue();
+        final String typeName = settings.get("type");
+        Class<? extends T> type = null;
+        try {
+            type = settings.getAsClass("type", null, "org.elasticsearch.index.analysis.", factoryName);
+        } catch (NoClassSettingsException e) {
+            // nothing found, see if its in bindings as a binding name
+            type = tryGetTypeCases(map, typeName);
+            if (type == null) {
+                if (defaultType == null) {
+                    throw new ElasticSearchIllegalArgumentException("failed to find " + errorText + " type [" + typeName+ "] for [" + entityName + "]", e);
+                } 
+                type = defaultType;
+            }
+        }
+        if (type == null) {
+            if (defaultType == null) {
+                // nothing found, see if its in bindings as a binding name
+                throw new ElasticSearchIllegalArgumentException(errorText + " [" + entityName + "] must have a type associated with it");
+            }
+            type = defaultType;
+        }
+        if (type != null) {
+            binder.addBinding(entry.getKey()).toProvider(FactoryProvider.newFactory(factory, type)).in(Scopes.SINGLETON);
+        }
+    }
+    
+    private static <T,F> void resolveClassAndBind(MapBinder<String, F> binder, Class<F> factory,Map<String, Settings> settingsMap, Map<String, Class<? extends T>> map, String factoryName, String errorText, Class<? extends T> defaultType) {
+        for (Entry<String, Settings> entry : settingsMap.entrySet()) {
+            resolveClassAndBind(binder, factory, entry, map, factoryName, errorText, defaultType);
+        }
+    }
+    
+    private static <F, T> void bindUnconfigured(Entry<String, Class<? extends T>> entry, Map<String, Settings> settings, MapBinder<String, F> binder, Class<F> factory, Predicate<String> shouldBind) {
+        String name = entry.getKey();
+        Class<? extends T> clazz = entry.getValue();
+        // we don't want to re-register one that already exists
+        if (settings.containsKey(name)) {
+            return;
+        }
+        // check, if it requires settings, then don't register it, we know default has no settings...
+        if (clazz.getAnnotation(AnalysisSettingsRequired.class) != null) {
+            return;
+        }
+        // register it as default under the name
+        if (shouldBind.apply(name)) {
+            binder.addBinding(name).toProvider(FactoryProvider.newFactory(factory, clazz)).in(Scopes.SINGLETON);
         }
     }
 }
