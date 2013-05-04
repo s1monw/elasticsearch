@@ -19,6 +19,7 @@
 
 package org.elasticsearch.rest.action.main;
 
+import org.apache.lucene.util.Constants;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -75,7 +76,11 @@ public class RestMainAction extends BaseRestHandler {
                     if (settings.get("name") != null) {
                         builder.field("name", settings.get("name"));
                     }
-                    builder.startObject("version").field("number", Version.CURRENT.number()).field("snapshot_build", Version.CURRENT.snapshot).endObject();
+                    builder.startObject("version")
+                        .field("number", Version.CURRENT.number())
+                        .field("snapshot_build", Version.CURRENT.snapshot)
+                        .field("lucene_version", Constants.LUCENE_MAIN_VERSION)
+                    .endObject();
                     builder.field("tagline", "You Know, for Search");
                     builder.endObject();
                     channel.sendResponse(new XContentRestResponse(request, status, builder));
