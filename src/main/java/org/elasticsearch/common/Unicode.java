@@ -20,8 +20,8 @@
 package org.elasticsearch.common;
 
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CharsRef;
 import org.apache.lucene.util.UnicodeUtil;
-import org.elasticsearch.common.util.concurrent.ThreadLocals;
 
 import java.util.Arrays;
 
@@ -30,21 +30,7 @@ import java.util.Arrays;
  */
 public class Unicode {
 
-    private static ThreadLocal<ThreadLocals.CleanableValue<BytesRef>> cachedUtf8Result = new ThreadLocal<ThreadLocals.CleanableValue<BytesRef>>() {
-        @Override
-        protected ThreadLocals.CleanableValue<BytesRef> initialValue() {
-            return new ThreadLocals.CleanableValue<BytesRef>(new BytesRef());
-        }
-    };
-
-    private static ThreadLocal<ThreadLocals.CleanableValue<UTF16Result>> cachedUtf16Result = new ThreadLocal<ThreadLocals.CleanableValue<UTF16Result>>() {
-        @Override
-        protected ThreadLocals.CleanableValue<UTF16Result> initialValue() {
-            return new ThreadLocals.CleanableValue<UTF16Result>(new UTF16Result());
-        }
-    };
-
-    public static byte[] fromStringAsBytes(String source) {
+    public static byte[] fromStringAsBytes(CharSequence source) {
         if (source == null) {
             return null;
         }
@@ -69,11 +55,11 @@ public class Unicode {
         UnicodeUtil.UTF16toUTF8(source, 0, source.length(), result);
     }
 
-    public static BytesRef unsafeFromStringAsUtf8(String source) {
+    public static BytesRef unsafeFromStringAsUtf8(CharSequence source) {
         if (source == null) {
             return null;
         }
-        BytesRef result = cachedUtf8Result.get().get();
+        BytesRef result = new BytesRef();
         UnicodeUtil.UTF16toUTF8(source, 0, source.length(), result);
         return result;
     }
@@ -86,8 +72,9 @@ public class Unicode {
         if (source == null) {
             return null;
         }
-        UTF16Result result = unsafeFromBytesAsUtf16(source, offset, length);
-        return new String(result.result, 0, result.length);
+        CharsRef spare = new CharsRef();
+        UnicodeUtil.UTF8toUTF16(source, offset, length, spare);
+        return spare.toString();
     }
 
     public static UTF16Result fromBytesAsUtf16(byte[] source) {
@@ -103,18 +90,6 @@ public class Unicode {
         return result;
     }
 
-    public static UTF16Result unsafeFromBytesAsUtf16(byte[] source) {
-        return unsafeFromBytesAsUtf16(source, 0, source.length);
-    }
-
-    public static UTF16Result unsafeFromBytesAsUtf16(byte[] source, int offset, int length) {
-        if (source == null) {
-            return null;
-        }
-        UTF16Result result = cachedUtf16Result.get().get();
-        UTF8toUTF16(source, offset, length, result);
-        return result;
-    }
 
     // LUCENE MONITOR
 

@@ -82,7 +82,7 @@ public abstract class TransportSearchHelper {
                 sb.append(entry.getKey()).append(':').append(entry.getValue()).append(';');
             }
         }
-        return Base64.encodeBytes(Unicode.fromStringAsBytes(sb.toString()), Base64.URL_SAFE);
+        return Base64.encodeBytes(Unicode.fromStringAsBytes(sb), Base64.URL_SAFE);
     }
 
     public static ParsedScrollId parseScrollId(String scrollId) {
