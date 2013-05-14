@@ -30,8 +30,6 @@ import org.elasticsearch.index.mapper.MapperService;
 
 import java.io.IOException;
 
-import static org.elasticsearch.index.query.support.QueryParsers.wrapSmartNameQuery;
-
 /**
  *
  */

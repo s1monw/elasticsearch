@@ -22,7 +22,6 @@ package org.elasticsearch.common.bytes;
 import com.google.common.base.Charsets;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
-import org.elasticsearch.common.Unicode;
 import org.elasticsearch.common.io.stream.BytesStreamInput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -30,6 +29,7 @@ import org.jboss.netty.buffer.ChannelBuffers;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
 
 /**
  * A bytes array reference that caches the hash code.
@@ -46,9 +46,10 @@ public class HashedBytesArray implements BytesReference {
     public HashedBytesArray(byte[] bytes) {
         this.bytes = bytes;
     }
-
-    public HashedBytesArray(String str) {
-        this(Unicode.fromStringAsBytes(str));
+    
+    public HashedBytesArray(String value) {
+        BytesRef ref = new BytesRef(value);
+        this.bytes = Arrays.copyOfRange(ref.bytes, ref.offset, ref.offset+ref.length);
     }
 
     @Override

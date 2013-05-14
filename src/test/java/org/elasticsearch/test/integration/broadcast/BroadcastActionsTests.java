@@ -26,7 +26,7 @@ import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.count.CountResponse;
 import org.elasticsearch.action.support.broadcast.BroadcastOperationThreading;
-import org.elasticsearch.common.Unicode;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.test.integration.AbstractNodesTests;
@@ -103,8 +103,7 @@ public class BroadcastActionsTests extends AbstractNodesTests {
 
         for (int i = 0; i < 5; i++) {
             // test failed (simply query that can't be parsed)
-            CountResponse countResponse = client("server1").count(countRequest("test").query(Unicode.fromStringAsBytes("{ term : { _type : \"type1 } }"))).actionGet();
-
+            CountResponse countResponse = client("server1").count(countRequest("test").query(new BytesArray("{ term : { _type : \"type1 } }"), false)).actionGet();
             assertThat(countResponse.getCount(), equalTo(0l));
             assertThat(countResponse.getTotalShards(), equalTo(5));
             assertThat(countResponse.getSuccessfulShards(), equalTo(0));

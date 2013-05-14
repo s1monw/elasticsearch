@@ -179,7 +179,7 @@ public class GeoDistanceRangeFilterParser implements FilterParser {
                 } else if ("_cache".equals(currentFieldName)) {
                     cache = parser.booleanValue();
                 } else if ("_cache_key".equals(currentFieldName) || "_cacheKey".equals(currentFieldName)) {
-                    cacheKey = new CacheKeyFilter.Key(parser.text());
+                    cacheKey = CacheKeyFilter.Key.fromBytesRef(parser.bytes());
                 } else if ("optimize_bbox".equals(currentFieldName) || "optimizeBbox".equals(currentFieldName)) {
                     optimizeBbox = parser.textOrNull();
                 } else if ("normalize".equals(currentFieldName)) {

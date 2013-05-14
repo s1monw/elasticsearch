@@ -27,7 +27,7 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.Priority;
-import org.elasticsearch.common.Unicode;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.Scroll;
@@ -333,7 +333,7 @@ public class TransportTwoNodesSearchTests extends AbstractNodesTests {
     public void testFailedSearchWithWrongQuery() throws Exception {
         logger.info("Start Testing failed search with wrong query");
         try {
-            SearchResponse searchResponse = client.search(searchRequest("test").source(Unicode.fromStringAsBytes("{ xxx }"))).actionGet();
+            SearchResponse searchResponse = client.search(searchRequest("test").source(new BytesArray("{ xxx }"), false)).actionGet();
             assertThat(searchResponse.getTotalShards(), equalTo(3));
             assertThat(searchResponse.getSuccessfulShards(), equalTo(0));
             assertThat(searchResponse.getFailedShards(), equalTo(3));

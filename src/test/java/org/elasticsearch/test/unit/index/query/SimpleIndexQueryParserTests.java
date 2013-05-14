@@ -732,7 +732,7 @@ public class SimpleIndexQueryParserTests {
         Filter filter = ((XFilteredQuery) parsedQuery.query()).getFilter();
         assertThat(filter, instanceOf(CacheKeyFilter.Wrapper.class));
         CacheKeyFilter.Wrapper wrapper = (CacheKeyFilter.Wrapper) filter;
-        assertThat(wrapper.cacheKey().utf8ToString(), equalTo("key"));
+        assertThat(wrapper.cacheKey().toString(), equalTo("key"));
         assertThat(wrapper.wrappedFilter(), instanceOf(RegexpFilter.class));
         RegexpFilter regexpFilter = (RegexpFilter) wrapper.wrappedFilter();
         assertThat(regexpFilter.field(), equalTo("name.first"));

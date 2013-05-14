@@ -21,6 +21,8 @@ package org.elasticsearch.action.search.type;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
 import org.elasticsearch.ElasticSearchIllegalStateException;
 import org.elasticsearch.action.search.SearchRequest;
@@ -30,7 +32,6 @@ import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.Base64;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
-import org.elasticsearch.common.Unicode;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.search.SearchPhaseResult;
 import org.elasticsearch.search.internal.InternalScrollSearchRequest;
@@ -82,12 +83,13 @@ public abstract class TransportSearchHelper {
                 sb.append(entry.getKey()).append(':').append(entry.getValue()).append(';');
             }
         }
-        return Base64.encodeBytes(Unicode.fromStringAsBytes(sb), Base64.URL_SAFE);
+        BytesRef spare = new BytesRef(sb);
+        return Base64.encodeBytes(spare.bytes, spare.offset, spare.length, Base64.URL_SAFE);
     }
 
     public static ParsedScrollId parseScrollId(String scrollId) {
         try {
-            scrollId = Unicode.fromBytes(Base64.decode(scrollId, Base64.URL_SAFE));
+            scrollId = new BytesRef(Base64.decode(scrollId, Base64.URL_SAFE)).utf8ToString();
         } catch (IOException e) {
             throw new ElasticSearchIllegalArgumentException("Failed to decode scrollId", e);
         }

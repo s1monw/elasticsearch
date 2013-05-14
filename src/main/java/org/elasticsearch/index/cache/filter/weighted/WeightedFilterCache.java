@@ -28,6 +28,7 @@ import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.search.DocIdSet;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
+import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.inject.Inject;
@@ -93,9 +94,11 @@ public class WeightedFilterCache extends AbstractIndexComponent implements Filte
     @Override
     public void clear(String reason, String[] keys) {
         logger.debug("clear keys [], reason [{}]", reason, keys);
+        BytesRef spare = new BytesRef();
         for (String key : keys) {
             for (Object readerKey : seenReaders.keySet()) {
-                indicesFilterCache.cache().invalidate(new FilterCacheKey(readerKey, new CacheKeyFilter.Key(key)));
+                spare.copyChars(key);
+                indicesFilterCache.cache().invalidate(new FilterCacheKey(readerKey, CacheKeyFilter.Key.fromBytesRef(spare)));
             }
         }
     }

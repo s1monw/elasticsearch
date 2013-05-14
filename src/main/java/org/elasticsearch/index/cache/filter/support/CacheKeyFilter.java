@@ -23,7 +23,7 @@ import org.apache.lucene.index.AtomicReaderContext;
 import org.apache.lucene.search.DocIdSet;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.Bits;
-import org.elasticsearch.common.Unicode;
+import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -33,6 +33,7 @@ public interface CacheKeyFilter {
     public static class Key {
 
         private final byte[] bytes;
+        
 
         // we pre-compute the hashCode for better performance (especially in IdCache)
         private final int hashCode;
@@ -42,16 +43,8 @@ public interface CacheKeyFilter {
             this.hashCode = Arrays.hashCode(bytes);
         }
 
-        public Key(String str) {
-            this(Unicode.fromStringAsBytes(str));
-        }
-
-        public byte[] bytes() {
-            return this.bytes;
-        }
-
-        public String utf8ToString() {
-            return Unicode.fromBytes(bytes);
+        public int size() {
+            return bytes.length;
         }
 
         @Override
@@ -68,6 +61,19 @@ public interface CacheKeyFilter {
         public int hashCode() {
             return hashCode;
         }
+
+        @Override
+        public String toString() {
+            return new BytesRef(this.bytes, 0, bytes.length).utf8ToString();
+        }
+
+        public static Key fromBytesRef(BytesRef spare) {
+            byte[] array = new byte[spare.length];
+            System.arraycopy(spare.bytes, spare.offset, array, 0, spare.length);    
+            return new Key(array);
+        }
+        
+        
     }
 
     public static class Wrapper extends Filter implements CacheKeyFilter {

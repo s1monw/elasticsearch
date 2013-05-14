@@ -35,7 +35,7 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.support.broadcast.BroadcastOperationThreading;
 import org.elasticsearch.action.support.replication.ReplicationType;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.Unicode;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -236,7 +236,7 @@ public class DocumentActionsTests extends AbstractNodesTests {
             assertThat(countResponse.getFailedShards(), equalTo(0));
 
             // test failed (simply query that can't be parsed)
-            countResponse = client1.count(countRequest("test").query(Unicode.fromStringAsBytes("{ term : { _type : \"type1 } }"))).actionGet();
+            countResponse = client1.count(countRequest("test").query(new BytesArray("{ term : { _type : \"type1 } }"), false)).actionGet();
 
             assertThat(countResponse.getCount(), equalTo(0l));
             assertThat(countResponse.getSuccessfulShards(), equalTo(0));

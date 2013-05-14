@@ -77,7 +77,7 @@ public class NotFilterParser implements FilterParser {
                 } else if ("_name".equals(currentFieldName)) {
                     filterName = parser.text();
                 } else if ("_cache_key".equals(currentFieldName) || "_cacheKey".equals(currentFieldName)) {
-                    cacheKey = new CacheKeyFilter.Key(parser.text());
+                    cacheKey = CacheKeyFilter.Key.fromBytesRef(parser.bytes());
                 } else {
                     throw new QueryParsingException(parseContext.index(), "[not] filter does not support [" + currentFieldName + "]");
                 }

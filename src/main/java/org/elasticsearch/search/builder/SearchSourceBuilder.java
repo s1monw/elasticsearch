@@ -23,10 +23,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import gnu.trove.iterator.TObjectFloatIterator;
 import gnu.trove.map.hash.TObjectFloatHashMap;
+
 import org.elasticsearch.ElasticSearchGenerationException;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.Nullable;
-import org.elasticsearch.common.Unicode;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.unit.TimeValue;
@@ -156,7 +156,7 @@ public class SearchSourceBuilder implements ToXContent {
      * Constructs a new search source builder with a raw search query.
      */
     public SearchSourceBuilder query(String queryString) {
-        return query(Unicode.fromStringAsBytes(queryString));
+        return query(new BytesArray(queryString));
     }
 
     /**
@@ -193,7 +193,7 @@ public class SearchSourceBuilder implements ToXContent {
      * (and not facets for example).
      */
     public SearchSourceBuilder filter(String filterString) {
-        return filter(Unicode.fromStringAsBytes(filterString));
+        return filter(new BytesArray(filterString));
     }
 
     /**

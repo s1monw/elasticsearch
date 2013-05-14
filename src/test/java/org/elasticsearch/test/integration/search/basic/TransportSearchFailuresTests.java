@@ -19,6 +19,18 @@
 
 package org.elasticsearch.test.integration.search.basic;
 
+import static org.elasticsearch.client.Requests.clusterHealthRequest;
+import static org.elasticsearch.client.Requests.createIndexRequest;
+import static org.elasticsearch.client.Requests.refreshRequest;
+import static org.elasticsearch.client.Requests.searchRequest;
+import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+
+import java.io.IOException;
+
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.action.WriteConsistencyLevel;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
@@ -29,20 +41,11 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.Priority;
-import org.elasticsearch.common.Unicode;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.test.integration.AbstractNodesTests;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
-
-import java.io.IOException;
-
-import static org.elasticsearch.client.Requests.*;
-import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
-import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
 
 /**
  *
@@ -73,7 +76,7 @@ public class TransportSearchFailuresTests extends AbstractNodesTests {
         assertThat(refreshResponse.getFailedShards(), equalTo(0));
         for (int i = 0; i < 5; i++) {
             try {
-                SearchResponse searchResponse = client("server1").search(searchRequest("test").source(Unicode.fromStringAsBytes("{ xxx }"))).actionGet();
+                SearchResponse searchResponse = client("server1").search(searchRequest("test").source(new BytesArray("{ xxx }"), false)).actionGet();
                 assertThat(searchResponse.getTotalShards(), equalTo(3));
                 assertThat(searchResponse.getSuccessfulShards(), equalTo(0));
                 assertThat(searchResponse.getFailedShards(), equalTo(3));
@@ -102,7 +105,7 @@ public class TransportSearchFailuresTests extends AbstractNodesTests {
 
         for (int i = 0; i < 5; i++) {
             try {
-                SearchResponse searchResponse = client("server1").search(searchRequest("test").source(Unicode.fromStringAsBytes("{ xxx }"))).actionGet();
+                SearchResponse searchResponse = client("server1").search(searchRequest("test").source(new BytesArray("{ xxx }"), false)).actionGet();
                 assertThat(searchResponse.getTotalShards(), equalTo(3));
                 assertThat(searchResponse.getSuccessfulShards(), equalTo(0));
                 assertThat(searchResponse.getFailedShards(), equalTo(3));

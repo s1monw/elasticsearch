@@ -73,7 +73,7 @@ public class FQueryFilterParser implements FilterParser {
                 } else if ("_cache".equals(currentFieldName)) {
                     cache = parser.booleanValue();
                 } else if ("_cache_key".equals(currentFieldName) || "_cacheKey".equals(currentFieldName)) {
-                    cacheKey = new CacheKeyFilter.Key(parser.text());
+                    cacheKey = CacheKeyFilter.Key.fromBytesRef(parser.bytes());
                 } else {
                     throw new QueryParsingException(parseContext.index(), "[fquery] filter does not support [" + currentFieldName + "]");
                 }

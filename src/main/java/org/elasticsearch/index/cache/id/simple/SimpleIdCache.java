@@ -118,10 +118,13 @@ public class SimpleIdCache extends AbstractIndexComponent implements IdCache, Se
 
                 // We don't want to load uid of child documents, this allows us to not load uids of child types.
                 Set<HashedBytesArray> parentTypes = new HashSet<HashedBytesArray>();
+                BytesRef spare = new BytesRef();
                 for (String type : indexService.mapperService().types()) {
                     ParentFieldMapper parentFieldMapper = indexService.mapperService().documentMapper(type).parentFieldMapper();
                     if (parentFieldMapper != null) {
-                        parentTypes.add(new HashedBytesArray(parentFieldMapper.type()));
+                        spare.copyChars(parentFieldMapper.type());
+                        assert spare.offset == 0;
+                        parentTypes.add(new HashedBytesArray(Arrays.copyOfRange(spare.bytes, 0, spare.length)));
                     }
                 }
 

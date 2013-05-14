@@ -133,8 +133,10 @@ public class IndicesTermsFilterCache extends AbstractComponent {
     }
 
     public void clear(String reason, String[] keys) {
+        BytesRef spare = new BytesRef();
         for (String key : keys) {
-            cache.invalidate(new CacheKeyFilter.Key(key));
+            spare.copyChars(key);
+            cache.invalidate(CacheKeyFilter.Key.fromBytesRef(spare));
         }
     }
 
@@ -189,7 +191,7 @@ public class IndicesTermsFilterCache extends AbstractComponent {
 
         @Override
         public int weigh(CacheKeyFilter.Key key, TermsFilterValue value) {
-            return (int) (key.bytes().length + value.sizeInBytes);
+            return (int) (key.size() + value.sizeInBytes);
         }
     }
 

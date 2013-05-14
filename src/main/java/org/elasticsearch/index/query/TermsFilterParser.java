@@ -131,7 +131,7 @@ public class TermsFilterParser implements FilterParser {
                 } else if ("_cache".equals(currentFieldName)) {
                     cache = parser.booleanValue();
                 } else if ("_cache_key".equals(currentFieldName) || "_cacheKey".equals(currentFieldName)) {
-                    cacheKey = new CacheKeyFilter.Key(parser.text());
+                    cacheKey = CacheKeyFilter.Key.fromBytesRef(parser.bytes());
                 } else {
                     throw new QueryParsingException(parseContext.index(), "[terms] filter does not support [" + currentFieldName + "]");
                 }
@@ -160,7 +160,7 @@ public class TermsFilterParser implements FilterParser {
             // external lookup, use it
             TermsLookup termsLookup = new TermsLookup(fieldMapper, lookupIndex, lookupType, lookupId, lookupPath);
             if (cacheKey == null) {
-                cacheKey = new CacheKeyFilter.Key(termsLookup.toString());
+                cacheKey = CacheKeyFilter.Key.fromBytesRef(parser.bytes());
             }
             Filter filter = termsFilterCache.lookupTermsFilter(cacheKey, termsLookup);
             filter = parseContext.cacheFilter(filter, null); // cacheKey is passed as null, so we don't double cache the key
