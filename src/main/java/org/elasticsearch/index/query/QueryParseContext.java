@@ -52,6 +52,7 @@ import java.util.Map;
  */
 public class QueryParseContext {
 
+    // This is scary ;)
     private static ThreadLocal<String[]> typesContext = new ThreadLocal<String[]>();
 
     public static void setTypes(String[] types) {

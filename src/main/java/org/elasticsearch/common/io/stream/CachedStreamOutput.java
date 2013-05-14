@@ -20,7 +20,6 @@
 package org.elasticsearch.common.io.stream;
 
 import org.elasticsearch.common.compress.Compressor;
-import org.elasticsearch.common.io.UTF8StreamWriter;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
 import org.elasticsearch.monitor.jvm.JvmInfo;
@@ -157,16 +156,4 @@ public class CachedStreamOutput {
         }
     }
 
-    private static ThreadLocal<SoftReference<UTF8StreamWriter>> utf8StreamWriter = new ThreadLocal<SoftReference<UTF8StreamWriter>>();
-
-    public static UTF8StreamWriter utf8StreamWriter() {
-        SoftReference<UTF8StreamWriter> ref = utf8StreamWriter.get();
-        UTF8StreamWriter writer = (ref == null) ? null : ref.get();
-        if (writer == null) {
-            writer = new UTF8StreamWriter(1024 * 4);
-            utf8StreamWriter.set(new SoftReference<UTF8StreamWriter>(writer));
-        }
-        writer.reset();
-        return writer;
-    }
 }

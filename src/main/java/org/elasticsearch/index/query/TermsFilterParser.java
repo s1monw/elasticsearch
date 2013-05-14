@@ -142,7 +142,7 @@ public class TermsFilterParser implements FilterParser {
             throw new QueryParsingException(parseContext.index(), "terms filter requires a field name, followed by array of terms");
         }
 
-        FieldMapper fieldMapper = null;
+        FieldMapper<?> fieldMapper = null;
         smartNameFieldMappers = parseContext.smartFieldMappers(fieldName);
         String[] previousTypes = null;
         if (smartNameFieldMappers != null) {
@@ -160,7 +160,7 @@ public class TermsFilterParser implements FilterParser {
             // external lookup, use it
             TermsLookup termsLookup = new TermsLookup(fieldMapper, lookupIndex, lookupType, lookupId, lookupPath);
             if (cacheKey == null) {
-                cacheKey = CacheKeyFilter.Key.fromBytesRef(parser.bytes());
+                cacheKey = CacheKeyFilter.Key.fromBytesRef(new BytesRef(termsLookup.toString()));
             }
             Filter filter = termsFilterCache.lookupTermsFilter(cacheKey, termsLookup);
             filter = parseContext.cacheFilter(filter, null); // cacheKey is passed as null, so we don't double cache the key

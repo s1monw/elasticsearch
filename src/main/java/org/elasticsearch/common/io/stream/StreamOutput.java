@@ -20,10 +20,10 @@
 package org.elasticsearch.common.io.stream;
 
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.UnicodeUtil;
 import org.elasticsearch.Version;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.io.UTF8StreamWriter;
 import org.elasticsearch.common.text.Text;
 import org.joda.time.ReadableInstant;
 
@@ -187,14 +187,21 @@ public abstract class StreamOutput extends OutputStream {
             long pos1 = position();
             // make room for the size
             seek(pos1 + 4);
-            UTF8StreamWriter utf8StreamWriter = CachedStreamOutput.utf8StreamWriter();
-            utf8StreamWriter.setOutput(this);
-            utf8StreamWriter.write(text.string());
-            utf8StreamWriter.close();
-            long pos2 = position();
+            final char[] charArray = text.string().toCharArray();
+            BytesRef spare = new BytesRef(4);
+            int size = 0;
+            for (int i = 0; i < charArray.length;) {
+                int charCount = Character.charCount(Character.codePointAt(charArray, i));
+                UnicodeUtil.UTF16toUTF8(charArray, i, charCount, spare);
+                writeBytes(spare.bytes, spare.offset, spare.length);
+                size += spare.length;
+                i += charCount;
+            }
+            long currentPos = position();
+            assert pos1 == currentPos - size - 4 : "size missmatch expected: " + pos1 + " got: " + (position() - size);
             seek(pos1);
-            writeInt((int) (pos2 - pos1 - 4));
-            seek(pos2);
+            writeInt(size);
+            seek(currentPos);
         } else {
             BytesReference bytes = text.bytes();
             writeInt(bytes.length());

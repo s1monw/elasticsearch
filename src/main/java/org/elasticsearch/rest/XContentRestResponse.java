@@ -41,13 +41,6 @@ public class XContentRestResponse extends AbstractRestResponse {
         System.arraycopy(U_END_JSONP.bytes, U_END_JSONP.offset, END_JSONP, 0, U_END_JSONP.length);
     }
 
-    private static ThreadLocal<ThreadLocals.CleanableValue<BytesRef>> prefixCache = new ThreadLocal<ThreadLocals.CleanableValue<BytesRef>>() {
-        @Override
-        protected ThreadLocals.CleanableValue<BytesRef> initialValue() {
-            return new ThreadLocals.CleanableValue<BytesRef>(new BytesRef());
-        }
-    };
-
     private final BytesRef prefixUtf8Result;
 
     private final RestStatus status;
@@ -147,8 +140,8 @@ public class XContentRestResponse extends AbstractRestResponse {
         if (callback == null) {
             return null;
         }
-        BytesRef result = prefixCache.get().get();
-        UnicodeUtil.UTF16toUTF8(callback, 0, callback.length(), result);
+        final BytesRef result = new BytesRef(callback);
+        result.grow(result.length+1); // unlikely since utf8 conversion does oversizing
         result.bytes[result.length] = '(';
         result.length++;
         return result;
