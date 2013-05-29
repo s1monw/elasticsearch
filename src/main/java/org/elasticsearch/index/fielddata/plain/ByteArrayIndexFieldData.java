@@ -96,7 +96,7 @@ public class ByteArrayIndexFieldData extends AbstractIndexFieldData<ByteArrayAto
         BytesRefIterator iter = builder.buildFromTerms(builder.wrapNumeric32Bit(terms.iterator(null)), reader.getLiveDocs());
         BytesRef term;
         while ((term = iter.next()) != null) {
-            values.add((byte) NumericUtils.prefixCodedToInt(term));
+            values.add((byte) LongArrayIndexFieldData.prefixCodedToInt(term));
         }
         try {
             Ordinals build = builder.build(fieldDataType.getSettings());

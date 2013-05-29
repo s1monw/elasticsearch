@@ -101,7 +101,7 @@ public class IntArrayIndexFieldData extends AbstractIndexFieldData<AtomicNumeric
             int min = Integer.MAX_VALUE;
             BytesRefIterator iter = builder.buildFromTerms(builder.wrapNumeric32Bit(terms.iterator(null)), reader.getLiveDocs());
             while ((term = iter.next()) != null) {
-                int value = NumericUtils.prefixCodedToInt(term);
+                int value = LongArrayIndexFieldData.prefixCodedToInt(term);
                 values.add(value);
                 if (value > max) {
                     max = value;

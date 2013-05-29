@@ -101,7 +101,7 @@ public class ShortArrayIndexFieldData extends AbstractIndexFieldData<AtomicNumer
             short min = Short.MAX_VALUE;
             BytesRefIterator iter = builder.buildFromTerms(builder.wrapNumeric32Bit(terms.iterator(null)), reader.getLiveDocs());
             while ((term = iter.next()) != null) {
-                short value = (short) NumericUtils.prefixCodedToInt(term);
+                short value = (short) LongArrayIndexFieldData.prefixCodedToInt(term);
                 values.add(value);
                 if (value > max) {
                     max = value;

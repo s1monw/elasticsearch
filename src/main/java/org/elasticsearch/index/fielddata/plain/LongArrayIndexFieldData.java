@@ -29,6 +29,7 @@ import org.apache.lucene.util.BytesRefIterator;
 import org.apache.lucene.util.FixedBitSet;
 import org.apache.lucene.util.NumericUtils;
 import org.elasticsearch.ElasticSearchException;
+import org.elasticsearch.ElasticSearchIllegalArgumentException;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.RamUsage;
 import org.elasticsearch.common.settings.Settings;
@@ -82,6 +83,35 @@ public class LongArrayIndexFieldData extends AbstractIndexFieldData<AtomicNumeri
             }
         }
     }
+    
+    public static long prefixCodedToLong(BytesRef term) {
+        try {
+            return NumericUtils.prefixCodedToLong(term);
+        } catch (NumberFormatException ex) {
+            try {
+                return NumericUtils.prefixCodedToInt(term);
+            } catch (NumberFormatException e) {
+                throw ex;
+            }
+        }
+    }
+    
+    public static int prefixCodedToInt(BytesRef term) {
+        try {
+            return NumericUtils.prefixCodedToInt(term);
+        } catch (NumberFormatException ex) {
+            try {
+                long prefixCodedToLong = NumericUtils.prefixCodedToLong(term);
+                int toInt = (int) prefixCodedToLong;
+                if (toInt != prefixCodedToLong) {
+                    throw new ElasticSearchIllegalArgumentException("Can't convert long to int field contains incompatible types");
+                }
+                return toInt;
+            } catch (NumberFormatException e) {
+                throw ex;
+            }
+        }
+    }
 
     @Override
     public AtomicNumericFieldData loadDirect(AtomicReaderContext context) throws Exception {
@@ -101,7 +131,7 @@ public class LongArrayIndexFieldData extends AbstractIndexFieldData<AtomicNumeri
             long max = Long.MIN_VALUE;
             long min = Long.MAX_VALUE;
             while ((term = iter.next()) != null) {
-                long value = NumericUtils.prefixCodedToLong(term);
+                long value = prefixCodedToLong(term);
                 values.add(value);
                 if (value > max) {
                     max = value;

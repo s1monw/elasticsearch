@@ -99,7 +99,7 @@ public class FloatArrayIndexFieldData extends AbstractIndexFieldData<FloatArrayA
             BytesRefIterator iter = builder.buildFromTerms(builder.wrapNumeric32Bit(terms.iterator(null)), reader.getLiveDocs());
             BytesRef term;
             while ((term = iter.next()) != null) {
-                values.add(NumericUtils.sortableIntToFloat(NumericUtils.prefixCodedToInt(term)));
+                values.add(NumericUtils.sortableIntToFloat(LongArrayIndexFieldData.prefixCodedToInt(term)));
             }
             Ordinals build = builder.build(fieldDataType.getSettings());
             if (!build.isMultiValued() && CommonSettings.removeOrdsOnSingleValue(fieldDataType)) {

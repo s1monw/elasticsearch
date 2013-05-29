@@ -27,6 +27,9 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.facet.Facet;
+import org.elasticsearch.search.facet.Facets;
+import org.elasticsearch.search.facet.terms.TermsFacet;
 import org.elasticsearch.search.suggest.Suggest;
 import org.hamcrest.Matcher;
 
@@ -108,6 +111,17 @@ public class ElasticsearchAssertions {
 
     public static Matcher<SearchHit> hasIndex(final String index) {
         return new ElasticsearchMatchers.SearchHitHasIndexMatcher(index);
+    }
+    
+    public static TermsFacet assertTermFacet(Facets facets, String name, int size, long total, long other, long missing) {
+        assertThat(facets.facet(name), not(nullValue()));
+        assertThat(facets.facet(name), instanceOf(TermsFacet.class));
+        TermsFacet facet = facets.facet(name);
+        assertThat("Facet Size miss match", facet.getEntries().size(), equalTo(size));
+        assertThat("Facet total count miss match", facet.getTotalCount(), equalTo(total));
+        assertThat("Facet other count miss match", facet.getOtherCount(), equalTo(other));
+        assertThat("Facet missing count miss match", facet.getMissingCount(), equalTo(missing));
+        return facet;
     }
     
     public static <T extends Query> T assertBooleanSubQuery(Query query, Class<T> subqueryType, int i) {

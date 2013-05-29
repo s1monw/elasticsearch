@@ -248,8 +248,16 @@ public final class OrdinalsBuilder implements Closeable {
         return new FilteredTermsEnum(termsEnum, false) {
             @Override
             protected AcceptStatus accept(BytesRef term) throws IOException {
-                // we stop accepting terms once we moved across the prefix codec terms - redundant values!
-                return NumericUtils.getPrefixCodedLongShift(term) == 0 ? AcceptStatus.YES : AcceptStatus.END;
+                try {
+                    // we stop accepting terms once we moved across the prefix codec terms - redundant values!
+                    return NumericUtils.getPrefixCodedLongShift(term) == 0 ? AcceptStatus.YES : AcceptStatus.END;
+                } catch(NumberFormatException ex) {
+                    try { // fallback to 32 bit in case we have a mixed field
+                        return NumericUtils.getPrefixCodedIntShift(term) == 0 ? AcceptStatus.YES : AcceptStatus.END;
+                    } catch (NumberFormatException e) {
+                        throw ex; // throw original exception
+                    }
+                }
             }
         };
     }
@@ -263,8 +271,16 @@ public final class OrdinalsBuilder implements Closeable {
             
             @Override
             protected AcceptStatus accept(BytesRef term) throws IOException {
-                // we stop accepting terms once we moved across the prefix codec terms - redundant values!
-                return NumericUtils.getPrefixCodedIntShift(term) == 0 ? AcceptStatus.YES : AcceptStatus.END;
+                try {
+                    // we stop accepting terms once we moved across the prefix codec terms - redundant values!
+                    return NumericUtils.getPrefixCodedIntShift(term) == 0 ? AcceptStatus.YES : AcceptStatus.END;
+                } catch(NumberFormatException ex) {
+                    try { // fallback to 64 bit in case we have a mixed field
+                        return NumericUtils.getPrefixCodedLongShift(term) == 0 ? AcceptStatus.YES : AcceptStatus.END;
+                    } catch (NumberFormatException e) {
+                        throw ex; // throw original exception
+                    }
+                }
             }
         };
     }

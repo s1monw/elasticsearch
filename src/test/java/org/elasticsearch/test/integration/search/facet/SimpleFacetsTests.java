@@ -61,6 +61,7 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.index.query.FilterBuilders.termFilter;
 import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.search.facet.FacetBuilders.*;
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
@@ -100,6 +101,86 @@ public class SimpleFacetsTests extends AbstractNodesTests {
 
     protected Client getClient() {
         return client("node0");
+    }
+    
+    @Test
+    public void facetOnIncompatibleTypes() throws ElasticSearchException, IOException {
+        // TODO we should test this with more complex queries 
+        try {
+            client.admin().indices().prepareDelete("test").execute().actionGet();
+        } catch (Exception e) {
+            // ignore
+        }
+
+        client.admin().indices().prepareCreate("test")
+        .addMapping("type", jsonBuilder()
+                .startObject()
+                    .startObject("doc0")
+                        .startObject("properties")
+                            .startObject("numField").field("type", "byte").endObject()
+                        .endObject()
+                    .endObject()
+                 .endObject())
+           .addMapping("type", jsonBuilder()
+                .startObject()
+                    .startObject("doc1")
+                        .startObject("properties")
+                            .startObject("numField").field("type", "short").endObject()
+                        .endObject()
+                    .endObject()
+                .endObject())
+          .addMapping("type", jsonBuilder()
+                .startObject()
+                    .startObject("doc2")
+                        .startObject("properties")
+                            .startObject("numField").field("type", "integer").endObject()
+                        .endObject()
+                    .endObject()
+                 .endObject())
+         .addMapping("type", jsonBuilder()
+                .startObject()
+                    .startObject("doc3")
+                        .startObject("properties")
+                            .startObject("numField").field("type", "long").endObject()
+                        .endObject()
+                    .endObject()
+              .endObject())
+        .execute().actionGet();
+        client.admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForGreenStatus().execute().actionGet();
+        for (int i = 0; i < 100; i++) {
+            
+            client.prepareIndex("test", "doc" + (i%4), ""+i).setSource(jsonBuilder().startObject()
+                    .field("numField", i%4)
+                    .endObject()).execute().actionGet();
+        }
+        client.admin().indices().prepareRefresh().execute().actionGet();
+
+        SearchResponse searchResponse = client.prepareSearch()
+                .setQuery(matchAllQuery())
+                .addFacet(termsFacet("num").field("numField").size(10)).execute().actionGet();
+        
+        assertNoFailures(searchResponse);
+        assertHitCount(searchResponse, 100);
+        TermsFacet facet = assertTermFacet(searchResponse.getFacets(), "num", 4, 100, 0, 0);
+       
+        int i = 3;
+        for (Entry entry : facet) {
+            assertThat(entry.getTerm().string(), equalTo(Integer.toHexString(i)));
+            assertThat(entry.getCount(), equalTo(25));
+            i--;
+        }
+        
+        searchResponse = client.prepareSearch().setTypes("doc0")
+                .setQuery(matchAllQuery())
+                .addFacet(termsFacet("num").field("numField").size(10)).execute().actionGet();
+        
+        assertNoFailures(searchResponse);
+        assertHitCount(searchResponse, 25);
+        facet = assertTermFacet(searchResponse.getFacets(), "num", 1, 25, 0, 0);
+        for (Entry entry : facet) {
+            assertThat(entry.getTerm().string(), equalTo(Integer.toHexString(0)));
+            assertThat(entry.getCount(), equalTo(25));
+        }
     }
 
     @Test

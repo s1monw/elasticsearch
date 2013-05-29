@@ -99,7 +99,7 @@ public class DoubleArrayIndexFieldData extends AbstractIndexFieldData<DoubleArra
             final BytesRefIterator iter = builder.buildFromTerms(builder.wrapNumeric64Bit(terms.iterator(null)), reader.getLiveDocs());
             BytesRef term;
             while ((term = iter.next()) != null) {
-                values.add(NumericUtils.sortableLongToDouble(NumericUtils.prefixCodedToLong(term)));
+                values.add(NumericUtils.sortableLongToDouble(LongArrayIndexFieldData.prefixCodedToLong(term)));
             }
             Ordinals build = builder.build(fieldDataType.getSettings());
             if (!build.isMultiValued() && CommonSettings.removeOrdsOnSingleValue(fieldDataType)) {
