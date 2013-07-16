@@ -18,6 +18,14 @@
  */
 package org.elasticsearch.test.integration.search.suggest;
 
+import org.apache.lucene.analysis.core.SimpleAnalyzer;
+
+import org.apache.lucene.search.suggest.analyzing.XAnalyzingSuggester;
+
+import org.apache.lucene.util.IntsRef;
+
+import org.apache.lucene.util.IntsRef;
+
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
@@ -32,7 +40,9 @@ import org.apache.lucene.util.Version;
 import org.elasticsearch.index.analysis.SuggestTokenFilter;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.io.StringReader;
+import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -46,9 +56,14 @@ public class SuggestTokenFilterTest {
     @Test
     public void testSuggestTokenFilter() throws Exception {
         IndexWriter indexWriter = new IndexWriter(ramDirectory, indexWriterConfig);
-
+        final XAnalyzingSuggester suggester = new XAnalyzingSuggester(new SimpleAnalyzer(Version.LUCENE_43));
         TokenStream tokenStream = new KeywordAnalyzer().tokenStream("", new StringReader("meinKeyWord"));
-        TokenStream suggestTokenStream = new SuggestTokenFilter(tokenStream, "Surface keyword", "friggin payload".getBytes(), 10);
+        TokenStream suggestTokenStream = new SuggestTokenFilter(tokenStream, new BytesRef("Surface keyword|friggin payload|10"), new SuggestTokenFilter.ToFiniteStrings() {
+            @Override
+            public Set<IntsRef> toFiniteStrings(TokenStream stream) throws IOException {
+                return suggester.toFiniteStrings(suggester.getTokenStreamToAutomaton(), stream);
+            }
+        });
         Field suggestField = new FooField("testField", suggestTokenStream);
         Document doc = new Document();
         doc.add(suggestField);

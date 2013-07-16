@@ -164,6 +164,7 @@ public class TransportSuggestAction extends TransportBroadcastOperationAction<Su
             }
             return new ShardSuggestResponse(request.index(), request.shardId(), new Suggest());
         } catch (Throwable ex) {
+            ex.printStackTrace();
             throw new ElasticSearchException("failed to execute suggest", ex);
         } finally {
             searcher.release();

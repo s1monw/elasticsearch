@@ -1,4 +1,4 @@
-package org.elasticsearch.search.suggest.wfst;
+package org.apache.lucene.search.suggest;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -95,6 +95,10 @@ public class WFSTCompletionLookup extends Lookup {
     public WFSTCompletionLookup(boolean exactFirst) {
         this.exactFirst = exactFirst;
     }
+    
+    public void setFST(FST<Long> fst) {
+        this.fst = fst;
+    }
 
     @Override
     public void build(TermFreqIterator iter) throws IOException {
@@ -122,6 +126,22 @@ public class WFSTCompletionLookup extends Lookup {
             previous.copyBytes(scratch);
         }
         fst = builder.finish();
+    }
+    
+    public static final class WFSTBuilder {
+        IntsRef scratchInts = new IntsRef();
+        PositiveIntOutputs outputs = PositiveIntOutputs.getSingleton(true);
+        Builder<Long> builder = new Builder<Long>(FST.INPUT_TYPE.BYTE1, outputs);
+
+        public void addTerm(BytesRef term, long cost) throws IOException {
+            System.out.println("add " + term.utf8ToString() + " " + cost);
+            Util.toIntsRef(term, scratchInts);
+            builder.add(scratchInts, cost);
+        }
+        
+        public FST<Long> build() throws IOException {
+            return builder.finish();
+        }
     }
 
 

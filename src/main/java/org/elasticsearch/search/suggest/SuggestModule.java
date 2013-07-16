@@ -24,7 +24,6 @@ import org.elasticsearch.common.inject.multibindings.Multibinder;
 import org.elasticsearch.search.suggest.nrt.NrtSuggester;
 import org.elasticsearch.search.suggest.phrase.PhraseSuggester;
 import org.elasticsearch.search.suggest.term.TermSuggester;
-import org.elasticsearch.search.suggest.wfst.WfstSuggester;
 
 import java.util.List;
 
@@ -38,7 +37,6 @@ public class SuggestModule extends AbstractModule {
     public SuggestModule() {
         registerSuggester(PhraseSuggester.class);
         registerSuggester(TermSuggester.class);
-        registerSuggester(WfstSuggester.class);
         registerSuggester(NrtSuggester.class);
     }
 

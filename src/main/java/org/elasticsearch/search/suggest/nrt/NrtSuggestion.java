@@ -16,28 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.index.codec.postingsformat;
+package org.elasticsearch.search.suggest.nrt;
 
-import org.apache.lucene.codecs.PostingsFormat;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.inject.assistedinject.Assisted;
-import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.text.Text;
+import org.elasticsearch.search.suggest.Suggest;
 
 /**
  *
  */
-public class SuggestPostingsFormatProvider extends AbstractPostingsFormatProvider {
+public class NrtSuggestion extends Suggest.Suggestion<NrtSuggestion.Entry> {
 
-    private final SuggestPostingsFormat postingsFormat;
-
-    @Inject
-    public SuggestPostingsFormatProvider(@Assisted String name, @Assisted Settings postingsFormatSettings) {
-        super(name);
-        this.postingsFormat = new SuggestPostingsFormat();
+    public NrtSuggestion(String name, int size) {
+        super(name, size);
     }
 
-    @Override
-    public PostingsFormat get() {
-        return postingsFormat;
+    public NrtSuggestion(String name) {
+        this.name = name;
     }
+
+    public static class Entry extends org.elasticsearch.search.suggest.Suggest.Suggestion.Entry<NrtSuggestion.Entry.Option> {
+        public Entry(Text text, int offset, int length) {
+            super(text, offset, length);
+        }
+
+        public static class Option extends org.elasticsearch.search.suggest.Suggest.Suggestion.Entry.Option {
+            public Option(Text text, float score) {
+                super(text, score);
+            }
+        }
+    }
+
 }

@@ -18,98 +18,100 @@
  */
 package org.elasticsearch.index.analysis;
 
+import org.apache.lucene.analysis.TokenFilter;
+
+import org.apache.lucene.analysis.tokenattributes.TermToBytesRefAttribute;
+
+import org.apache.lucene.store.InputStreamDataInput;
+
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.TokenStreamToAutomaton;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
-import org.apache.lucene.util.AttributeSource;
+import org.apache.lucene.search.suggest.analyzing.XAnalyzingSuggester;
+import org.apache.lucene.store.OutputStreamDataOutput;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IntsRef;
-import org.apache.lucene.util.automaton.Automaton;
-import org.apache.lucene.util.automaton.SpecialOperations;
 import org.apache.lucene.util.fst.Util;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.Reader;
+import java.util.Iterator;
+import java.util.Set;
 
 /**
  *
  */
-public final class SuggestTokenFilter extends TokenStream {
+public final class SuggestTokenFilter extends TokenFilter {
 
     private final CharTermAttribute termAttr;
     private final PayloadAttribute payloadAttr;
     private final PositionIncrementAttribute posAttr;
-    //private final SuggestAttribute suggestAttr = addAttribute(SuggestAttribute.class);
 
     private final TokenStream input;
-    private String surfaceForm;
-    private byte[] payload;
-    private IntsRef[] finiteStrings;
-    private int finiteStringPos = 0;
-    private int weight;
+    private BytesRef payload;
+    private Iterator<IntsRef> finiteStrings;
+    private ToFiniteStrings toFiniteStrings;
+    private int posInc;
 
-    public SuggestTokenFilter(TokenStream input, String surfaceForm, byte[] payload, int weight) {
-        //super(new AttributeSource());
+    public SuggestTokenFilter(TokenStream input, BytesRef payload, ToFiniteStrings toFiniteStrings) throws IOException {
         super(input);
         termAttr = addAttribute(CharTermAttribute.class);
         payloadAttr = addAttribute(PayloadAttribute.class);
         posAttr = addAttribute(PositionIncrementAttribute.class);
         this.input = input;
         this.payload = payload;
-        this.surfaceForm = surfaceForm;
-        this.weight = weight;
+        this.toFiniteStrings = toFiniteStrings;
     }
 
     @Override
     public boolean incrementToken() throws IOException {
         if (finiteStrings == null) {
-            // Analyze surface form:
-            // TokenStream ts = indexAnalyzer.tokenStream("", new StringReader(surfaceForm.utf8ToString()));
-            // Create corresponding automaton: labels are bytes
-            // from each analyzed token, with byte 0 used as
-            // separator between tokens:
-            Automaton automaton = new TokenStreamToAutomaton().toAutomaton(input);
-            // replaceSep(automaton); // TODO
-            assert SpecialOperations.isFinite(automaton);
-
-            // Get all paths from the automaton (there can be
-            // more than one path, eg if the analyzer created a
-            // graph using SynFilter or WDF):
-            int maxGraphExpansions = 1;
-
-            // TODO: we could walk & add simultaneously, so we
-            // don't have to alloc [possibly biggish]
-            // intermediate HashSet in RAM:
-            finiteStrings = SpecialOperations.getFiniteStrings(automaton, maxGraphExpansions).toArray(new IntsRef[0]);
+            Set<IntsRef> strings = toFiniteStrings.toFiniteStrings(input);
+            posInc = 256 - strings.size();
+            finiteStrings = strings.iterator();
         }
-
         BytesRef scratch = new BytesRef();
-        if (finiteStringPos < finiteStrings.length) {
-            posAttr.setPositionIncrement(1); // always inc by one - no payload can be on the same pos
-            BytesRef spare = new BytesRef();
-            Util.toBytesRef(finiteStrings[finiteStringPos++], spare); // now we have UTF-8
+        if (finiteStrings.hasNext()) {
+            posAttr.setPositionIncrement(posInc);
+            /*
+             *  this posInc encodes the number of paths that this surface form produced.
+             *  256 is the upper bound in the anayzing suggester so we simply don't allow more that that.
+             *  TODO check that we don't have more that that - maybe throw an exception & add a test.
+             *  See SuggestPostingsFormat for more details.
+             */
+            
+            posInc = 0;
+            Util.toBytesRef(finiteStrings.next(), scratch); // now we have UTF-8
             // length of the analyzed text (FST input)
             if (scratch.length > Short.MAX_VALUE-2) {
                 throw new IllegalArgumentException("cannot handle analyzed forms > " + (Short.MAX_VALUE-2) + " in length (got " + scratch.length + ")");
             }
-            // The termAttribute contains the whole input tokenstream automaton
             termAttr.setEmpty();
-            termAttr.append(spare.utf8ToString());
-            payloadAttr.setPayload(new BytesRef(surfaceForm + "|" + new String(payload) + "|" + weight)); //"surface|payload|weight";
-
-            //suggestAttr.setAutomaton(spare);
-            //suggestAttr.setSurfaceForm(new BytesRef(surfaceForm));
-            //suggestAttr.setPayload(new BytesRef(payload));
-            //suggestAttr.setWeight(weight);
-            //ESLoggerFactory.getLogger(getClass().getName()).error("GOT SUGGEST ATTR {}", suggestAttr);
-
+            termAttr.append(scratch.utf8ToString());
+            if (payload != null) {
+                payloadAttr.setPayload(this.payload);
+            }
             return true;
         }
 
         return false;
     }
+    
+    public static interface ToFiniteStrings {
+        public Set<IntsRef> toFiniteStrings(TokenStream stream) throws IOException;
+    }
+    
+    
+    
+    @Override
+    public void reset() throws IOException {
+        super.reset();
+        finiteStrings = null;
+    }
+    
+    
 
     /*
     public static interface SuggestAttribute extends Attribute, TermToBytesRefAttribute {

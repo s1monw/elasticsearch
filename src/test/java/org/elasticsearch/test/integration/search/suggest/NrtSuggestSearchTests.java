@@ -19,7 +19,6 @@
 package org.elasticsearch.test.integration.search.suggest;
 
 import com.google.common.collect.Lists;
-import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.suggest.SuggestResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.search.suggest.Suggest;
@@ -67,22 +66,68 @@ public class NrtSuggestSearchTests extends AbstractNodesTests {
 
     @Test
     public void testThatNrtSuggestionsWork() throws Exception {
+        // TODO test payloads - currently not enabled in SuggestPostingsFormat
         createIndexAndMapping();
-        createData();
-
-        GetResponse getResponse = client.prepareGet(INDEX, TYPE, "1").execute().actionGet();
-
-        SuggestResponse suggestResponse = client.prepareSuggest(INDEX).addSuggestion(
-                new NrtSuggestionBuilder("foo").field(FIELD).text("f").size(10)
-        ).execute().actionGet();
-
-        assertThat(suggestResponse.getSuggest().size(), is(1));
-        Suggest.Suggestion<Suggest.Suggestion.Entry<Suggest.Suggestion.Entry.Option>> suggestion = suggestResponse.getSuggest().getSuggestion("foo");
-
-        assertThat(suggestion.getEntries().size(), is(1));
-        List<String> names = getNames(suggestion.getEntries().get(0));
-        assertThat(names, hasSize(1));
-        assertThat(names.get(0), is("Foo Fighters"));
+        
+        for (int i = 0; i < 2; i++) {
+            createData(i==0);    
+            SuggestResponse suggestResponse = client.prepareSuggest(INDEX).addSuggestion(
+                    new NrtSuggestionBuilder("foo").field(FIELD).text("f").size(10)
+            ).execute().actionGet();
+    
+            assertThat(suggestResponse.getSuggest().size(), is(1));
+            Suggest.Suggestion<Suggest.Suggestion.Entry<Suggest.Suggestion.Entry.Option>> suggestion = suggestResponse.getSuggest().getSuggestion("foo");
+    
+            assertThat(suggestion.getEntries().size(), is(1));
+            List<String> names = getNames(suggestion.getEntries().get(0));
+            assertThat(names, hasSize(4));
+            assertThat(names.get(0), is("Firestarter - The Prodigy"));
+            assertThat(names.get(1), is("Foo Fighters"));
+            assertThat(names.get(2), is("Generator - Foo Fighters"));
+            assertThat(names.get(3), is("Learn to Fly - Foo Fighters"));
+            
+            suggestResponse = client.prepareSuggest(INDEX).addSuggestion(
+                    new NrtSuggestionBuilder("ge").field(FIELD).text("ge").size(10)
+            ).execute().actionGet();
+    
+            assertThat(suggestResponse.getSuggest().size(), is(1));
+            suggestion = suggestResponse.getSuggest().getSuggestion("ge");
+    
+            assertThat(suggestion.getEntries().size(), is(1));
+            names = getNames(suggestion.getEntries().get(0));
+            assertThat(names, hasSize(2));
+            assertThat(names.get(0), is("Generator - Foo Fighters"));
+            assertThat(names.get(1), is("Get it on - Turbonegro"));
+            
+            
+            suggestResponse = client.prepareSuggest(INDEX).addSuggestion(
+                    new NrtSuggestionBuilder("ge").field(FIELD).text("ge").size(10)
+            ).execute().actionGet();
+    
+            assertThat(suggestResponse.getSuggest().size(), is(1));
+            suggestion = suggestResponse.getSuggest().getSuggestion("ge");
+    
+            assertThat(suggestion.getEntries().size(), is(1));
+            names = getNames(suggestion.getEntries().get(0));
+            assertThat(names, hasSize(2));
+            assertThat(names.get(0), is("Generator - Foo Fighters"));
+            assertThat(names.get(1), is("Get it on - Turbonegro"));
+            
+            suggestResponse = client.prepareSuggest(INDEX).addSuggestion(
+                    new NrtSuggestionBuilder("t").field(FIELD).text("t").size(10)
+            ).execute().actionGet();
+    
+            assertThat(suggestResponse.getSuggest().size(), is(1));
+            suggestion = suggestResponse.getSuggest().getSuggestion("t");
+    
+            assertThat(suggestion.getEntries().size(), is(1));
+            names = getNames(suggestion.getEntries().get(0));
+            assertThat(names, hasSize(4));
+            assertThat(names.get(0), is("The Prodigy"));
+            assertThat(names.get(1), is("Firestarter - The Prodigy"));
+            assertThat(names.get(2), is("Get it on - Turbonegro"));
+            assertThat(names.get(3), is("Turbonegro"));
+        }
     }
 
     private List<String> getNames(Suggest.Suggestion.Entry<Suggest.Suggestion.Entry.Option> suggestEntry) {
@@ -90,7 +135,6 @@ public class NrtSuggestSearchTests extends AbstractNodesTests {
         for (Suggest.Suggestion.Entry.Option entry : suggestEntry.getOptions()) {
             names.add(entry.getText().string());
         }
-
         return names;
     }
 
@@ -105,7 +149,7 @@ public class NrtSuggestSearchTests extends AbstractNodesTests {
                 .startObject(TYPE).startObject("properties")
                 .startObject(FIELD)
                 .field("type", "suggest")
-                .field("index_analyzer", "standard")
+                   .field("index_analyzer", "simple")
                 .field("search_analyzer", "simple")
                 .field("suggester", "analyzing_prefix")
                 .endObject()
@@ -114,18 +158,45 @@ public class NrtSuggestSearchTests extends AbstractNodesTests {
         client.admin().cluster().prepareHealth(INDEX).setWaitForGreenStatus().execute().actionGet();
     }
 
-    private void createData() throws IOException {
-        client.prepareIndex(INDEX, TYPE, "1")
-                .setSource(jsonBuilder()
-                        .startObject().startObject(FIELD)
-                        .startArray("input").value("foo").endArray()
-                        .field("surface_form", "Foo Fighters")
-                        .field("payload", "whatever")
-                        .field("weight", 20)
-                        .endObject()
-                        .endObject()
-                )
-                .setRefresh(true)
-                .execute().actionGet();
+    private void createData(boolean optimize) throws IOException {
+        String[][] input = {{"Foo Fighters"}, {"Generator", "Foo Fighters Generator"}, {"Learn to Fly", "Foo Fighters Learn to Fly" }, {"The Prodigy"}, {"Firestarter", "The Prodigy Firestarter"}, {"Turbonegro"}, {"Get it on", "Turbonegro Get it on"}};
+        String[] surface = {"Foo Fighters", "Generator - Foo Fighters", "Learn to Fly - Foo Fighters", "The Prodigy", "Firestarter - The Prodigy", "Turbonegro", "Get it on - Turbonegro"};
+        int[] weight = {10, 9, 8, 12, 11, 6, 7};
+        for (int i = 0; i < weight.length; i++) {
+            client.prepareIndex(INDEX, TYPE, "" + i)
+                    .setSource(jsonBuilder()
+                            .startObject().startObject(FIELD)
+                            .startArray("input").value(input[i]).endArray()
+                            .field("surface_form",surface[i])
+                            .field("payload", "id: " + i)
+                            .field("weight", weight[i])
+                            .endObject()
+                            .endObject()
+                    )
+                    .setRefresh(true)
+                    .execute().actionGet();
+        }
+        
+        
+        
+        for (int i = 0; i < weight.length; i++) { // add them again to make sure we deduplicate on the surface form
+            client.prepareIndex(INDEX, TYPE, "n" + i)
+                    .setSource(jsonBuilder()
+                            .startObject().startObject(FIELD)
+                            .startArray("input").value(input[i]).endArray()
+                            .field("surface_form",surface[i])
+                            .field("payload", "id: " + i)
+                            .field("weight", weight[i])
+                            .endObject()
+                            .endObject()
+                    )
+                    .setRefresh(true)
+                    .execute().actionGet();
+        }
+       
+        if (optimize) {
+            // make sure merging works just fine
+            client.admin().indices().prepareOptimize(INDEX).execute().actionGet();
+        }
     }
 }

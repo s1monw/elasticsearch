@@ -18,35 +18,53 @@
  */
 package org.elasticsearch.index.mapper.core;
 
-import com.google.common.collect.Lists;
+import org.elasticsearch.search.suggest.nrt.SuggestPostingsFormatProvider;
+
+import org.elasticsearch.search.suggest.nrt.AnalyzingSuggestLookupProvider;
+
+
+
+
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.NumericTokenStream;
-import org.apache.lucene.analysis.TokenFilter;
+
+import org.elasticsearch.ElasticSearchIllegalArgumentException;
+
+import com.google.common.collect.Lists;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
-import org.apache.lucene.analysis.tokenattributes.PayloadAttributeImpl;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.FieldType;
-import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.util.Attribute;
+import org.apache.lucene.search.suggest.analyzing.XAnalyzingSuggester;
+import org.apache.lucene.store.InputStreamDataInput;
+import org.apache.lucene.store.OutputStreamDataOutput;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.IntsRef;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.analysis.NamedAnalyzer;
 import org.elasticsearch.index.analysis.SuggestTokenFilter;
-import org.elasticsearch.index.mapper.*;
+import org.elasticsearch.index.analysis.SuggestTokenFilter.ToFiniteStrings;
+import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
+import org.elasticsearch.index.fielddata.FieldDataType;
+import org.elasticsearch.index.mapper.ContentPath;
+import org.elasticsearch.index.mapper.Mapper;
+import org.elasticsearch.index.mapper.MapperParsingException;
+import org.elasticsearch.index.mapper.ParseContext;
+import org.elasticsearch.index.similarity.SimilarityProvider;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  *
  */
-public class SuggestFieldMapper implements Mapper {
+public class SuggestFieldMapper extends AbstractFieldMapper<String> {
 
     public static final String CONTENT_TYPE = "suggest";
 
@@ -58,7 +76,7 @@ public class SuggestFieldMapper implements Mapper {
         }
     }
 
-    public static class Builder extends Mapper.Builder<Builder, SuggestFieldMapper> {
+    public static class Builder extends AbstractFieldMapper.OpenBuilder<Builder, SuggestFieldMapper>  {
 
         private NamedAnalyzer searchAnalyzer;
         private NamedAnalyzer indexAnalyzer;
@@ -66,8 +84,7 @@ public class SuggestFieldMapper implements Mapper {
         private ContentPath.Type pathType;
 
         public Builder(String name) {
-            super(name);
-            //builder = this;
+            super(name, FIELD_TYPE);
         }
 
         public Builder searchAnalyzer(NamedAnalyzer searchAnalyzer) {
@@ -92,7 +109,7 @@ public class SuggestFieldMapper implements Mapper {
 
         @Override
         public SuggestFieldMapper build(Mapper.BuilderContext context) {
-            return new SuggestFieldMapper(name, pathType, indexAnalyzer, searchAnalyzer, suggester);
+            return new SuggestFieldMapper(buildNames(context), pathType, indexAnalyzer, searchAnalyzer, suggester, provider, similarity);
         }
     }
 
@@ -104,6 +121,13 @@ public class SuggestFieldMapper implements Mapper {
         "suggester" : "analyzing_prefix"
     }
     */
+    /*
+     * NOCOMMIT - we need to know if we have payloads or not ahead of time. we might wanna have something like suggest_options or flags like:
+     * "payloads" : true|false
+     * ...
+     * "frequency_weights" : true|false
+     * 
+     */
     public static class TypeParser implements Mapper.TypeParser {
 
         @Override
@@ -132,27 +156,27 @@ public class SuggestFieldMapper implements Mapper {
             if (builder.indexAnalyzer == null) {
                 builder.indexAnalyzer(parserContext.analysisService().defaultIndexAnalyzer());
             }
+            
+            AnalyzingSuggestLookupProvider analyzingSuggestLookupProvider = new AnalyzingSuggestLookupProvider(true, 256, -1, false);
+            builder.postingsFormat(new SuggestPostingsFormatProvider("suggest", parserContext.postingFormatService().get("default"), analyzingSuggestLookupProvider)); // TODO ???
 
             return builder;
         }
     }
 
-    private final String name;
-    private final NamedAnalyzer indexAnalyzer;
-    private final NamedAnalyzer searchAnalyzer;
     private final String suggester;
+    private final AnalyzingSuggestProvider analyzingSuggestProvider;
+    public static final PayloadProcessor DEFAULT_PROCESSOR = new DefautlPayloadProcessor(); 
 
-    public SuggestFieldMapper(String name, ContentPath.Type pathType, NamedAnalyzer indexAnalyzer, NamedAnalyzer searchAnalyzer, String suggester) {
-        this.name = name;
-        this.indexAnalyzer = indexAnalyzer;
-        this.searchAnalyzer = searchAnalyzer;
+    public SuggestFieldMapper(Names names, ContentPath.Type pathType, NamedAnalyzer indexAnalyzer, NamedAnalyzer searchAnalyzer, String suggester, PostingsFormatProvider provider, SimilarityProvider similarity) {
+        super(names, 1.0f, FIELD_TYPE, indexAnalyzer, searchAnalyzer, provider, similarity, null);
+        // NOCOMMIT - we might need to configure the PostingsFormatProvider in here and return a custom version once the SuggestFormatProvider has settings on the 
         this.suggester = suggester;
+        analyzingSuggestProvider = new AnalyzingSuggestProvider(new XAnalyzingSuggester(indexAnalyzer, searchAnalyzer)); // NOCOMMIT expose settings?
+        
     }
-
-    @Override
-    public String name() {
-        return name;
-    }
+    
+    
 
     /*
     "myFooField" : {
@@ -180,7 +204,7 @@ public class SuggestFieldMapper implements Mapper {
 
         String surfaceForm = null;
         String payload = null;
-        int weight = -1;
+        long weight = -1;
         List<String> inputs = Lists.newArrayListWithExpectedSize(4);
 
         if (token == XContentParser.Token.START_ARRAY) {
@@ -200,7 +224,10 @@ public class SuggestFieldMapper implements Mapper {
                     }
                 } else if (token == XContentParser.Token.VALUE_NUMBER) {
                     if ("weight".equals(currentFieldName)) {
-                        weight = parser.intValue();
+                        weight = parser.longValue(); // always parse a long to make sure we don't get the overflow value
+                        if (weight < 0 || weight > Integer.MAX_VALUE) {
+                            throw new ElasticSearchIllegalArgumentException("Weight must be in the interval [0..2147483647] but was " + weight);
+                        }
                     }
                 } else if (token == XContentParser.Token.START_ARRAY) {
                     if ("input".equals(currentFieldName)) {
@@ -214,15 +241,8 @@ public class SuggestFieldMapper implements Mapper {
 
         // TODO: This is clearly wrong
         for (String input : inputs) {
-
-            //Field field = new StringFieldMapper.StringField(name, input, FIELD_TYPE);
-            //TokenStream tokenStream = field.tokenStream(indexAnalyzer.analyzer());
-
-            TokenStream tokenStream = indexAnalyzer.tokenStream("", new StringReader(input));
-            TokenStream suggestTokenStream = new SuggestTokenFilter(tokenStream, surfaceForm, payload.getBytes(), weight);
-            Field suggestField = new TextField(name, suggestTokenStream);
+            Field suggestField = new SuggestField(name(), input, this.fieldType, DEFAULT_PROCESSOR.buildPayload(new BytesRef(surfaceForm), weight,  payload.getBytes()), this.analyzingSuggestProvider);
             context.doc().add(suggestField);
-
             /*
             StringFieldMapper.StringTokenStream stringTokenStream = new StringFieldMapper.StringTokenStream().setValue(input);
             TokenStream tokenStream = new SuggestTokenFilter(stringTokenStream, surfaceForm, payload.getBytes(), weight);
@@ -236,6 +256,84 @@ public class SuggestFieldMapper implements Mapper {
         //field.tokenStreamValue().addAttributeImpl(new PayloadAttributeImpl(new BytesRef(payload)));
         //field.tokenStreamValue().addAttributeImpl(new NumericTokenStream.NumericTermAttributeImpl());
     }
+    
+    private static final class SuggestField extends Field {
+
+        private final BytesRef payload;
+        private final ToFiniteStrings toFiniteStrings;
+
+        public SuggestField(String name, String value, FieldType type, BytesRef payload, ToFiniteStrings toFiniteStrings) {
+            super(name, value, type);
+            this.payload = payload;
+            this.toFiniteStrings = toFiniteStrings;
+        }
+
+        @Override
+        public TokenStream tokenStream(Analyzer analyzer) throws IOException {
+            TokenStream ts = super.tokenStream(analyzer);
+            return new SuggestTokenFilter(ts, payload, toFiniteStrings);
+        }
+
+        
+    }
+    public static interface PayloadProcessor {
+        public BytesRef buildPayload(BytesRef surfaceForm, long weight, byte[] payload) throws IOException;
+        public void parsePayload(BytesRef payload, SuggestPayload ref) throws IOException;
+    }
+    
+    public static class SuggestPayload {
+        public final BytesRef payload = new BytesRef();
+        public long weight = 0;
+        public final BytesRef surfaceForm = new BytesRef();
+    }
+    
+    public static class DefautlPayloadProcessor implements PayloadProcessor {
+        @Override
+        public BytesRef buildPayload(BytesRef surfaceForm, long weight, byte[] payload) throws IOException {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            OutputStreamDataOutput output = new OutputStreamDataOutput(byteArrayOutputStream);
+            output.writeVLong(weight);
+            output.writeVInt(surfaceForm.length);
+            output.writeBytes(surfaceForm.bytes, surfaceForm.offset, surfaceForm.length);
+            output.writeVInt(payload.length);
+            output.writeBytes(payload, 0, payload.length);
+            output.close();
+            return new BytesRef(byteArrayOutputStream.toByteArray());
+        }
+        
+        @Override
+        public void parsePayload(BytesRef payload, SuggestPayload ref) throws IOException {
+            ByteArrayInputStream byteArrayOutputStream = new ByteArrayInputStream(payload.bytes, payload.offset, payload.length);
+            InputStreamDataInput input = new InputStreamDataInput(byteArrayOutputStream);
+            ref.weight = input.readVLong();
+            int len = input.readVInt();
+            ref.surfaceForm.grow(len);
+            ref.surfaceForm.length = len;
+            input.readBytes(ref.surfaceForm.bytes, ref.surfaceForm.offset, ref.surfaceForm.length);
+            len = input.readVInt();
+            ref.payload.grow(len);
+            ref.payload.length = len;
+            input.readBytes(ref.payload.bytes, ref.payload.offset, ref.payload.length);
+            input.close();
+        }
+    }
+    
+    public static class AnalyzingSuggestProvider implements ToFiniteStrings{
+        private XAnalyzingSuggester suggester;
+
+        public AnalyzingSuggestProvider(XAnalyzingSuggester suggester) {
+            this.suggester = suggester;
+        }
+        @Override
+        public Set<IntsRef> toFiniteStrings(TokenStream stream) throws IOException {
+            return suggester.toFiniteStrings(suggester.getTokenStreamToAutomaton(), stream);
+        }
+
+      
+        
+    }
+    
+   
 
     public static final FieldType FIELD_TYPE = new FieldType();
 
@@ -250,24 +348,8 @@ public class SuggestFieldMapper implements Mapper {
     }
 
     @Override
-    public void merge(Mapper mergeWith, MergeContext mergeContext) throws MergeMappingException {
-    }
-
-    @Override
-    public void traverse(FieldMapperListener fieldMapperListener) {
-    }
-
-    @Override
-    public void traverse(ObjectMapperListener objectMapperListener) {
-    }
-
-    @Override
-    public void close() {
-    }
-
-    @Override
     public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
-        builder.startObject(name);
+        builder.startObject(name());
         builder.field("type", CONTENT_TYPE);
         builder.field("index_analyzer", indexAnalyzer.name());
         builder.field("search_analyzer", searchAnalyzer.name());
@@ -275,4 +357,37 @@ public class SuggestFieldMapper implements Mapper {
         builder.endObject();
         return builder;
     }
+
+    @Override
+    protected Field parseCreateField(ParseContext context) throws IOException {
+        return null;
+    }
+
+
+
+    @Override
+    protected String contentType() {
+        return CONTENT_TYPE;
+    }
+    
+
+    @Override
+    public FieldType defaultFieldType() {
+        return Defaults.FIELD_TYPE;
+    }
+
+    @Override
+    public FieldDataType defaultFieldDataType() {
+        return new FieldDataType("string");
+    }
+
+
+    @Override
+    public String value(Object value) {
+        if (value == null) {
+            return null;
+        }
+        return value.toString();
+    }
+
 }

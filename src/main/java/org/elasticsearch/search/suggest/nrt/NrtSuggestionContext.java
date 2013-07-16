@@ -16,24 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.search.suggest.wfst;
+package org.elasticsearch.search.suggest.nrt;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.search.suggest.SuggestBuilder;
-
-import java.io.IOException;
+import org.elasticsearch.index.mapper.FieldMapper;
+import org.elasticsearch.search.suggest.Suggester;
+import org.elasticsearch.search.suggest.SuggestionSearchContext;
 
 /**
  *
  */
-public class WfstSuggestionBuilder extends SuggestBuilder.SuggestionBuilder<WfstSuggestionBuilder> {
+public class NrtSuggestionContext extends SuggestionSearchContext.SuggestionContext {
 
-    public WfstSuggestionBuilder(String name) {
-        super(name, "wfst");
+    private FieldMapper<?> mapper;
+
+    public NrtSuggestionContext(Suggester suggester) {
+        super(suggester);
+    }
+    
+    public FieldMapper<?> mapper() {
+        return this.mapper;
+    }
+    
+    public void mapper(FieldMapper<?> mapper) {
+        this.mapper = mapper;
     }
 
-    @Override
-    protected XContentBuilder innerToXContent(XContentBuilder builder, Params params) throws IOException {
-        return builder;
-    }
+
 }

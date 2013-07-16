@@ -18,91 +18,77 @@
  */
 package org.elasticsearch.search.suggest.nrt;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
-import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
-import org.apache.lucene.analysis.tokenattributes.PayloadAttributeImpl;
-import org.apache.lucene.index.*;
-import org.apache.lucene.search.spell.TermFreqIterator;
+import org.apache.lucene.index.AtomicReader;
+import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Terms;
 import org.apache.lucene.search.suggest.Lookup;
-import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.CharsRef;
 import org.elasticsearch.common.text.StringText;
-import org.elasticsearch.index.analysis.SuggestTokenFilter;
 import org.elasticsearch.search.suggest.Suggest;
 import org.elasticsearch.search.suggest.SuggestContextParser;
 import org.elasticsearch.search.suggest.Suggester;
-import org.elasticsearch.search.suggest.wfst.*;
+import org.elasticsearch.search.suggest.nrt.NrtSuggestion.Entry.Option;
+import org.elasticsearch.search.suggest.nrt.SuggestPostingsFormat.LookupTerms;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.Map.Entry;
 
 /**
  * DONE: copy wfst completion lookup and make it cheap :)
  *
  */
-public class NrtSuggester extends WfstSuggester {
-
-    // static per JVM... erm, uhm, sucks, can be changed as this is guice wired
-    // make me a frigging google cache in order to get it nice
-    private static final Map<IndexReader, IndexReaderLookup> indexReaderLookups = Maps.newHashMap();
-
-    private static final IndexReader.ReaderClosedListener readerClosedListener = new IndexReader.ReaderClosedListener() {
-        @Override
-        public void onClose(IndexReader reader) {
-            indexReaderLookups.get(reader).clear();
-            indexReaderLookups.remove(reader);
-        }
-    };
+public class NrtSuggester implements  Suggester<NrtSuggestionContext> {
 
     @Override
-    public Suggest.Suggestion<? extends Suggest.Suggestion.Entry<? extends Suggest.Suggestion.Entry.Option>> execute(String name, WfstSuggestionContext suggestion, IndexReader indexReader, CharsRef spare) throws IOException {
-        WfstSuggestion wfstSuggestion = new WfstSuggestion(name, suggestion.getSize());
-        WfstSuggestion.Entry wfstSuggestionEntry = new WfstSuggestion.Entry(new StringText(suggestion.getText().utf8ToString()), 0, suggestion.getText().toString().length());
+    public Suggest.Suggestion<? extends Suggest.Suggestion.Entry<? extends Suggest.Suggestion.Entry.Option>> execute(String name, NrtSuggestionContext suggestion, IndexReader indexReader, CharsRef spare) throws IOException {
+        NrtSuggestion wfstSuggestion = new NrtSuggestion(name, suggestion.getSize());
+        NrtSuggestion.Entry wfstSuggestionEntry = new NrtSuggestion.Entry(new StringText(suggestion.getText().utf8ToString()), 0, suggestion.getText().toString().length());
         wfstSuggestion.addTerm(wfstSuggestionEntry);
-
         String fieldName = suggestion.getField();
 
-        loadLookupsForAtomicReaders(fieldName, indexReader.leaves());
-
+        String prefix = suggestion.getText().utf8ToString(); // NOCOMMIT - this needs to go through an analyzer?
+        boolean exactFirst = true; // TODO Expose in request?
         // do the suggestion dance per segment
+        Map<CharSequence, Long> allResults = new HashMap<CharSequence, Long>();
         for (AtomicReaderContext atomicReaderContext : indexReader.leaves()) {
             AtomicReader atomicReader = atomicReaderContext.reader();
-
-            /*
-            List<Lookup.LookupResult> lookupResults = indexReaderLookups.get(atomicReader).lookup(fieldName, suggestion.getText().utf8ToString(), suggestion.getSize());
-            for (Lookup.LookupResult lookupResult : lookupResults) {
-                wfstSuggestionEntry.addOption(new WfstSuggestion.Entry.Option(new StringText(lookupResult.key.toString()), 1.0f));
-            }
-            */
-
             Terms terms = atomicReader.fields().terms(fieldName);
-            TermsEnum termsEnum = terms.iterator(null);
-            BytesRef term = null;
-            String origTerm = null;
-            DocsAndPositionsEnum docsAndPositionsEnum = null;
-            while ((term = termsEnum.next()) != null) {
-                docsAndPositionsEnum = termsEnum.docsAndPositions(null, docsAndPositionsEnum);
-                docsAndPositionsEnum.nextPosition();
-                origTerm = term.utf8ToString();
-//            if (docsAndPositionsEnum.getPayload() != null) {
-//                System.out.println(docsAndPositionsEnum.getPayload().utf8ToString());
-//            }
+            if (terms instanceof SuggestPostingsFormat.LookupTerms) {
+                LookupTerms lookupTerms = (LookupTerms) terms;
+                Lookup lookup = lookupTerms.getLookup(suggestion.mapper(), exactFirst);
+                List<Lookup.LookupResult> lookupResults = lookup.lookup(prefix, false, suggestion.getSize());
+                for (Lookup.LookupResult res : lookupResults) {
+                    Long weight = allResults.get(res);
+                    if (weight == null) {
+                        allResults.put(res.key, res.value);
+                    } else {
+                        allResults.put(res.key, Math.max(res.value, weight));
+                    }
+                }
+                
             }
-
-            BytesRef payload = docsAndPositionsEnum.getPayload();
-            if (payload != null) {
-                wfstSuggestionEntry.addOption(new WfstSuggestion.Entry.Option(new StringText(payload.utf8ToString()), 1.0f));
-            }
-
-            docsAndPositionsEnum.nextPosition();
-            CharTermAttribute suggestTermAttribute = docsAndPositionsEnum.attributes().addAttribute(CharTermAttribute.class);
-
-            System.out.println(origTerm);
-
        }
+        Set<Entry<CharSequence, Long>> entrySet = allResults.entrySet();
+        List<NrtSuggestion.Entry.Option> options = new ArrayList<NrtSuggestion.Entry.Option>();
+        for(Entry<CharSequence, Long> entry : entrySet) {
+            options.add(new NrtSuggestion.Entry.Option(new StringText(entry.getKey().toString()), entry.getValue()));
+        }
+        Collections.sort(options, new Comparator<NrtSuggestion.Entry.Option>() {
+
+            @Override
+            public int compare(Option o1, Option o2) {
+                return Float.compare(o2.getScore(), o1.getScore());
+            }
+        });
+        int size = suggestion.getSize();
+        for(NrtSuggestion.Entry.Option o : options) {
+            if (size-- == 0) {
+                break;
+            }
+            wfstSuggestionEntry.addOption(o);
+        }
 
         return wfstSuggestion;
     }
@@ -114,57 +100,8 @@ public class NrtSuggester extends WfstSuggester {
 
     @Override
     public SuggestContextParser getContextParser() {
-        return new WfstSuggestParser(this);
+        return new NrtSuggestParser(this);
     }
-
-
-    public void loadLookupsForAtomicReaders(String field, List<AtomicReaderContext> atomicReaderContexts) throws IOException {
-        for (AtomicReaderContext atomicReaderContext : atomicReaderContexts) {
-            AtomicReader atomicReader = atomicReaderContext.reader();
-
-            if (!indexReaderLookups.containsKey(atomicReader)) {
-                indexReaderLookups.put(atomicReader, new IndexReaderLookup());
-                atomicReader.addReaderClosedListener(readerClosedListener);
-            }
-
-            if (!indexReaderLookups.get(atomicReader).contains(field)) {
-                WFSTCompletionLookup wfstCompletionLookup = new WFSTCompletionLookup();
-                TermsEnum termsEnum = atomicReader.terms(field).iterator(null);
-                wfstCompletionLookup.build(new TermFreqIterator.TermFreqIteratorWrapper(termsEnum));
-                indexReaderLookups.get(atomicReader).get(field).add(wfstCompletionLookup);
-            }
-        }
-    }
-
-    private static final class IndexReaderLookup {
-        // yeah, hashmaps, not efficient, need to fix
-        private final Map<String, List<WFSTCompletionLookup>> lookups = Maps.newHashMap();
-
-        public boolean contains(String field) {
-            return lookups.containsKey(field);
-        }
-
-        public List<WFSTCompletionLookup> get(String field) {
-            if (!lookups.containsKey(field)) {
-                lookups.put(field, Lists.<WFSTCompletionLookup>newArrayList());
-            }
-
-            return lookups.get(field);
-        }
-
-        public List<Lookup.LookupResult> lookup(String field, String term, int size) {
-            List<Lookup.LookupResult> lookupResults = Lists.newArrayList();
-
-            for (WFSTCompletionLookup fieldLookup : get(field)) {
-                lookupResults.addAll(fieldLookup.lookup(term, false, size));
-            }
-
-            return lookupResults;
-        }
-
-        public void clear() {
-            lookups.clear();
-        }
-    }
+   
 
 }

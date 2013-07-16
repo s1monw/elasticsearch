@@ -19,6 +19,8 @@
 
 package org.elasticsearch.test.unit.index.codec;
 
+import org.elasticsearch.search.suggest.nrt.SuggestPostingsFormat;
+
 import org.apache.lucene.codecs.Codec;
 import org.apache.lucene.codecs.bloom.BloomFilteringPostingsFormat;
 import org.apache.lucene.codecs.lucene40.Lucene40Codec;
