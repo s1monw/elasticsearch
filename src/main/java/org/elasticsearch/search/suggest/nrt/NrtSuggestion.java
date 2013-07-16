@@ -16,24 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.search.suggest.wfst;
+package org.elasticsearch.search.suggest.nrt;
 
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.search.suggest.SuggestBuilder;
-
-import java.io.IOException;
+import org.elasticsearch.common.text.Text;
+import org.elasticsearch.search.suggest.Suggest;
 
 /**
  *
  */
-public class WfstSuggestionBuilder extends SuggestBuilder.SuggestionBuilder<WfstSuggestionBuilder> {
+public class NrtSuggestion extends Suggest.Suggestion<NrtSuggestion.Entry> {
 
-    public WfstSuggestionBuilder(String name) {
-        super(name, "wfst");
+    public NrtSuggestion(String name, int size) {
+        super(name, size);
     }
 
-    @Override
-    protected XContentBuilder innerToXContent(XContentBuilder builder, Params params) throws IOException {
-        return builder;
+    public NrtSuggestion(String name) {
+        this.name = name;
     }
+
+    public static class Entry extends org.elasticsearch.search.suggest.Suggest.Suggestion.Entry<NrtSuggestion.Entry.Option> {
+        public Entry(Text text, int offset, int length) {
+            super(text, offset, length);
+        }
+
+        public static class Option extends org.elasticsearch.search.suggest.Suggest.Suggestion.Entry.Option {
+            public Option(Text text, float score) {
+                super(text, score);
+            }
+        }
+    }
+
 }

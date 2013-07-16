@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.search.suggest.wfst;
+package org.elasticsearch.search.suggest.nrt;
 
 import org.elasticsearch.ElasticSearchIllegalArgumentException;
 import org.elasticsearch.common.xcontent.XContentParser;
@@ -31,24 +31,26 @@ import static org.elasticsearch.search.suggest.SuggestUtils.parseSuggestContext;
 /**
  *
  */
-public class WfstSuggestParser implements SuggestContextParser {
+public class NrtSuggestParser implements SuggestContextParser {
 
-    private WfstSuggester wfstSuggester;
+    private NrtSuggester nrtSuggester;
 
-    public WfstSuggestParser(WfstSuggester wfstSuggester) {
-        this.wfstSuggester = wfstSuggester;
+    public NrtSuggestParser(NrtSuggester nrtSuggester) {
+        this.nrtSuggester = nrtSuggester;
     }
 
     @Override
     public SuggestionSearchContext.SuggestionContext parse(XContentParser parser, MapperService mapperService) throws IOException {
         XContentParser.Token token;
         String fieldName = null;
-        WfstSuggestionContext suggestion = new WfstSuggestionContext(wfstSuggester);
+        NrtSuggestionContext suggestion = new NrtSuggestionContext(nrtSuggester);
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {
                 fieldName = parser.currentName();
             } else if (token.isValue()) {
                 parseSuggestContext(parser, mapperService, fieldName, suggestion);
+                suggestion.mapper(mapperService.smartNameFieldMapper(suggestion.getField()));
+
             } else {
                 throw new ElasticSearchIllegalArgumentException("suggester[term]  doesn't support field [" + fieldName + "]");
             }

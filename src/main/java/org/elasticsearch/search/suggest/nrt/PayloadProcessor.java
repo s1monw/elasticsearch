@@ -1,3 +1,4 @@
+package org.elasticsearch.search.suggest.nrt;
 /*
  * Licensed to ElasticSearch and Shay Banon under one
  * or more contributor license agreements.  See the NOTICE file
@@ -16,28 +17,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.index.codec.postingsformat;
+import org.apache.lucene.util.BytesRef;
 
-import org.apache.lucene.codecs.PostingsFormat;
-import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.inject.assistedinject.Assisted;
-import org.elasticsearch.common.settings.Settings;
+import java.io.IOException;
 
-/**
- *
- */
-public class SuggestPostingsFormatProvider extends AbstractPostingsFormatProvider {
+public interface PayloadProcessor {
+    
+    public BytesRef buildPayload(BytesRef surfaceForm, long weight, BytesRef payload) throws IOException;
 
-    private final SuggestPostingsFormat postingsFormat;
-
-    @Inject
-    public SuggestPostingsFormatProvider(@Assisted String name, @Assisted Settings postingsFormatSettings) {
-        super(name);
-        this.postingsFormat = new SuggestPostingsFormat();
-    }
-
-    @Override
-    public PostingsFormat get() {
-        return postingsFormat;
+    public void parsePayload(BytesRef payload, SuggestPayload ref) throws IOException;
+    
+    public static class SuggestPayload {
+        public final BytesRef payload = new BytesRef();
+        public long weight = 0;
+        public final BytesRef surfaceForm = new BytesRef();
     }
 }

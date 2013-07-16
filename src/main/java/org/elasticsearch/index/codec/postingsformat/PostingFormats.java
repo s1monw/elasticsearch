@@ -75,8 +75,6 @@ public class PostingFormats {
         buildInPostingFormatsX.put("bloom_pulsing", new PreBuiltPostingsFormatProvider.Factory("bloom_pulsing", wrapInBloom(PostingsFormat.forName("Pulsing41"))));
         buildInPostingFormatsX.put("bloom_default", new PreBuiltPostingsFormatProvider.Factory("bloom_default", wrapInBloom(PostingsFormat.forName("Lucene41"))));
 
-        buildInPostingFormatsX.put("suggest", new PreBuiltPostingsFormatProvider.Factory("suggest", PostingsFormat.forName("Suggest")));
-
         builtInPostingFormats = buildInPostingFormatsX.immutableMap();
     }
 

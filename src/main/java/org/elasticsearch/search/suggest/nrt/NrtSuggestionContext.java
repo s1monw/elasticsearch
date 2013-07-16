@@ -16,18 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.search.suggest.wfst;
+package org.elasticsearch.search.suggest.nrt;
 
+import org.elasticsearch.index.mapper.FieldMapper;
 import org.elasticsearch.search.suggest.Suggester;
 import org.elasticsearch.search.suggest.SuggestionSearchContext;
 
 /**
  *
  */
-public class WfstSuggestionContext extends SuggestionSearchContext.SuggestionContext {
+public class NrtSuggestionContext extends SuggestionSearchContext.SuggestionContext {
 
-    public WfstSuggestionContext(Suggester suggester) {
+    private FieldMapper<?> mapper;
+
+    public NrtSuggestionContext(Suggester suggester) {
         super(suggester);
+    }
+    
+    public FieldMapper<?> mapper() {
+        return this.mapper;
+    }
+    
+    public void mapper(FieldMapper<?> mapper) {
+        this.mapper = mapper;
     }
 
 

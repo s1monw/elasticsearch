@@ -16,34 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.elasticsearch.search.suggest.wfst;
+package org.elasticsearch.search.suggest.nrt;
 
-import org.elasticsearch.common.text.Text;
-import org.elasticsearch.search.suggest.Suggest;
+import org.elasticsearch.index.codec.postingsformat.AbstractPostingsFormatProvider;
+import org.elasticsearch.index.codec.postingsformat.PostingsFormatProvider;
+
+import org.apache.lucene.codecs.PostingsFormat;
 
 /**
  *
  */
-public class WfstSuggestion extends Suggest.Suggestion<WfstSuggestion.Entry> {
+public final class SuggestPostingsFormatProvider extends AbstractPostingsFormatProvider {
 
-    public WfstSuggestion(String name, int size) {
-        super(name, size);
+    private final SuggestPostingsFormat postingsFormat;
+
+    public SuggestPostingsFormatProvider(String name, PostingsFormatProvider delegate, SuggestPostingsFormat.SuggestLookupProvider provider) {
+        super(name);
+        this.postingsFormat = new SuggestPostingsFormat(delegate.get(), provider);
     }
 
-    public WfstSuggestion(String name) {
-        this.name = name;
+    @Override
+    public PostingsFormat get() {
+        return postingsFormat;
     }
-
-    public static class Entry extends org.elasticsearch.search.suggest.Suggest.Suggestion.Entry<WfstSuggestion.Entry.Option> {
-        public Entry(Text text, int offset, int length) {
-            super(text, offset, length);
-        }
-
-        public static class Option extends org.elasticsearch.search.suggest.Suggest.Suggestion.Entry.Option {
-            public Option(Text text, float score) {
-                super(text, score);
-            }
-        }
-    }
-
 }
