@@ -19,6 +19,8 @@
 
 package org.elasticsearch.index.search.child;
 
+import org.elasticsearch.common.lucene.docset.DocIdSets;
+
 import gnu.trove.map.TObjectFloatMap;
 import gnu.trove.map.TObjectIntMap;
 import gnu.trove.map.hash.TObjectFloatHashMap;
@@ -195,7 +197,7 @@ public class ChildrenQuery extends Query implements SearchContext.Rewrite {
         @Override
         public Scorer scorer(AtomicReaderContext context, boolean scoreDocsInOrder, boolean topScorer, Bits acceptDocs) throws IOException {
             DocIdSet parentsSet = parentFilter.getDocIdSet(context, acceptDocs);
-            if (parentsSet == null || parentsSet == DocIdSet.EMPTY_DOCIDSET) {
+            if (DocIdSets.isEmpty(parentsSet)) {
                 return null;
             }
 
