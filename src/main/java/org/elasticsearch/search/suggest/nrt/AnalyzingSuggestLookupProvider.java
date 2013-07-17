@@ -19,6 +19,9 @@
 
 package org.elasticsearch.search.suggest.nrt;
 
+import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.util.IntsRef;
+
 import org.elasticsearch.search.suggest.nrt.SuggestPostingsFormat.LookupFactory;
 import org.elasticsearch.search.suggest.nrt.SuggestPostingsFormat.SuggestLookupProvider;
 
@@ -36,13 +39,12 @@ import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.fst.*;
 import org.apache.lucene.util.fst.PairOutputs.Pair;
 import org.elasticsearch.index.mapper.FieldMapper;
-import org.elasticsearch.index.mapper.core.SuggestFieldMapper;
-import org.elasticsearch.index.mapper.core.SuggestFieldMapper.SuggestPayload;
 
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class AnalyzingSuggestLookupProvider extends SuggestLookupProvider {
 
@@ -50,13 +52,15 @@ public class AnalyzingSuggestLookupProvider extends SuggestLookupProvider {
     private int maxSurfaceFormsPerAnalyzedForm;
     private int maxGraphExpansions;
     private boolean hasPayloads;
-
+    private final XAnalyzingSuggester prototype;
+    
     public AnalyzingSuggestLookupProvider(boolean preserveSep, int maxSurfaceFormsPerAnalyzedForm, int maxGraphExpansions,
             boolean hasPayloads) {
         this.preserveSep = preserveSep;
         this.maxSurfaceFormsPerAnalyzedForm = maxSurfaceFormsPerAnalyzedForm;
         this.maxGraphExpansions = maxGraphExpansions;
         this.hasPayloads = hasPayloads;
+        prototype = new XAnalyzingSuggester(null, null, preserveSep ? XAnalyzingSuggester.PRESERVE_SEP : 0, maxSurfaceFormsPerAnalyzedForm, maxGraphExpansions, null, false, 1);
     }
 
     @Override
@@ -106,7 +110,7 @@ public class AnalyzingSuggestLookupProvider extends SuggestLookupProvider {
 
                             @Override
                             public void addPosition(int position, BytesRef payload, int startOffset, int endOffset) throws IOException {
-                                SuggestFieldMapper.DEFAULT_PROCESSOR.parsePayload(payload, spare);
+                                parsePayload(payload, spare);
                                 builder.addSurface(spare.surfaceForm, spare.payload, spare.weight);
                                 /*
                                  * This is tricky
@@ -122,13 +126,6 @@ public class AnalyzingSuggestLookupProvider extends SuggestLookupProvider {
                                  * num of paths. See SuggestTokenStream
                                  */
                                 maxAnalyzedPathsForOneInput = Math.max(maxAnalyzedPathsForOneInput, 256 - (position % 256));
-                                /*
-                                 * NOCOMMIT what are we doing if no weights
-                                 * are present? - We might want to have a
-                                 * simple version of this class using a
-                                 * WFSTCompletionLookup that only uses
-                                 * frequencies?
-                                 */
                             }
 
                             @Override
@@ -144,7 +141,7 @@ public class AnalyzingSuggestLookupProvider extends SuggestLookupProvider {
 
                     @Override
                     public void finishTerm(BytesRef text, TermStats stats) throws IOException {
-                        builder.finishTerm();
+                        builder.finishTerm(stats.docFreq); // use  doc freq as a fallback
                     }
 
                     @Override
@@ -236,5 +233,8 @@ public class AnalyzingSuggestLookupProvider extends SuggestLookupProvider {
 
     }
 
-
+    @Override
+    public Set<IntsRef> toFiniteStrings(TokenStream stream) throws IOException {
+        return prototype.toFiniteStrings(prototype.getTokenStreamToAutomaton(), stream);
+    }
 }

@@ -998,18 +998,18 @@ public class XAnalyzingSuggester extends Lookup {
             // System.out.println("ADD: " + scratchInts + " -> " + cost + ": " +
             // surface.utf8ToString());
             if (!hasPayloads) {
-                candidates.add(new Candidate(surfaceCopy, encodeWeight(cost))); // SIMON TODO: we should reuse the Candidate objects
+                candidates.add(new Candidate(surfaceCopy, cost == -1 ? cost : encodeWeight(cost))); // SIMON TODO: we should reuse the Candidate objects
             } else {
                 BytesRef br = new BytesRef(surface.length + 1 + payload.length);
                 System.arraycopy(surface.bytes, surface.offset, br.bytes, 0, surface.length);
                 br.bytes[surface.length] = PAYLOAD_SEP;
                 System.arraycopy(payload.bytes, payload.offset, br.bytes, surface.length + 1, payload.length);
                 br.length = br.bytes.length;
-                candidates.add(new Candidate(br, encodeWeight(cost))); // NOCOMMIT we should check if the weight is valid in the tokenstream ie. [0.. IntMax]
+                candidates.add(new Candidate(br, cost == -1 ? cost : encodeWeight(cost))); // NOCOMMIT we should check if the weight is valid in the tokenstream ie. [0.. IntMax]
             }
         }
         
-        public void finishTerm() throws IOException {
+        public void finishTerm(long defaultWeight) throws IOException {
             // TODO: I think we can avoid the extra 2 bytes when
             // there is no dup (dedup==0), but we'd have to fix
             // the exactFirst logic ... which would be sort of
@@ -1024,7 +1024,8 @@ public class XAnalyzingSuggester extends Lookup {
             Util.toIntsRef(analyzed, scratchInts);
             CollectionUtil.quickSort(candidates);
             for (Candidate candiate : candidates) {
-                builder.add(scratchInts, outputs.newPair(candiate.cost, candiate.payload));
+                long cost = candiate.cost == -1 ? encodeWeight(defaultWeight) : candiate.cost;
+                builder.add(scratchInts, outputs.newPair(cost, candiate.payload));
             }
             seenSurfaceForms.clear();
             candidates.clear();

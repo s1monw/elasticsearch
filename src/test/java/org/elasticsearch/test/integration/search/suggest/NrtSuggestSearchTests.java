@@ -62,11 +62,61 @@ public class NrtSuggestSearchTests extends AbstractNodesTests {
         client.close();
         closeAllNodes();
     }
+    
+    @Test
+    public void testSimple() throws Exception{
+        createIndexAndMapping();
+        String[][] input = {{"Foo Fighters"}, {"Foo Fighters"}, {"Foo Fighters"}, {"Foo Fighters"},
+                            {"Generator", "Foo Fighters Generator"}, {"Learn to Fly", "Foo Fighters Learn to Fly" }, 
+                            {"The Prodigy"}, {"The Prodigy"}, {"The Prodigy"}, {"Firestarter", "The Prodigy Firestarter"},
+                            {"Turbonegro"}, {"Turbonegro"}, {"Get it on", "Turbonegro Get it on"}}; // work with frequencies
+        for (int i = 0; i < input.length; i++) {
+            client.prepareIndex(INDEX, TYPE, "" + i)
+                    .setSource(jsonBuilder()
+                            .startObject().startObject(FIELD)
+                            .startArray("input").value(input[i]).endArray()
+                            .endObject()
+                            .endObject()
+                    )
+                    .setRefresh(true)
+                    .execute().actionGet();
+        }
+        
+        // make sure we have global frequencies
+        client.admin().indices().prepareOptimize(INDEX).execute().actionGet();
+        
+        SuggestResponse suggestResponse = client.prepareSuggest(INDEX).addSuggestion(
+                new NrtSuggestionBuilder("foo").field(FIELD).text("f").size(10)
+        ).execute().actionGet();
+        
+
+        assertThat(suggestResponse.getSuggest().size(), is(1));
+        Suggest.Suggestion<Suggest.Suggestion.Entry<Suggest.Suggestion.Entry.Option>> suggestion = suggestResponse.getSuggest().getSuggestion("foo");
+
+        assertThat(suggestion.getEntries().size(), is(1));
+        List<String> names = getNames(suggestion.getEntries().get(0));
+        assertThat(names, hasSize(4));
+        assertThat(names.get(0), is("Foo Fighters"));
+        
+        suggestResponse = client.prepareSuggest(INDEX).addSuggestion(
+                new NrtSuggestionBuilder("t").field(FIELD).text("t").size(10)
+        ).execute().actionGet();
+        
+
+        assertThat(suggestResponse.getSuggest().size(), is(1));
+        suggestion = suggestResponse.getSuggest().getSuggestion("t");
+
+        assertThat(suggestion.getEntries().size(), is(1));
+        names = getNames(suggestion.getEntries().get(0));
+        assertThat(names, hasSize(4));
+        assertThat(names.get(0), is("The Prodigy"));
+        assertThat(names.get(1), is("Turbonegro"));
+    }
 
 
     @Test
-    public void testThatNrtSuggestionsWork() throws Exception {
-        // TODO test payloads - currently not enabled in SuggestPostingsFormat
+    public void testBasicNRTSuggestion() throws Exception {
+        // TODO test payloads - currently not enabled in this test
         createIndexAndMapping();
         
         for (int i = 0; i < 2; i++) {
@@ -151,7 +201,7 @@ public class NrtSuggestSearchTests extends AbstractNodesTests {
                 .field("type", "suggest")
                    .field("index_analyzer", "simple")
                 .field("search_analyzer", "simple")
-                .field("suggester", "analyzing_prefix")
+                .field("payloads", false)
                 .endObject()
                 .endObject().endObject()
                 .endObject()).execute().actionGet();

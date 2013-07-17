@@ -18,6 +18,8 @@
  */
 package org.elasticsearch.test.integration.search.suggest;
 
+import org.elasticsearch.search.suggest.nrt.SuggestTokenFilter;
+
 import org.apache.lucene.analysis.core.SimpleAnalyzer;
 
 import org.apache.lucene.search.suggest.analyzing.XAnalyzingSuggester;
@@ -37,7 +39,6 @@ import org.apache.lucene.index.*;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
-import org.elasticsearch.index.analysis.SuggestTokenFilter;
 import org.testng.annotations.Test;
 
 import java.io.IOException;

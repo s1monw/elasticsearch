@@ -19,38 +19,21 @@
 package org.elasticsearch.search.suggest.nrt;
 
 
-import org.apache.lucene.codecs.TermsConsumer;
-
-import org.apache.lucene.codecs.FieldsConsumer;
-import org.apache.lucene.index.SegmentReadState;
-import org.apache.lucene.index.SegmentWriteState;
-
-import org.elasticsearch.index.mapper.FieldMapper;
-
-
-
-
-
-import org.apache.lucene.codecs.PostingsConsumer;
-
-import org.apache.lucene.util.fst.PairOutputs.Pair;
-
-
-import org.apache.lucene.codecs.CodecUtil;
-import org.apache.lucene.codecs.PostingsFormat;
-import org.apache.lucene.index.FieldInfo;
-import org.apache.lucene.index.IndexFileNames;
+import org.elasticsearch.search.suggest.nrt.SuggestTokenFilter.ToFiniteStrings;
 
 import org.apache.lucene.codecs.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.suggest.Lookup;
 import org.apache.lucene.store.IOContext.Context;
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.store.IndexOutput;
+import org.apache.lucene.store.*;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.fst.FST;
+import org.apache.lucene.util.fst.PairOutputs.Pair;
+import org.elasticsearch.index.mapper.FieldMapper;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -311,12 +294,45 @@ public class SuggestPostingsFormat extends PostingsFormat {
 
     }
 
-    public static abstract class SuggestLookupProvider {
+    public static abstract class SuggestLookupProvider implements PayloadProcessor, ToFiniteStrings{
         public abstract FieldsConsumer consumer(IndexOutput output);
 
         public abstract String getName();
 
         public abstract LookupFactory load(IndexInput input) throws IOException;
+        
+        @Override
+        public BytesRef buildPayload(BytesRef surfaceForm, long weight, byte[] payload) throws IOException {
+            if (weight < -1 || weight > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("weight must be >= -1 && <= Integer.MAX_VALUE");
+            }
+                
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            OutputStreamDataOutput output = new OutputStreamDataOutput(byteArrayOutputStream);
+            output.writeVLong(weight+1);
+            output.writeVInt(surfaceForm.length);
+            output.writeBytes(surfaceForm.bytes, surfaceForm.offset, surfaceForm.length);
+            output.writeVInt(payload.length);
+            output.writeBytes(payload, 0, payload.length);
+            output.close();
+            return new BytesRef(byteArrayOutputStream.toByteArray());
+        }
+        
+        @Override
+        public void parsePayload(BytesRef payload, SuggestPayload ref) throws IOException {
+            ByteArrayInputStream byteArrayOutputStream = new ByteArrayInputStream(payload.bytes, payload.offset, payload.length);
+            InputStreamDataInput input = new InputStreamDataInput(byteArrayOutputStream);
+            ref.weight = input.readVLong()-1;
+            int len = input.readVInt();
+            ref.surfaceForm.grow(len);
+            ref.surfaceForm.length = len;
+            input.readBytes(ref.surfaceForm.bytes, ref.surfaceForm.offset, ref.surfaceForm.length);
+            len = input.readVInt();
+            ref.payload.grow(len);
+            ref.payload.length = len;
+            input.readBytes(ref.payload.bytes, ref.payload.offset, ref.payload.length);
+            input.close();
+        }
     }
 
     public static abstract class LookupFactory {
