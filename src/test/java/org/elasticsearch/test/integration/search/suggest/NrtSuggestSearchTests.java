@@ -18,6 +18,47 @@
  */
 package org.elasticsearch.test.integration.search.suggest;
 
+import org.apache.lucene.util.fst.FST;
+import org.apache.lucene.util.fst.PairOutputs.Pair;
+
+import org.apache.lucene.search.suggest.analyzing.XAnalyzingSuggester.XBuilder;
+
+import org.apache.lucene.analysis.core.KeywordTokenizer;
+
+import org.apache.lucene.util.CharsRef;
+
+import org.apache.lucene.analysis.synonym.SynonymMap;
+
+import org.apache.lucene.analysis.synonym.SynonymFilter;
+
+import org.apache.lucene.analysis.core.LowerCaseFilter;
+
+import org.apache.lucene.analysis.TokenFilter;
+
+import org.apache.lucene.analysis.core.WhitespaceTokenizer;
+
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.Analyzer.TokenStreamComponents;
+
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.Analyzer.TokenStreamComponents;
+
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+
+import org.apache.lucene.search.spell.TermFreqPayloadIterator;
+
+import org.apache.lucene.search.spell.TermFreqPayloadIterator;
+
+import org.apache.lucene.util.BytesRef;
+
+import org.apache.lucene.search.spell.TermFreqIterator;
+
+import org.apache.lucene.util.Version;
+
+import org.apache.lucene.analysis.core.SimpleAnalyzer;
+
+import org.apache.lucene.search.suggest.analyzing.XAnalyzingSuggester;
+
 import com.google.common.collect.Lists;
 import org.elasticsearch.action.suggest.SuggestResponse;
 import org.elasticsearch.client.Client;
@@ -29,6 +70,8 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.io.Reader;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_REPLICAS;
@@ -201,7 +244,7 @@ public class NrtSuggestSearchTests extends AbstractNodesTests {
                 .field("type", "suggest")
                    .field("index_analyzer", "simple")
                 .field("search_analyzer", "simple")
-                .field("payloads", false)
+                .field("payloads", true)
                 .endObject()
                 .endObject().endObject()
                 .endObject()).execute().actionGet();
@@ -223,12 +266,11 @@ public class NrtSuggestSearchTests extends AbstractNodesTests {
                             .endObject()
                             .endObject()
                     )
-                    .setRefresh(true)
                     .execute().actionGet();
         }
         
         
-        
+//        
         for (int i = 0; i < weight.length; i++) { // add them again to make sure we deduplicate on the surface form
             client.prepareIndex(INDEX, TYPE, "n" + i)
                     .setSource(jsonBuilder()
@@ -243,10 +285,78 @@ public class NrtSuggestSearchTests extends AbstractNodesTests {
                     .setRefresh(true)
                     .execute().actionGet();
         }
-       
-        if (optimize) {
-            // make sure merging works just fine
-            client.admin().indices().prepareOptimize(INDEX).execute().actionGet();
-        }
+        client.admin().indices().prepareRefresh(INDEX).execute().actionGet();
+//       
+//        if (optimize) {
+//            // make sure merging works just fine
+         
+//            client.admin().indices().prepareOptimize(INDEX).execute().actionGet();
+//        }
+    }
+    
+    public static void main(String[] args) throws IOException {
+//        foofightersgenerator 0 Generator - Foo Fighters
+//        generator 0 Generator - Foo Fighters
+        
+        XBuilder b = new XBuilder(256, true);
+        b.startTerm(new BytesRef("foofightersgenerator"));
+        b.addSurface(new BytesRef("Generator - Foo Fighters"), new BytesRef(), 10);
+        b.finishTerm(0);
+        b.startTerm(new BytesRef("generator"));
+        b.addSurface(new BytesRef("Generator - Foo Fighters"), new BytesRef(), 10);
+        b.finishTerm(0);
+        FST<Pair<Long, BytesRef>> build = b.build();
+        Analyzer analyzer = new Analyzer() {
+            
+            @Override
+            protected TokenStreamComponents createComponents(String fieldName, Reader reader) {
+                KeywordTokenizer wst = new KeywordTokenizer(reader);
+                TokenFilter f = new LowerCaseFilter(Version.LUCENE_43, wst);
+                SynonymMap.Builder m = new SynonymMap.Builder(false);
+                m.add(new CharsRef("generator foo fighters"), new CharsRef("generator"), false);
+                m.add(new CharsRef("generator foo fighters"), new CharsRef("foo fighters generator"), false);
+                SynonymFilter filter;
+                try {
+                    filter = new SynonymFilter(f, m.build(), false);
+                } catch (IOException e) {
+                    throw new RuntimeException();
+                }
+                return new TokenStreamComponents(wst, filter);
+            }
+        };
+        XAnalyzingSuggester sugg = new XAnalyzingSuggester(analyzer, analyzer, XAnalyzingSuggester.PRESERVE_SEP, 256, -1,  null, true, 0);
+        final String[] inputs = {"generator foo fighters"};
+        sugg.build(new TermFreqPayloadIterator() {
+            int weight = 10;
+            int i;
+            @Override
+            public BytesRef next() throws IOException {
+                if (i == inputs.length) {
+                    return null;
+                }
+                return new BytesRef(inputs[i++]);
+            }
+            
+            @Override
+            public Comparator<BytesRef> getComparator() {
+                return null;
+            }
+            
+            @Override
+            public long weight() {
+                return weight++;
+            }
+            
+            @Override
+            public BytesRef payload() {
+                return new BytesRef("id: 1");
+            }
+        });
+        sugg.lookup("ge", false, 10);
+        
+        sugg = new XAnalyzingSuggester(new StandardAnalyzer(Version.LUCENE_43), new StandardAnalyzer(Version.LUCENE_43), XAnalyzingSuggester.PRESERVE_SEP , 256, -1,  build, true, 3);
+        sugg.lookup("ge", false, 10);
+
+
     }
 }

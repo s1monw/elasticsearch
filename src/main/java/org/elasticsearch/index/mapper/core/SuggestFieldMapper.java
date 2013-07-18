@@ -18,6 +18,8 @@
  */
 package org.elasticsearch.index.mapper.core;
 
+import com.google.common.base.Charsets;
+
 import com.google.common.collect.Lists;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -41,6 +43,7 @@ import org.elasticsearch.search.suggest.nrt.SuggestTokenFilter;
 import org.elasticsearch.search.suggest.nrt.SuggestTokenFilter.ToFiniteStrings;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Map;
 
@@ -133,6 +136,7 @@ public class SuggestFieldMapper extends AbstractFieldMapper<String> {
             if (builder.indexAnalyzer == null) {
                 builder.indexAnalyzer(parserContext.analysisService().defaultIndexAnalyzer());
             }
+            // we are just using this as the default to be wrapped by the SuggestPostingsFormatProvider in the SuggesteFieldMapper ctor
             builder.postingsFormat(parserContext.postingFormatService().get("default"));
             return builder;
         }
@@ -220,13 +224,13 @@ public class SuggestFieldMapper extends AbstractFieldMapper<String> {
         if (surfaceForm == null) { // no surface form use the input
             for (String input : inputs) {
                 BytesRef suggestPayload = analyzingSuggestLookupProvider.buildPayload(new BytesRef(
-                        input), weight, payload.getBytes());
+                        input), weight, payload.getBytes(Charsets.UTF_8)); // NOCOMMIT - how to get the bytes? UTF-8
                 Field suggestField = new SuggestField(name(), input, this.fieldType, suggestPayload, analyzingSuggestLookupProvider);
                 context.doc().add(suggestField);
             }
         } else {
             BytesRef suggestPayload = analyzingSuggestLookupProvider.buildPayload(new BytesRef(
-                    surfaceForm), weight, payload.getBytes());
+                    surfaceForm), weight, payload.getBytes(Charsets.UTF_8));
             for (String input : inputs) {
                 Field suggestField = new SuggestField(name(), input, this.fieldType, suggestPayload, analyzingSuggestLookupProvider);
                 context.doc().add(suggestField);
@@ -237,7 +241,6 @@ public class SuggestFieldMapper extends AbstractFieldMapper<String> {
     }
     
     private static final class SuggestField extends Field {
-
         private final BytesRef payload;
         private final ToFiniteStrings toFiniteStrings;
 

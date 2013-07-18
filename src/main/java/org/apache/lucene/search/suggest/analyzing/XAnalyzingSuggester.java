@@ -254,6 +254,13 @@ public class XAnalyzingSuggester extends Lookup {
     }
     this.maxGraphExpansions = maxGraphExpansions;
     this.maxAnalyzedPathsForOneInput = maxAnalyzedPathsForOneInput;
+    if (fst != null) {
+    System.out.println(maxAnalyzedPathsForOneInput);
+    System.out.println(maxGraphExpansions);
+    System.out.println(maxSurfaceFormsPerAnalyzedForm);
+    System.out.println(this.preserveSep);
+    System.out.println(exactFirst);
+    }
   }
 
   /** Returns byte size of the underlying FST. */
@@ -593,6 +600,7 @@ public class XAnalyzingSuggester extends Lookup {
           br.bytes[surface.length] = PAYLOAD_SEP;
           System.arraycopy(scratch.bytes, payloadOffset, br.bytes, surface.length+1, payloadLength);
           br.length = br.bytes.length;
+          System.out.println(analyzed.utf8ToString().trim() + " " + dedup + " " + br.utf8ToString());
           builder.add(scratchInts, outputs.newPair(cost, br));
         }
       }
@@ -647,6 +655,7 @@ public class XAnalyzingSuggester extends Lookup {
     LookupResult result;
     if (hasPayloads) {
       int sepIndex = -1;
+      System.out.println(output2.utf8ToString());
       for(int i=0;i<output2.length;i++) {
         if (output2.bytes[output2.offset+i] == PAYLOAD_SEP) {
           sepIndex = i;
@@ -938,7 +947,7 @@ public class XAnalyzingSuggester extends Lookup {
     public static class XBuilder {
         private Builder<Pair<Long, BytesRef>> builder;
         BytesRef previousAnalyzed = null;
-        private int dedup = 0;
+        private int dedup = -1;
         private int maxSurfaceFormsPerAnalyzedForm;
         private IntsRef scratchInts = new IntsRef();
         private final PairOutputs<Long, BytesRef> outputs;
@@ -954,6 +963,7 @@ public class XAnalyzingSuggester extends Lookup {
             this.maxSurfaceFormsPerAnalyzedForm = maxSurfaceFormsPerAnalyzedForm;
             this.hasPayloads = hasPayloads;
             candidates = new ArrayList<XAnalyzingSuggester.XBuilder.Candidate>();
+            System.out.println("new");
 
         }
         public void startTerm(BytesRef analyzed) {
@@ -1000,12 +1010,14 @@ public class XAnalyzingSuggester extends Lookup {
             if (!hasPayloads) {
                 candidates.add(new Candidate(surfaceCopy, cost == -1 ? cost : encodeWeight(cost))); // SIMON TODO: we should reuse the Candidate objects
             } else {
+                payload.length = 0;
                 BytesRef br = new BytesRef(surface.length + 1 + payload.length);
                 System.arraycopy(surface.bytes, surface.offset, br.bytes, 0, surface.length);
                 br.bytes[surface.length] = PAYLOAD_SEP;
+                
                 System.arraycopy(payload.bytes, payload.offset, br.bytes, surface.length + 1, payload.length);
                 br.length = br.bytes.length;
-                candidates.add(new Candidate(br, cost == -1 ? cost : encodeWeight(cost))); // NOCOMMIT we should check if the weight is valid in the tokenstream ie. [0.. IntMax]
+                candidates.add(new Candidate(br, cost == -1 ? cost : encodeWeight(cost)));
             }
         }
         
@@ -1025,11 +1037,13 @@ public class XAnalyzingSuggester extends Lookup {
             CollectionUtil.quickSort(candidates);
             for (Candidate candiate : candidates) {
                 long cost = candiate.cost == -1 ? encodeWeight(defaultWeight) : candiate.cost;
+                System.out.println(analyzed.utf8ToString().trim() + " " + dedup + " " + candiate.payload.utf8ToString());
+
                 builder.add(scratchInts, outputs.newPair(cost, candiate.payload));
             }
             seenSurfaceForms.clear();
             candidates.clear();
-            dedup = 0;
+            dedup = -1;
 
         }
 

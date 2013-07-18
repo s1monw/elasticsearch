@@ -29,7 +29,7 @@ import org.elasticsearch.search.suggest.Suggest;
 import org.elasticsearch.search.suggest.SuggestContextParser;
 import org.elasticsearch.search.suggest.Suggester;
 import org.elasticsearch.search.suggest.nrt.NrtSuggestion.Entry.Option;
-import org.elasticsearch.search.suggest.nrt.SuggestPostingsFormat.LookupTerms;
+import org.elasticsearch.search.suggest.nrt.SuggestPostingsFormat.SuggestTerms;
 
 import java.io.IOException;
 import java.util.*;
@@ -48,15 +48,15 @@ public class NrtSuggester implements  Suggester<NrtSuggestionContext> {
         wfstSuggestion.addTerm(wfstSuggestionEntry);
         String fieldName = suggestion.getField();
 
-        String prefix = suggestion.getText().utf8ToString(); // NOCOMMIT - this needs to go through an analyzer?
+        String prefix = suggestion.getText().utf8ToString();
         boolean exactFirst = true; // TODO Expose in request?
         // do the suggestion dance per segment
         Map<CharSequence, Long> allResults = new HashMap<CharSequence, Long>();
         for (AtomicReaderContext atomicReaderContext : indexReader.leaves()) {
             AtomicReader atomicReader = atomicReaderContext.reader();
             Terms terms = atomicReader.fields().terms(fieldName);
-            if (terms instanceof SuggestPostingsFormat.LookupTerms) {
-                LookupTerms lookupTerms = (LookupTerms) terms;
+            if (terms instanceof SuggestPostingsFormat.SuggestTerms) {
+                SuggestTerms lookupTerms = (SuggestTerms) terms;
                 Lookup lookup = lookupTerms.getLookup(suggestion.mapper(), exactFirst);
                 List<Lookup.LookupResult> lookupResults = lookup.lookup(prefix, false, suggestion.getSize());
                 for (Lookup.LookupResult res : lookupResults) {

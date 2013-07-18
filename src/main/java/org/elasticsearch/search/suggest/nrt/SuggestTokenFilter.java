@@ -66,7 +66,7 @@ public final class SuggestTokenFilter extends TokenFilter {
                 throw new IllegalArgumentException("TokenStream expanded to " + strings.size() + " finite strings. Only <= " + MAX_PATHS
                         + " finite strings are supported");
             }
-            posInc = 256 - strings.size();
+            posInc = MAX_PATHS - strings.size();
             finiteStrings = strings.iterator();
         }
         BytesRef scratch = new BytesRef();

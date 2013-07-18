@@ -204,7 +204,9 @@ public class AnalyzingSuggestLookupProvider extends SuggestLookupProvider {
                     return null;
                 }
                 int flags = exactFirst ? 0 : XAnalyzingSuggester.EXACT_FIRST;
-                flags = analyzingSuggestHolder.preserveSep ? 0 : XAnalyzingSuggester.PRESERVE_SEP;
+                if (preserveSep) {
+                    flags |= XAnalyzingSuggester.PRESERVE_SEP;
+                }
                 return new XAnalyzingSuggester(mapper.indexAnalyzer(), mapper.searchAnalyzer(), flags,
                         analyzingSuggestHolder.maxSurfaceFormsPerAnalyzedForm, analyzingSuggestHolder.maxGraphExpansions,
                         analyzingSuggestHolder.fst, analyzingSuggestHolder.hasPayloads,

@@ -28,8 +28,6 @@ import org.apache.lucene.store.IOContext.Context;
 import org.apache.lucene.store.*;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
-import org.apache.lucene.util.fst.FST;
-import org.apache.lucene.util.fst.PairOutputs.Pair;
 import org.elasticsearch.index.mapper.FieldMapper;
 
 import java.io.ByteArrayInputStream;
@@ -210,7 +208,7 @@ public class SuggestPostingsFormat extends PostingsFormat {
             if (terms == null) {
                 return terms;
             }
-            return new LookupTerms(terms, this.lookupFactory);
+            return new SuggestTerms(terms, this.lookupFactory);
         }
 
         @Override
@@ -219,26 +217,11 @@ public class SuggestPostingsFormat extends PostingsFormat {
         }
     }
 
-    /*
-     * This class is just a helper and might become more generic in the future?
-     */
-    public static final class LookupFST {
-        final FST<Pair<Long, BytesRef>> fst;
-        final int maxAnalyzedPathsForOneInput;
-        final boolean hasPayloads;
-
-        public LookupFST(FST<Pair<Long, BytesRef>> fst, int maxAnalyzedPathsForOneInput, boolean hasPayloads) {
-            this.fst = fst;
-            this.maxAnalyzedPathsForOneInput = maxAnalyzedPathsForOneInput;
-            this.hasPayloads = hasPayloads;
-        }
-    }
-
-    public static final class LookupTerms extends Terms {
+    public static final class SuggestTerms extends Terms {
         private final Terms delegate;
         private final LookupFactory lookup;
 
-        public LookupTerms(Terms delegate, LookupFactory lookup) {
+        public SuggestTerms(Terms delegate, LookupFactory lookup) {
             this.lookup = lookup;
             this.delegate = delegate;
         }
@@ -295,6 +278,7 @@ public class SuggestPostingsFormat extends PostingsFormat {
     }
 
     public static abstract class SuggestLookupProvider implements PayloadProcessor, ToFiniteStrings{
+        
         public abstract FieldsConsumer consumer(IndexOutput output);
 
         public abstract String getName();
