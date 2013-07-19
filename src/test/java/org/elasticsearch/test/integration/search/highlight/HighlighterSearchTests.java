@@ -36,8 +36,7 @@ import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.highlight.HighlightBuilder;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -53,18 +52,18 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHigh
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.startsWith;
-import static org.testng.Assert.fail;
+import static org.junit.Assert.fail;
 
 /**
  *
  */
 public class HighlighterSearchTests extends AbstractSharedClusterTest {
     
-    @BeforeClass
-    public void createNodes() throws Exception {
-        cluster().ensureAtLeastNumNodes(4);
+    @Override
+    protected int numberOfNodes() {
+        return 4; // why 4?
     }
-    
+
     @Test
     public void testNgramHighlightingWithBrokenPositions() throws ElasticSearchException, IOException {
         prepareCreate("test")

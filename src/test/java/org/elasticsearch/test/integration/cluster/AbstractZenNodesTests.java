@@ -20,7 +20,6 @@
 package org.elasticsearch.test.integration.cluster;
 
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.BeforeClass;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 
@@ -29,8 +28,8 @@ import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilde
  */
 public class AbstractZenNodesTests extends AbstractNodesTests {
 
-    @BeforeClass
-    public void setUpZenDiscoSettings() {
+    @Override
+    protected void beforeClass() {
         // we force zen discovery here since it has specific handling for specific master / data nodes
         // and disconnections
         putDefaultSettings(settingsBuilder().put("discovery.type", "zen"));

@@ -38,8 +38,8 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import static org.elasticsearch.client.Requests.clusterHealthRequest;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
@@ -55,7 +55,7 @@ import static org.hamcrest.Matchers.*;
  */
 public class SimpleRecoveryLocalGatewayTests extends AbstractNodesTests {
 
-    @AfterMethod
+    @After
     public void cleanAndCloseNodes() throws Exception {
         for (int i = 0; i < 10; i++) {
             if (node("node" + i) != null) {

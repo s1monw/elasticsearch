@@ -26,9 +26,7 @@ import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import java.io.File;
 
@@ -45,19 +43,13 @@ public class IndicesStoreTests extends AbstractNodesTests {
 
     protected Client client1;
 
-    @BeforeClass
-    public void startNodes() {
+    @Override
+    protected void beforeClass() {
         // The default (none) gateway cleans the shards on closing
         putDefaultSettings(settingsBuilder().put("gateway.type", "local"));
         startNode("server1");
         startNode("server2");
         client1 = getClient1();
-    }
-
-    @AfterClass
-    public void closeNodes() {
-        client1.close();
-        closeAllNodes();
     }
 
     protected Client getClient1() {

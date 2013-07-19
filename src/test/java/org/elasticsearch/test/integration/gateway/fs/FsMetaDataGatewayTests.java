@@ -25,9 +25,9 @@ import org.elasticsearch.gateway.Gateway;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.client.Requests.clusterHealthRequest;
 import static org.elasticsearch.client.Requests.createIndexRequest;
@@ -39,16 +39,16 @@ import static org.hamcrest.Matchers.equalTo;
  */
 public class FsMetaDataGatewayTests extends AbstractNodesTests {
 
-    @AfterMethod
-    void closeNodes() throws Exception {
+    @After
+    public void closeNodes() throws Exception {
         node("server1").stop();
         // since we store (by default) the index snapshot under the gateway, resetting it will reset the index data as well
         ((InternalNode) node("server1")).injector().getInstance(Gateway.class).reset();
         closeAllNodes();
     }
 
-    @BeforeMethod
-    void buildNodeToReset() throws Exception {
+    @Before
+    public void buildNodeToReset() throws Exception {
         buildNode("server1");
         // since we store (by default) the index snapshot under the gateway, resetting it will reset the index data as well
         ((InternalNode) node("server1")).injector().getInstance(Gateway.class).reset();

@@ -32,8 +32,8 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.threadpool.ThreadPool;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -43,7 +43,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 /**
@@ -51,7 +50,7 @@ import static org.hamcrest.Matchers.*;
  */
 public class ClusterServiceTests extends AbstractZenNodesTests {
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         closeAllNodes();
     }

@@ -22,14 +22,14 @@ package org.elasticsearch.test.integration.flt;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.test.integration.AbstractSharedClusterTest;
-import org.testng.annotations.Test;
+import org.junit.Test;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.index.query.QueryBuilders.fuzzyLikeThisFieldQuery;
 import static org.elasticsearch.index.query.QueryBuilders.fuzzyLikeThisQuery;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
-import static org.testng.Assert.fail;
+import static org.junit.Assert.fail;
 
 /**
  *

@@ -29,23 +29,26 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.indices.IndexMissingException;
 import org.elasticsearch.node.Node;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 
 import java.util.Map;
 
 import static com.google.common.collect.Maps.newHashMap;
-import static org.elasticsearch.common.settings.ImmutableSettings.Builder.EMPTY_SETTINGS;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
+import static org.elasticsearch.common.settings.ImmutableSettings.Builder.EMPTY_SETTINGS;
 import static org.elasticsearch.node.NodeBuilder.nodeBuilder;
 
+@Ignore
 public abstract class AbstractNodesTests extends ElasticsearchTestCase {
+    private static Map<String, Node> nodes = newHashMap();
 
-    private Map<String, Node> nodes = newHashMap();
-
-    private Map<String, Client> clients = newHashMap();
-
+    private static Map<String, Client> clients = newHashMap();
+    
     private Settings defaultSettings = ImmutableSettings
             .settingsBuilder()
-            .put("cluster.name", "test-cluster-" + NetworkUtils.getLocalAddress().getHostName())
+            .put("cluster.name", "test-cluster-" + NetworkUtils.getLocalAddress().getHostName() + "CHILD_VM=[" + CHILD_VM_ID +"]")
             .build();
 
     public void putDefaultSettings(Settings.Builder settings) {
@@ -120,8 +123,17 @@ public abstract class AbstractNodesTests extends ElasticsearchTestCase {
     public Client client(String id) {
         return clients.get(id);
     }
-
     public void closeAllNodes() {
+        closeAllNodes(false);
+    }
+    public void closeAllNodes(boolean preventRelocation) {
+        if (preventRelocation) {
+            Settings build = ImmutableSettings.builder().put("cluster.routing.allocation.disable_allocation", true).build();
+            Client aClient = client();
+            if (aClient != null) {
+                    aClient.admin().cluster().prepareUpdateSettings().setTransientSettings(build).execute().actionGet();
+            }
+        }
         for (Client client : clients.values()) {
             client.close();
         }
@@ -155,5 +167,43 @@ public abstract class AbstractNodesTests extends ElasticsearchTestCase {
         } catch (IndexMissingException e) {
             // ignore
         }
+    }
+    
+    private static volatile AbstractNodesTests testInstance; // this test class only works once per JVM
+    
+    @BeforeClass
+    public static void tearDownOnce() throws Exception {
+        synchronized (AbstractNodesTests.class) {
+            if (testInstance != null) {
+                testInstance.afterClass();
+                testInstance.closeAllNodes();
+                testInstance = null;
+            }
+        }
+    }
+    
+    @Before
+    public final void setUp() throws Exception {
+        synchronized (AbstractNodesTests.class) {
+            if (testInstance == null) {
+                testInstance = this;
+                testInstance.beforeClass();
+            } else {
+                assert testInstance.getClass() == this.getClass();
+            }
+        }
+    }
+    
+    public Client client() {
+        if (clients.isEmpty()) {
+            return null;
+        }
+        return clients.values().iterator().next();
+    }
+    
+    protected void afterClass() throws Exception {
+    }
+    
+    protected void beforeClass() throws Exception {
     }
 }

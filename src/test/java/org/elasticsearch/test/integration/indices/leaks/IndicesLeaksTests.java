@@ -29,8 +29,8 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -41,11 +41,10 @@ import static org.hamcrest.Matchers.nullValue;
 
 /**
  */
-@Test
 public class IndicesLeaksTests extends AbstractNodesTests {
 
 
-    @AfterMethod
+    @After
     public void closeNodes() {
         closeAllNodes();
     }
@@ -99,7 +98,7 @@ public class IndicesLeaksTests extends AbstractNodesTests {
 
         node.client().admin().indices().prepareDelete().execute().actionGet();
 
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 200; i++) {
             System.gc();
             int indexNotCleared = 0;
             for (WeakReference indexReference : indexReferences) {

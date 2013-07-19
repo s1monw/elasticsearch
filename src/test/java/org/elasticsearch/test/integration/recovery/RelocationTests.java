@@ -35,10 +35,9 @@ import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Test;
 
-import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -46,7 +45,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 /**
@@ -55,9 +53,9 @@ import static org.hamcrest.Matchers.equalTo;
 public class RelocationTests extends AbstractNodesTests {
     private final TimeValue ACCEPTABLE_RELOCATION_TIME = new TimeValue(5, TimeUnit.MINUTES);
 
-    @AfterMethod
+    @After
     public void shutdownNodes() {
-        closeAllNodes();
+        closeAllNodes(true);
     }
 
     @Test
@@ -110,22 +108,15 @@ public class RelocationTests extends AbstractNodesTests {
 
     @Test
     public void testPrimaryRelocationWhileIndexingRandom() throws Exception {
-        long seed = System.currentTimeMillis();
-        Random random = new Random();
-        final int iter = NIGHLY ? 5 : 1;
-        for (int i = 0; i < iter; i++) {
-            try {
-                int numRelocations = 1 + random.nextInt(10);
-                int numWriters = 1 + random.nextInt(5);
-                boolean batch = random.nextBoolean();
-                logger.info("testPrimaryRelocationWhileIndexingRandom(numRelocations={}, numWriters={}, batch={} -- seed={}",
-                        numRelocations, numWriters, batch, seed);
-                testPrimaryRelocationWhileIndexing(numRelocations, numWriters, batch);
-            } finally {
-                closeAllNodes();
-            }
-        }
+        int numRelocations = atLeast(rarely() ? 3 : 1);
+        int numWriters = atLeast(rarely() ? 3 : 1);
+        boolean batch = getRandom().nextBoolean();
+        logger.info("testPrimaryRelocationWhileIndexingRandom(numRelocations={}, numWriters={}, batch={}",
+                numRelocations, numWriters, batch);
+        testPrimaryRelocationWhileIndexing(numRelocations, numWriters, batch);
     }
+    
+    
 
     private void testPrimaryRelocationWhileIndexing(final int numberOfRelocations, final int numberOfWriters, final boolean batch) throws Exception {
         logger.info("--> starting [node1] ...");
@@ -266,20 +257,11 @@ public class RelocationTests extends AbstractNodesTests {
 
     @Test
     public void testReplicaRelocationWhileIndexingRandom() throws Exception {
-        long seed = System.currentTimeMillis();
-        Random random = new Random();
-        final int iter = NIGHLY ? 5 : 1;
-        for (int i = 0; i < iter; i++) {
-            try {
-                int numRelocations = 1 + random.nextInt(10);
-                int numWriters = 1 + random.nextInt(5);
-                boolean batch = random.nextBoolean();
-                logger.info("testReplicaRelocationWhileIndexing(numRelocations={}, numWriters={}, batch={} -- seed={}", numRelocations, numWriters, batch, seed);
-                testReplicaRelocationWhileIndexing(numRelocations, numWriters, batch);
-            } finally {
-                closeAllNodes();
-            }
-        }
+        int numRelocations = atLeast(rarely() ? 3 : 1);
+        int numWriters = atLeast(rarely() ? 3 : 1);
+        boolean batch = getRandom().nextBoolean();
+        logger.info("testReplicaRelocationWhileIndexing(numRelocations={}, numWriters={}, batch={}", numRelocations, numWriters, batch);
+        testReplicaRelocationWhileIndexing(numRelocations, numWriters, batch);
     }
 
     private void testReplicaRelocationWhileIndexing(final int numberOfRelocations, final int numberOfWriters, final boolean batch) throws Exception {

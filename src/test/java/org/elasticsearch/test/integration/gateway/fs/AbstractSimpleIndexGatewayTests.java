@@ -34,9 +34,9 @@ import org.elasticsearch.env.Environment;
 import org.elasticsearch.gateway.Gateway;
 import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.test.integration.AbstractNodesTests;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import static org.elasticsearch.client.Requests.*;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
@@ -48,7 +48,7 @@ import static org.hamcrest.Matchers.*;
  */
 public abstract class AbstractSimpleIndexGatewayTests extends AbstractNodesTests {
 
-    @AfterMethod
+    @After
     public void closeNodes() throws Exception {
         node("server1").stop();
         // since we store (by default) the index snapshot under the gateway, resetting it will reset the index data as well
@@ -56,7 +56,7 @@ public abstract class AbstractSimpleIndexGatewayTests extends AbstractNodesTests
         closeAllNodes();
     }
 
-    @BeforeMethod
+    @Before
     public void buildNode1() throws Exception {
         buildNode("server1");
         // since we store (by default) the index snapshot under the gateway, resetting it will reset the index data as well
