@@ -70,7 +70,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
                     .execute().actionGet();
         }
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         assertSuggestionsNotInOrder("f", "Foo Fighters", "Firestarter", "Foo Fighters Generator", "Foo Fighters Learn to Fly");
         assertSuggestionsNotInOrder("t", "The Prodigy", "Turbonegro", "Turbonegro Get it on", "The Prodigy Firestarter");
@@ -103,7 +103,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
             ).get();
         }
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         assertSuggestions("the", "the", "The the", "The Verve", "The Prodigy");
     }
@@ -119,7 +119,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
                 .endObject().endObject()
         ).get();
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         assertSuggestions("f", "Boo Fighters");
     }
@@ -136,7 +136,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
                 .endObject().endObject()
         ).get();
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         SuggestResponse suggestResponse = client().prepareSuggest(INDEX).addSuggestion(
                 new CompletionSuggestionBuilder("testSuggestions").field(FIELD).text("foo").size(10)
@@ -188,7 +188,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
                 .endObject().endObject()
         ).get();
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         assertSuggestions("foof", "Foof", "Foo Fighters");
     }
@@ -209,7 +209,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
                 .endObject().endObject()
         ).get();
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         assertSuggestions("foof", "Foof");
     }
@@ -225,7 +225,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
                 .endObject().endObject()
         ).get();
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         assertSuggestions("foo", "The incredible Foo Fighters");
         assertSuggestions("fu", "The incredible Foo Fighters");
@@ -241,7 +241,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
                 .endArray().endObject()
         ).get();
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         assertSuggestions("t", "The Prodigy Firestarter");
         assertSuggestions("f", "Firestarter");
@@ -258,7 +258,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
                 .endObject().endObject()
         ).get();
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         assertSuggestions("b", "The Beatles");
     }
@@ -279,7 +279,7 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
                 .endObject().endObject()
         ).get();
 
-        waitForRefreshAndOptimize();
+        refresh();
 
         // get suggestions for renamed
         assertSuggestions("r", "Foo Fighters");
@@ -405,8 +405,8 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
     }
 
     private void createIndexAndMapping(String indexAnalyzer, String searchAnalyzer, boolean payloads, boolean preserveSeparators, boolean preservePositionIncrements) throws IOException {
-        int randomShardNumber = getRandom().nextInt(5) + 1;
-        int randomReplicaNumber = getRandom().nextInt(2);
+        int randomShardNumber = between(0, 5);
+        int randomReplicaNumber = between(0, 2);
         Settings.Builder settingsBuilder = settingsBuilder().put(SETTING_NUMBER_OF_SHARDS, randomShardNumber).put(SETTING_NUMBER_OF_REPLICAS, randomReplicaNumber);
         createIndexAndMappingAndSettings(settingsBuilder, indexAnalyzer, searchAnalyzer, payloads, preserveSeparators, preservePositionIncrements);
     }
@@ -450,11 +450,5 @@ public class CompletionSuggestSearchTests extends AbstractSharedClusterTest {
             client().admin().indices().prepareFlush(INDEX).execute().actionGet();
             client().admin().indices().prepareOptimize(INDEX).execute().actionGet();
         }
-    }
-
-    private void waitForRefreshAndOptimize() {
-        waitForRelocation(ClusterHealthStatus.GREEN);
-        refresh();
-        optimize();
     }
 }
