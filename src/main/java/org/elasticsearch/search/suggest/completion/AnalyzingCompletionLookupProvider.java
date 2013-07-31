@@ -166,20 +166,8 @@ public class AnalyzingCompletionLookupProvider extends CompletionLookupProvider 
         public void addPosition(int position, BytesRef payload, int startOffset, int endOffset) throws IOException {
             analyzingSuggestLookupProvider.parsePayload(payload, spare);
             builder.addSurface(spare.surfaceForm, spare.payload, spare.weight);
-            /*
-             * This is tricky
-             * maxAnalyzedPathsForOneInput is the max
-             * number of paths that a single input in
-             * the tokenstream produced. this is bounded
-             * by 256 in the suggester - we simply don't
-             * allow more. Now we need to know the max
-             * number of paths we have seen during
-             * analysis so we use (256 - numPath) as the
-             * initial position increment such that we
-             * can just use modulo to get back the max
-             * num of paths. See SuggestTokenStream
-             */
-            maxAnalyzedPathsForOneInput = Math.max(maxAnalyzedPathsForOneInput, 256 - (position % 256));
+            // multi fields have the same surface form so we sum up here
+            maxAnalyzedPathsForOneInput = Math.max(maxAnalyzedPathsForOneInput, position+1);
         }
 
         @Override

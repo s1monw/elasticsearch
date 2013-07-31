@@ -228,12 +228,6 @@ public class CompletionPostingsFormatTest extends ElasticsearchTestCase {
             BytesRef payload = mapper.buildPayload(new BytesRef(surfaces[i]), weights[i], new BytesRef(Long.toString(weights[i])));
             doc.add(mapper.getCompletionField(terms[i], payload));
             if (randomBoolean()) {
-                doc.add(mapper.getCompletionField(terms[i], payload));
-            }
-            if (randomBoolean()) {
-                doc.add(mapper.getCompletionField(terms[i], payload));
-            }
-            if (randomBoolean()) {
                 writer.commit();
             }
             writer.addDocument(doc);

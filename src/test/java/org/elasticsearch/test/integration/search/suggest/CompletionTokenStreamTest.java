@@ -56,7 +56,7 @@ public class CompletionTokenStreamTest extends BaseTokenStreamTestCase {
                 return suggester.toFiniteStrings(suggester.getTokenStreamToAutomaton(), stream);
             }
         }));
-        assertTokenStreamContents(suggestTokenStream, new String[] {"mykeyword"}, null, null, new String[] {"Surface keyword|friggin payload|10"}, new int[] { 256 }, null, null);
+        assertTokenStreamContents(suggestTokenStream, new String[] {"mykeyword"}, null, null, new String[] {"Surface keyword|friggin payload|10"}, new int[] { 1 }, null, null);
     }
 
     @Test
@@ -74,7 +74,7 @@ public class CompletionTokenStreamTest extends BaseTokenStreamTestCase {
                 return suggester.toFiniteStrings(suggester.getTokenStreamToAutomaton(), stream);
             }
         }));
-        assertTokenStreamContents(suggestTokenStream, new String[] {"mysynonym", "mykeyword"}, null, null, new String[] {"Surface keyword|friggin payload|10", "Surface keyword|friggin payload|10"}, new int[] { 255, 1 }, null, null);
+        assertTokenStreamContents(suggestTokenStream, new String[] {"mysynonym", "mykeyword"}, null, null, new String[] {"Surface keyword|friggin payload|10", "Surface keyword|friggin payload|10"}, new int[] { 2, 0 }, null, null);
     }
 
     @Test

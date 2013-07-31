@@ -64,30 +64,16 @@ public final class CompletionTokenStream extends TokenStream {
                 throw new IllegalArgumentException("TokenStream expanded to " + strings.size() + " finite strings. Only <= " + MAX_PATHS
                         + " finite strings are supported");
             }
-            posInc = 1 + MAX_PATHS - strings.size();
+            posInc = strings.size();
             finiteStrings = strings.iterator();
         }
         if (finiteStrings.hasNext()) {
             posAttr.setPositionIncrement(posInc);
             /*
              * this posInc encodes the number of paths that this surface form
-             * produced. 256 is the upper bound in the anayzing suggester so we
-             * simply don't allow more that that.
-             * 
-             * The reason why we use 256 - size is that we need to know the
-             * actual number of paths so we make sure we increment by the number
-             * of paths in order to do a simple operation to get the max value
-             * 
-             * maxPathSoFar = Math.max(maxPathSoFar, 256 - (position % 256))
-             * 
-             * We can't just use the position and do a max on the actual
-             * position since when a document has more than one value for a
-             * field we somehow need to start at position zero again in order to
-             * use Math.max(int, int). Yet, with modulo we can simply align the
-             * positions per field value to 256 since we don't allow more than
-             * that anyway.
+             * produced. Multi Fields have the same surface form and therefore sum up
              */
-            posInc = 1; // add up to 256
+            posInc = 0;
             Util.toBytesRef(finiteStrings.next(), scratch); // now we have UTF-8
             bytesAtt.setBytesRef(scratch);
             if (payload != null) {
