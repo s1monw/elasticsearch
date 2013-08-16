@@ -31,10 +31,9 @@ import java.util.regex.Pattern;
  */
 public class Queries {
 
-    // We don't use MatchAllDocsQuery, its slower than the one below ... (much slower)
-    public final static Query MATCH_ALL_QUERY = new XConstantScoreQuery(new MatchAllDocsFilter());
     public final static Query NO_MATCH_QUERY = MatchNoDocsQuery.INSTANCE;
-
+    private static final Filter MATCH_ALL_DOCS_FILTER = new MatchAllDocsFilter();
+    // We don't use MatchAllDocsQuery, its slower than the one below ... (much slower)
     /**
      * A match all docs filter. Note, requires no caching!.
      */
@@ -60,6 +59,12 @@ public class Queries {
         } catch (IllegalAccessException e) {
             return null;
         }
+    }
+    
+    
+    public static Query newMatchAllQuery() {
+        // We don't use MatchAllDocsQuery, its slower than the one below ... (much slower)
+        return new XConstantScoreQuery(MATCH_ALL_DOCS_FILTER);
     }
 
     /**
@@ -103,16 +108,13 @@ public class Queries {
     public static Query fixNegativeQueryIfNeeded(Query q) {
         if (isNegativeQuery(q)) {
             BooleanQuery newBq = (BooleanQuery) q.clone();
-            newBq.add(MATCH_ALL_QUERY, BooleanClause.Occur.MUST);
+            newBq.add(newMatchAllQuery(), BooleanClause.Occur.MUST);
             return newBq;
         }
         return q;
     }
 
     public static boolean isConstantMatchAllQuery(Query query) {
-        if (query == Queries.MATCH_ALL_QUERY) {
-            return true;
-        }
         if (query instanceof XConstantScoreQuery) {
             XConstantScoreQuery scoreQuery = (XConstantScoreQuery) query;
             if (scoreQuery.getFilter() instanceof MatchAllDocsFilter) {
