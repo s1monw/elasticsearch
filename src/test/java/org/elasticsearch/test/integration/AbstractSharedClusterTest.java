@@ -20,6 +20,7 @@ package org.elasticsearch.test.integration;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.Iterators;
+import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest;
@@ -55,12 +56,15 @@ import org.junit.*;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoFailures;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
+
 
 /**
  * This abstract base testcase reuses a cluster instance internally and might
@@ -405,19 +409,45 @@ public abstract class AbstractSharedClusterTest extends ElasticsearchTestCase {
 
     // TODO move this into a base class for integration tests
     public void indexRandom(String index, boolean forceRefresh, IndexRequestBuilder... builders) throws InterruptedException, ExecutionException {
+        assertThat(builders, not(emptyArray()));
         Random random = getRandom();
         List<IndexRequestBuilder> list = Arrays.asList(builders);
         Collections.shuffle(list, random);
+        final boolean async = random.nextBoolean();
+        int numAsyn = async ? 0 : between(1, list.size());
+        final CountDownLatch latch = new CountDownLatch(numAsyn);
+        final List<Throwable> failures = new CopyOnWriteArrayList<Throwable>();
         for (IndexRequestBuilder indexRequestBuilder : list) {
-            indexRequestBuilder.execute().actionGet();
+            if (numAsyn > 0) {
+                numAsyn--;
+                indexRequestBuilder.execute(new ActionListener<IndexResponse>() {
+                    @Override
+                    public void onResponse(IndexResponse response) {
+                        latch.countDown();
+                    }
+                    @Override
+                    public void onFailure(Throwable e) {
+                        failures.add(e);
+                        latch.countDown();
+                    }
+                });
+
+            } else {
+                indexRequestBuilder.execute().actionGet();
+            }
             if (frequently()) {
                 if (rarely()) {
                     client().admin().indices().prepareFlush(index).execute().get();
                 } else if (rarely()) {
-                    client().admin().indices().prepareOptimize(index).setMaxNumSegments(between(1, 10)).setFlush(random.nextBoolean()).execute().get();
+                    client().admin().indices().prepareOptimize(index).setMaxNumSegments(between(1, 10)).setFlush(random.nextBoolean()).setRefresh(random.nextBoolean()).execute().get();
                 }
                 client().admin().indices().prepareRefresh(index).execute().get();
             }
+        }
+        assertThat(numAsyn, equalTo(0));
+        if (async) {
+            latch.await();
+            assertThat("expected 0 failures but got [" + failures.size() + "]", failures, emptyIterable());
         }
         if (forceRefresh) {
             client().admin().indices().prepareRefresh(index).execute().get();

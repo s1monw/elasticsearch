@@ -26,8 +26,10 @@ import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.CloseableThreadLocal;
 import org.elasticsearch.ElasticSearchIllegalStateException;
 import org.elasticsearch.common.Strings;
+import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.joda.FormatDateTimeFormatter;
 import org.elasticsearch.common.lucene.search.TermFilter;
 import org.elasticsearch.common.xcontent.ToXContent;
@@ -290,6 +292,8 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
     private final ContentPath.Type pathType;
 
     private Boolean includeInAll;
+    
+    private final SafePublishableMap contextAwareMapperMap = new SafePublishableMap();
 
     private volatile ImmutableMap<String, Mapper> mappers = ImmutableMap.of();
 
@@ -350,15 +354,34 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
         return this.nestedTypeFilter;
     }
 
-    public ObjectMapper putMapper(Mapper mapper) {
-        if (mapper instanceof AllFieldMapper.IncludeInAll) {
-            ((AllFieldMapper.IncludeInAll) mapper).includeInAllIfNotSet(includeInAll);
+    private ObjectMapper putMapper(Collection<Mapper> mappers) {
+        for (Mapper m : mappers) {
+            if (m instanceof AllFieldMapper.IncludeInAll) {
+                ((AllFieldMapper.IncludeInAll) m).includeInAllIfNotSet(includeInAll);
+            }    
         }
         synchronized (mutex) {
-            mappers = newMapBuilder(mappers).put(mapper.name(), mapper).immutableMap();
+            MapBuilder<String, Mapper> builder = newMapBuilder(this.mappers);
+            for (Mapper m : mappers) {
+               builder.put(m.name(), m);
+            }
+            this.mappers = builder.immutableMap();
         }
         return this;
     }
+    
+    public ObjectMapper putMapper(Mapper m) {
+        if (m instanceof AllFieldMapper.IncludeInAll) {
+            ((AllFieldMapper.IncludeInAll) m).includeInAllIfNotSet(includeInAll);
+        }    
+        synchronized (mutex) {
+            MapBuilder<String, Mapper> builder = newMapBuilder(this.mappers);
+            builder.put(m.name(), m);
+            this.mappers = builder.immutableMap();
+        }
+        return this;
+    }
+
 
     @Override
     public void traverse(FieldMapperListener fieldMapperListener) {
@@ -493,7 +516,7 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
 
     private void serializeNullValue(ParseContext context, String lastFieldName) throws IOException {
         // we can only handle null values if we have mappings for them
-        Mapper mapper = mappers.get(lastFieldName);
+        Mapper mapper = contextAwareMapperMap.get(lastFieldName);
         if (mapper != null) {
             mapper.parse(context);
         }
@@ -505,7 +528,7 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
         }
         context.path().add(currentFieldName);
 
-        Mapper objectMapper = mappers.get(currentFieldName);
+        Mapper objectMapper = contextAwareMapperMap.get(currentFieldName);
         if (objectMapper != null) {
             objectMapper.parse(context);
         } else {
@@ -516,34 +539,26 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
             if (dynamic == Dynamic.STRICT) {
                 throw new StrictDynamicMappingException(fullPath, currentFieldName);
             } else if (dynamic == Dynamic.TRUE) {
-                // we sync here just so we won't add it twice. Its not the end of the world
-                // to sync here since next operations will get it before
-                boolean newMapper = false;
-                synchronized (mutex) {
-                    objectMapper = mappers.get(currentFieldName);
-                    if (objectMapper == null) {
-                        newMapper = true;
-                        // remove the current field name from path, since template search and the object builder add it as well...
-                        context.path().remove();
-                        Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "object");
-                        if (builder == null) {
-                            builder = MapperBuilders.object(currentFieldName).enabled(true).pathType(pathType);
-                            // if this is a non root object, then explicitly set the dynamic behavior if set
-                            if (!(this instanceof RootObjectMapper) && this.dynamic != Defaults.DYNAMIC) {
-                                ((Builder) builder).dynamic(this.dynamic);
-                            }
+                
+                objectMapper = contextAwareMapperMap.get(currentFieldName);
+                if (objectMapper == null) {
+                    // remove the current field name from path, since template search and the object builder add it as well...
+                    context.path().remove();
+                    Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "object");
+                    if (builder == null) {
+                        builder = MapperBuilders.object(currentFieldName).enabled(true).pathType(pathType);
+                        // if this is a non root object, then explicitly set the dynamic behavior if set
+                        if (!(this instanceof RootObjectMapper) && this.dynamic != Defaults.DYNAMIC) {
+                            ((Builder) builder).dynamic(this.dynamic);
                         }
-                        BuilderContext builderContext = new BuilderContext(context.indexSettings(), context.path());
-                        objectMapper = builder.build(builderContext);
-                        putMapper(objectMapper);
-                        // ...now re add it
-                        context.path().add(currentFieldName);
-                        context.setMappingsModified();
                     }
-                }
-                // traverse and parse outside of the mutex
-                if (newMapper) {
-                    // we need to traverse in case we have a dynamic template and need to add field mappers
+                    BuilderContext builderContext = new BuilderContext(context.indexSettings(), context.path());
+                    objectMapper = builder.build(builderContext);
+                    contextAwareMapperMap.put(objectMapper);
+                    // ...now re add it
+                    context.path().add(currentFieldName);
+                    context.setMappingsModified();
+                 //     we need to traverse in case we have a dynamic template and need to add field mappers
                     // introduced by it
                     objectMapper.traverse(context.newFieldMappers());
                     objectMapper.traverse(context.newObjectMappers());
@@ -561,7 +576,7 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
 
     private void serializeArray(ParseContext context, String lastFieldName) throws IOException {
         String arrayFieldName = lastFieldName;
-        Mapper mapper = mappers.get(lastFieldName);
+        Mapper mapper = contextAwareMapperMap.get(lastFieldName);
         if (mapper != null && mapper instanceof ArrayValueMapperParser) {
             mapper.parse(context);
         } else {
@@ -589,7 +604,7 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
         if (currentFieldName == null) {
             throw new MapperParsingException("object mapping [" + name + "] trying to serialize a value with no field associated with it, current value [" + context.parser().textOrNull() + "]");
         }
-        Mapper mapper = mappers.get(currentFieldName);
+        Mapper mapper = contextAwareMapperMap.get(currentFieldName);
         if (mapper != null) {
             mapper.parse(context);
             return;
@@ -608,79 +623,78 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
         // its not the end of the world, since we add it to the mappers once we create it
         // so next time we won't even get here for this field
         boolean newMapper = false;
-        synchronized (mutex) {
-            mapper = mappers.get(currentFieldName);
-            if (mapper == null) {
-                newMapper = true;
-                BuilderContext builderContext = new BuilderContext(context.indexSettings(), context.path());
-                if (token == XContentParser.Token.VALUE_STRING) {
-                    boolean resolved = false;
+        mapper = contextAwareMapperMap.get(currentFieldName);
+        if (mapper == null) {
+            newMapper = true;
+            BuilderContext builderContext = new BuilderContext(context.indexSettings(), context.path());
+            if (token == XContentParser.Token.VALUE_STRING) {
+                boolean resolved = false;
 
-                    // do a quick test to see if its fits a dynamic template, if so, use it.
-                    // we need to do it here so we can handle things like attachment templates, where calling
-                    // text (to see if its a date) causes the binary value to be cleared
-                    if (!resolved) {
-                        Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "string", null);
-                        if (builder != null) {
-                            mapper = builder.build(builderContext);
-                            resolved = true;
-                        }
+                // do a quick test to see if its fits a dynamic template, if so, use it.
+                // we need to do it here so we can handle things like attachment templates, where calling
+                // text (to see if its a date) causes the binary value to be cleared
+                if (!resolved) {
+                    Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "string", null);
+                    if (builder != null) {
+                        mapper = builder.build(builderContext);
+                        resolved = true;
                     }
+                }
 
-                    if (!resolved && context.parser().textLength() == 0) {
-                        // empty string with no mapping, treat it like null value
-                        return;
-                    }
+                if (!resolved && context.parser().textLength() == 0) {
+                    // empty string with no mapping, treat it like null value
+                    return;
+                }
 
-                    if (!resolved && context.root().dateDetection()) {
-                        String text = context.parser().text();
-                        // a safe check since "1" gets parsed as well
-                        if (Strings.countOccurrencesOf(text, ":") > 1 || Strings.countOccurrencesOf(text, "-") > 1 || Strings.countOccurrencesOf(text, "/") > 1) {
-                            for (FormatDateTimeFormatter dateTimeFormatter : context.root().dynamicDateTimeFormatters()) {
-                                try {
-                                    dateTimeFormatter.parser().parseMillis(text);
-                                    Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "date");
-                                    if (builder == null) {
-                                        builder = dateField(currentFieldName).dateTimeFormatter(dateTimeFormatter);
-                                    }
-                                    mapper = builder.build(builderContext);
-                                    resolved = true;
-                                    break;
-                                } catch (Exception e) {
-                                    // failure to parse this, continue
-                                }
-                            }
-                        }
-                    }
-                    if (!resolved && context.root().numericDetection()) {
-                        String text = context.parser().text();
-                        try {
-                            Long.parseLong(text);
-                            Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "long");
-                            if (builder == null) {
-                                builder = longField(currentFieldName);
-                            }
-                            mapper = builder.build(builderContext);
-                            resolved = true;
-                        } catch (Exception e) {
-                            // not a long number
-                        }
-                        if (!resolved) {
+                if (!resolved && context.root().dateDetection()) {
+                    String text = context.parser().text();
+                    // a safe check since "1" gets parsed as well
+                    if (Strings.countOccurrencesOf(text, ":") > 1 || Strings.countOccurrencesOf(text, "-") > 1 || Strings.countOccurrencesOf(text, "/") > 1) {
+                        for (FormatDateTimeFormatter dateTimeFormatter : context.root().dynamicDateTimeFormatters()) {
                             try {
-                                Double.parseDouble(text);
-                                Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "double");
+                                dateTimeFormatter.parser().parseMillis(text);
+                                Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "date");
                                 if (builder == null) {
-                                    builder = doubleField(currentFieldName);
+                                    builder = dateField(currentFieldName).dateTimeFormatter(dateTimeFormatter);
                                 }
                                 mapper = builder.build(builderContext);
                                 resolved = true;
-                            } catch (Exception e) {
-                                // not a long number
+                                break;
+                            } catch (Throwable e) {
+                                // failure to parse this, continue
                             }
                         }
                     }
-                    // DON'T do automatic ip detection logic, since it messes up with docs that have hosts and ips
-                    // check if its an ip
+                }
+                if (!resolved && context.root().numericDetection()) {
+                    String text = context.parser().text();
+                    try {
+                        Long.parseLong(text);
+                        Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "long");
+                        if (builder == null) {
+                            builder = longField(currentFieldName);
+                        }
+                        mapper = builder.build(builderContext);
+                        resolved = true;
+                    } catch (Throwable e) {
+                        // not a long number
+                    }
+                    if (!resolved) {
+                        try {
+                            Double.parseDouble(text);
+                            Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "double");
+                            if (builder == null) {
+                                builder = doubleField(currentFieldName);
+                            }
+                            mapper = builder.build(builderContext);
+                            resolved = true;
+                        } catch (Throwable e) {
+                            // not a long number
+                        }
+                    }
+                }
+                // DON'T do automatic ip detection logic, since it messes up with docs that have hosts and ips
+                // check if its an ip
 //                if (!resolved && text.indexOf('.') != -1) {
 //                    try {
 //                        IpFieldMapper.ipToLong(text);
@@ -694,80 +708,79 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
 //                        // failure to parse, not ip...
 //                    }
 //                }
-                    if (!resolved) {
-                        Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "string");
-                        if (builder == null) {
-                            builder = stringField(currentFieldName);
-                        }
-                        mapper = builder.build(builderContext);
+                if (!resolved) {
+                    Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "string");
+                    if (builder == null) {
+                        builder = stringField(currentFieldName);
                     }
-                } else if (token == XContentParser.Token.VALUE_NUMBER) {
-                    XContentParser.NumberType numberType = context.parser().numberType();
-                    if (numberType == XContentParser.NumberType.INT) {
-                        if (context.parser().estimatedNumberType()) {
-                            Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "long");
-                            if (builder == null) {
-                                builder = longField(currentFieldName);
-                            }
-                            mapper = builder.build(builderContext);
-                        } else {
-                            Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "integer");
-                            if (builder == null) {
-                                builder = integerField(currentFieldName);
-                            }
-                            mapper = builder.build(builderContext);
-                        }
-                    } else if (numberType == XContentParser.NumberType.LONG) {
+                    mapper = builder.build(builderContext);
+                }
+            } else if (token == XContentParser.Token.VALUE_NUMBER) {
+                XContentParser.NumberType numberType = context.parser().numberType();
+                if (numberType == XContentParser.NumberType.INT) {
+                    if (context.parser().estimatedNumberType()) {
                         Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "long");
                         if (builder == null) {
                             builder = longField(currentFieldName);
                         }
                         mapper = builder.build(builderContext);
-                    } else if (numberType == XContentParser.NumberType.FLOAT) {
-                        if (context.parser().estimatedNumberType()) {
-                            Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "double");
-                            if (builder == null) {
-                                builder = doubleField(currentFieldName);
-                            }
-                            mapper = builder.build(builderContext);
-                        } else {
-                            Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "float");
-                            if (builder == null) {
-                                builder = floatField(currentFieldName);
-                            }
-                            mapper = builder.build(builderContext);
+                    } else {
+                        Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "integer");
+                        if (builder == null) {
+                            builder = integerField(currentFieldName);
                         }
-                    } else if (numberType == XContentParser.NumberType.DOUBLE) {
+                        mapper = builder.build(builderContext);
+                    }
+                } else if (numberType == XContentParser.NumberType.LONG) {
+                    Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "long");
+                    if (builder == null) {
+                        builder = longField(currentFieldName);
+                    }
+                    mapper = builder.build(builderContext);
+                } else if (numberType == XContentParser.NumberType.FLOAT) {
+                    if (context.parser().estimatedNumberType()) {
                         Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "double");
                         if (builder == null) {
                             builder = doubleField(currentFieldName);
                         }
                         mapper = builder.build(builderContext);
+                    } else {
+                        Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "float");
+                        if (builder == null) {
+                            builder = floatField(currentFieldName);
+                        }
+                        mapper = builder.build(builderContext);
                     }
-                } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
-                    Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "boolean");
+                } else if (numberType == XContentParser.NumberType.DOUBLE) {
+                    Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "double");
                     if (builder == null) {
-                        builder = booleanField(currentFieldName);
+                        builder = doubleField(currentFieldName);
                     }
                     mapper = builder.build(builderContext);
-                } else if (token == XContentParser.Token.VALUE_EMBEDDED_OBJECT) {
-                    Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "binary");
-                    if (builder == null) {
-                        builder = binaryField(currentFieldName);
-                    }
+                }
+            } else if (token == XContentParser.Token.VALUE_BOOLEAN) {
+                Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "boolean");
+                if (builder == null) {
+                    builder = booleanField(currentFieldName);
+                }
+                mapper = builder.build(builderContext);
+            } else if (token == XContentParser.Token.VALUE_EMBEDDED_OBJECT) {
+                Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, "binary");
+                if (builder == null) {
+                    builder = binaryField(currentFieldName);
+                }
+                mapper = builder.build(builderContext);
+            } else {
+                Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, null);
+                if (builder != null) {
                     mapper = builder.build(builderContext);
                 } else {
-                    Mapper.Builder builder = context.root().findTemplateBuilder(context, currentFieldName, null);
-                    if (builder != null) {
-                        mapper = builder.build(builderContext);
-                    } else {
-                        // TODO how do we identify dynamically that its a binary value?
-                        throw new ElasticSearchIllegalStateException("Can't handle serializing a dynamic type with content token [" + token + "] and field name [" + currentFieldName + "]");
-                    }
+                    // TODO how do we identify dynamically that its a binary value?
+                    throw new ElasticSearchIllegalStateException("Can't handle serializing a dynamic type with content token [" + token + "] and field name [" + currentFieldName + "]");
                 }
-                putMapper(mapper);
-                context.setMappingsModified();
             }
+            contextAwareMapperMap.put(mapper);
+            context.setMappingsModified();
         }
         if (newMapper) {
             mapper.traverse(context.newFieldMappers());
@@ -920,5 +933,55 @@ public class ObjectMapper implements Mapper, AllFieldMapper.IncludeInAll {
 
     protected void doXContent(XContentBuilder builder, Params params) throws IOException {
 
+    }
+    
+    private final class SafePublishableMap {
+        private final CloseableThreadLocal<Map<String, Mapper>> transientMappers = new CloseableThreadLocal<Map<String, Mapper>>() {
+            protected Map<String, Mapper> initialValue() {
+                return new HashMap<String, Mapper>();
+            }
+        };
+
+        public Mapper get(String name) {
+            Mapper mapper = ObjectMapper.this.mappers.get(name);
+            if (mapper == null) {
+                return transientMappers.get().get(name);
+            }
+            return mapper;
+        }
+
+        public void put(Mapper mapper) {
+            assert !transientMappers.get().containsKey(mapper.name());
+            transientMappers.get().put(mapper.name(), mapper);
+        }
+        
+        public void apply(ParseContext context, boolean success) {
+            final Map<String, Mapper> map = transientMappers.get();
+            try {
+                Collection<Mapper> currentValues = ObjectMapper.this.mappers.values();
+                for (Mapper m : currentValues) {
+                    if (m instanceof ObjectMapper) {
+                        ((ObjectMapper)m).finishParse(context, success);
+                    }
+                }
+                if (success && !map.isEmpty()) {
+                    Collection<Mapper> values = map.values();
+                    for (Mapper m : values) {
+                        if (m instanceof ObjectMapper) {
+                            ((ObjectMapper)m).finishParse(context, success);
+                        }
+                    }
+                    ObjectMapper.this.putMapper(values);
+                }
+            } finally  {
+                map.clear();
+            }
+        }
+    }
+    
+    public void finishParse(ParseContext context, boolean success) {
+        if (context.mappingsModified()) {
+            contextAwareMapperMap.apply(context, success);
+        }
     }
 }

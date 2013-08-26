@@ -461,6 +461,7 @@ public class DocumentMapper implements ToXContent {
         source.type(this.type);
 
         XContentParser parser = source.parser();
+        boolean success = false;
         try {
             if (parser == null) {
                 parser = XContentHelper.createParser(source.source());
@@ -529,6 +530,7 @@ public class DocumentMapper implements ToXContent {
             for (RootMapper rootMapper : rootMappersOrdered) {
                 rootMapper.validate(context);
             }
+            success = true;
         } catch (Throwable e) {
             // we have to fire up any new mappers even on a failure, because they
             // have been added internally to each compound mapper...
@@ -554,10 +556,12 @@ public class DocumentMapper implements ToXContent {
 
             throw new MapperParsingException("failed to parse", e);
         } finally {
+            rootObjectMapper.finishParse(context, success);
             // only close the parser when its not provided externally
             if (source.parser() == null && parser != null) {
                 parser.close();
             }
+            
         }
         // reverse the order of docs for nested docs support, parent should be last
         if (context.docs().size() > 1) {
