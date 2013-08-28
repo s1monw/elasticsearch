@@ -20,7 +20,6 @@
 package org.elasticsearch.test.unit.cluster.routing.allocation;
 
 import com.google.common.collect.ImmutableMap;
-import org.apache.lucene.util.LuceneTestCase.AwaitsFix;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.cluster.routing.RoutingTable;
@@ -344,14 +343,19 @@ public class AwarenessAllocationTests extends ElasticsearchTestCase {
         assertThat(clusterState.routingNodes().shardsWithState(ShardRoutingState.RELOCATING).get(0).relocatingNodeId(), equalTo("node3"));
 
         logger.info("--> complete initializing");
-        routingTable = strategy.applyStartedShards(clusterState, clusterState.routingNodes().shardsWithState(INITIALIZING)).routingTable();
-        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
-
-        logger.info("--> run it again, since we still might have relocation");
+        int round = 0;
+        while(clusterState.routingNodes().shardsWithState(ShardRoutingState.STARTED).size() != 20 && round < 10) {
+            logger.info("--> complete initializing round: " + (round++));
+            routingTable = strategy.applyStartedShards(clusterState, clusterState.routingNodes().shardsWithState(INITIALIZING)).routingTable();
+            clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        }
         routingTable = strategy.applyStartedShards(clusterState, clusterState.routingNodes().shardsWithState(INITIALIZING)).routingTable();
         clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
 
         assertThat(clusterState.routingNodes().shardsWithState(ShardRoutingState.STARTED).size(), equalTo(20));
+        assertThat(clusterState.getRoutingNodes().node("node3").shards().size(), equalTo(10));
+        assertThat(clusterState.getRoutingNodes().node("node2").shards().size(), equalTo(5));
+        assertThat(clusterState.getRoutingNodes().node("node1").shards().size(), equalTo(5));
 
         logger.info("--> do another reroute, make sure nothing moves");
         assertThat(strategy.reroute(clusterState).routingTable(), sameInstance(clusterState.routingTable()));
@@ -365,15 +369,21 @@ public class AwarenessAllocationTests extends ElasticsearchTestCase {
         assertThat(clusterState.routingNodes().shardsWithState(RELOCATING).size(), greaterThan(0));
 
         logger.info("--> complete relocation");
-        routingTable = strategy.applyStartedShards(clusterState, clusterState.routingNodes().shardsWithState(INITIALIZING)).routingTable();
-        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
-
+        round = 0;
+        while(clusterState.routingNodes().shardsWithState(ShardRoutingState.STARTED).size() != 20 && round < 10) {
+            logger.info("--> complete relocation round: " + (round++));
+            routingTable = strategy.applyStartedShards(clusterState, clusterState.routingNodes().shardsWithState(INITIALIZING)).routingTable();
+            clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        }
         assertThat(clusterState.routingNodes().shardsWithState(ShardRoutingState.STARTED).size(), equalTo(20));
+        assertThat(clusterState.getRoutingNodes().node("node3").shards().size(), equalTo(5));
+        assertThat(clusterState.getRoutingNodes().node("node4").shards().size(), equalTo(5));
+        assertThat(clusterState.getRoutingNodes().node("node2").shards().size(), equalTo(5));
+        assertThat(clusterState.getRoutingNodes().node("node1").shards().size(), equalTo(5));
 
         logger.info("--> do another reroute, make sure nothing moves");
         assertThat(strategy.reroute(clusterState).routingTable(), sameInstance(clusterState.routingTable()));
     }
-
     @Test
     public void moveShardOnceNewNodeWithAttributeAdded5() {
         AllocationService strategy = new AllocationService(settingsBuilder()
@@ -757,8 +767,7 @@ public class AwarenessAllocationTests extends ElasticsearchTestCase {
     }
     
     @Test
-    @AwaitsFix(bugUrl="https://github.com/elasticsearch/elasticsearch/issues/3580")
-    public void testZones() {
+    public void testUnbalancedZones() {
         AllocationService strategy = new AllocationService(settingsBuilder()
                 .put("cluster.routing.allocation.awareness.force.zone.values", "a,b")
                 .put("cluster.routing.allocation.awareness.attributes", "zone")
@@ -768,7 +777,7 @@ public class AwarenessAllocationTests extends ElasticsearchTestCase {
                 .put("cluster.routing.allocation.cluster_concurrent_rebalance", -1)
                 .build());
 
-        logger.info("Building initial routing table for 'testZones'");
+        logger.info("Building initial routing table for 'testUnbalancedZones'");
 
         MetaData metaData = newMetaDataBuilder()
                 .put(newIndexMetaDataBuilder("test").numberOfShards(5).numberOfReplicas(1))
@@ -811,5 +820,13 @@ public class AwarenessAllocationTests extends ElasticsearchTestCase {
         assertThat(clusterState.routingNodes().shardsWithState(ShardRoutingState.STARTED).size(), equalTo(8));
         assertThat(clusterState.routingNodes().shardsWithState(ShardRoutingState.INITIALIZING).size(), equalTo(2));
         assertThat(clusterState.routingNodes().shardsWithState(ShardRoutingState.INITIALIZING).get(0).currentNodeId(), equalTo("A-1"));
+        
+        routingTable = strategy.applyStartedShards(clusterState, clusterState.routingNodes().shardsWithState(INITIALIZING)).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        
+        assertThat(clusterState.routingNodes().shardsWithState(ShardRoutingState.STARTED).size(), equalTo(10));
+        assertThat(clusterState.getRoutingNodes().node("A-1").shards().size(), equalTo(2));
+        assertThat(clusterState.getRoutingNodes().node("A-0").shards().size(), equalTo(3));
+        assertThat(clusterState.getRoutingNodes().node("B-0").shards().size(), equalTo(5));
     }
 }

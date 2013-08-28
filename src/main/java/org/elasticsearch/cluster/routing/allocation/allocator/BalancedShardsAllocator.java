@@ -379,12 +379,27 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
                     while (true) {
                         final ModelNode minNode = modelNodes[lowIdx];
                         final ModelNode maxNode = modelNodes[highIdx];
+                        advance_range: 
                         if (maxNode.numShards(index) > 0) {
                             float delta = weights[highIdx] - weights[lowIdx];
                             delta = delta <= threshold ? delta : sorter.weight(Operation.THRESHOLD_CHECK, maxNode) - sorter.weight(Operation.THRESHOLD_CHECK, minNode);
                             if (delta <= threshold) {
+                                if (lowIdx > 0 && highIdx-1 > 0 // is there a chance for a higher delta? 
+                                    && (weights[highIdx-1] - weights[0] > threshold) // check if we need to break at all
+                                    ) {
+                                    if (logger.isTraceEnabled()) {
+                                        logger.trace("Break on advance range rom  [{}]  min_node [{}] weight: [{}]  max_node [{}] weight: [{}]  delta: [{}]",
+                                                index, maxNode.getNodeId(), weights[highIdx], minNode.getNodeId(), weights[lowIdx], delta);
+                                    }
+                                    /*
+                                     * This is a special case if allocations from the "heaviest" to the "lighter" nodes is not possible 
+                                     * due to some allocation decider restrictions like zone awareness. if one zone has for instance 
+                                     * less nodes than another zone so one zone is horribly overloaded from a balanced perspective but we
+                                     * can't move to the "lighter" shards since otherwise the zone would go over capacity.
+                                     */
+                                    break advance_range;
+                                }
                                 if (logger.isTraceEnabled()) {
-
                                     logger.trace("Stop balancing index [{}]  min_node [{}] weight: [{}]  max_node [{}] weight: [{}]  delta: [{}]",
                                             index, maxNode.getNodeId(), weights[highIdx], minNode.getNodeId(), weights[lowIdx], delta);
                                 }
