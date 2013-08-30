@@ -611,6 +611,11 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
                             return o1.primary() ? -1 : o2.primary() ? 1 : 0;
                         }
                         return o1.getId() - o2.getId();
+//                        int primary = o1.primary() ? -1 : o2.primary() ? 1 : 0;
+//                        if ( primary != 0) {
+//                            return primary;
+//                        }
+//                        return o1.getId() - o2.getId();
 
                     }
                     return indexCmp;
@@ -619,9 +624,9 @@ public class BalancedShardsAllocator extends AbstractComponent implements Shards
             do {
                 Iterator<MutableShardRouting> iterator = unassigned.iterator();
                 while (iterator.hasNext()) {
-                    /* we treat every index equally here once chunk a time such that we fill up
+                    /* we treat every index equally here one chunk a time such that we fill up
                      * nodes with all indices at the same time. Only on shard of a shard a time.
-                	 * Although there might be a primary and a shard of a shard in the set but
+                	 * Although there might be a primary and a replica shard of a shard in the set but
                 	 * primaries will be started first.*/
                     if (currentRound.add(iterator.next())) {
                         iterator.remove();

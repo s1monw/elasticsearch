@@ -19,15 +19,26 @@
 
 package org.elasticsearch.test.unit.cluster.routing.allocation;
 
+import com.google.common.base.Predicate;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.MetaData;
-import org.elasticsearch.cluster.routing.RoutingNodes;
-import org.elasticsearch.cluster.routing.RoutingTable;
+import org.elasticsearch.cluster.routing.*;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
+import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
+import org.elasticsearch.cluster.routing.allocation.allocator.ShardsAllocators;
+import org.elasticsearch.cluster.routing.allocation.decider.AllocationDecider;
+import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
 import org.elasticsearch.cluster.routing.allocation.decider.ClusterRebalanceAllocationDecider;
+import org.elasticsearch.cluster.routing.allocation.decider.Decision;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.node.settings.NodeSettingsService;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.elasticsearch.cluster.ClusterState.newClusterStateBuilder;
 import static org.elasticsearch.cluster.metadata.IndexMetaData.newIndexMetaDataBuilder;
@@ -626,5 +637,92 @@ public class ClusterRebalanceRoutingTests {
         routingNodes = clusterState.routingNodes();
 
         assertThat(routingNodes.node("node3").shards().isEmpty(), equalTo(true));
+    }
+    
+    @Test
+    public void testReplicasGetAllocated() {
+        final AtomicBoolean allowAlloctionOfSecondIndex = new AtomicBoolean(false);        
+        final AtomicBoolean allowAllPrimariesOfSecondIndex = new AtomicBoolean(false);
+
+        Settings settings = settingsBuilder()
+        .put("cluster.routing.allocation.allow_rebalance", "always")
+        .put("cluster.routing.allocation.node_concurrent_recoveries", 4).build();
+        AllocationDeciders defaultDeciders = new AllocationDeciders(settings, new NodeSettingsService(settings));
+        AllocationDeciders wrappedDeciders = new AllocationDeciders(settings, new HashSet<AllocationDecider>(Arrays.asList(defaultDeciders, new AllocationDecider(settings) {
+
+            @Override
+            public Decision canAllocate(ShardRouting shardRouting, RoutingNode node, RoutingAllocation allocation) {
+                if (shardRouting.primary() && shardRouting.getIndex().equals("second") && shardRouting.shardId().getId() == 0 && allowAlloctionOfSecondIndex.get()) {
+                    return  allowAllPrimariesOfSecondIndex.get() ? Decision.YES : Decision.NO;
+                }
+                return shardRouting.getIndex().equals("first") || allowAlloctionOfSecondIndex.get() ? Decision.YES : Decision.NO;
+            }
+            
+        })));
+        AllocationService strategy = new AllocationService(settings,
+                wrappedDeciders,  new ShardsAllocators(settings));
+
+        MetaData metaData = newMetaDataBuilder()
+                .put(newIndexMetaDataBuilder("first").numberOfShards(8).numberOfReplicas(2))
+                .put(newIndexMetaDataBuilder("second").numberOfShards(8).numberOfReplicas(2))
+                .build();
+
+        RoutingTable routingTable = routingTable()
+                .addAsNew(metaData.index("first"))
+                .addAsNew(metaData.index("second"))
+                .build();
+
+        ClusterState clusterState = newClusterStateBuilder().metaData(metaData).routingTable(routingTable).build();
+        logger.info("--> adding two nodes");
+        clusterState = newClusterStateBuilder().state(clusterState).nodes(newNodesBuilder()
+                .put(newNode("A"))
+                .put(newNode("B"))
+        ).build();
+        routingTable = strategy.reroute(clusterState).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        assertThat(clusterState.routingNodes().shardsWithState(STARTED).size(), equalTo(0));
+        assertThat(clusterState.routingNodes().shardsWithState(INITIALIZING).size(), equalTo(8));
+        
+        Predicate<MutableShardRouting> startedPrimaries = new Predicate<MutableShardRouting>() {
+            public boolean apply(MutableShardRouting r){
+                return r.primary() && r.started();
+            }
+        };
+        Predicate<MutableShardRouting> initializingPrimaries = new Predicate<MutableShardRouting>() {
+            public boolean apply(MutableShardRouting r){
+                return r.primary() && r.initializing();
+            }
+        };
+        
+
+        logger.info("--> start the shards (primaries)");
+        routingTable = strategy.applyStartedShards(clusterState, clusterState.routingNodes().shardsWithState(INITIALIZING)).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        assertThat(clusterState.routingNodes().shardsWithState(STARTED).size(), equalTo(8));
+        assertThat(clusterState.routingNodes().shards(startedPrimaries).size(), equalTo(8));
+        assertThat(clusterState.routingNodes().shardsWithState(INITIALIZING).size(), equalTo(8));
+        allowAlloctionOfSecondIndex.set(true);
+        routingTable = strategy.reroute(clusterState).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+
+        assertThat(clusterState.routingNodes().shardsWithState(STARTED).size(), equalTo(8));
+        assertThat(clusterState.routingNodes().shards(startedPrimaries).size(), equalTo(8));
+
+        assertThat(clusterState.routingNodes().shardsWithState(INITIALIZING).size(), equalTo(15));
+        assertThat(clusterState.routingNodes().shards(initializingPrimaries).size(), equalTo(7));
+        routingTable = strategy.applyStartedShards(clusterState, clusterState.routingNodes().shards(initializingPrimaries)).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        assertThat(clusterState.routingNodes().shardsWithState(STARTED).size(), equalTo(15));
+        assertThat(clusterState.routingNodes().shards(startedPrimaries).size(), equalTo(15));
+        assertThat(clusterState.routingNodes().shardsWithState(INITIALIZING).size(), equalTo(8));
+        allowAllPrimariesOfSecondIndex.set(true);
+        
+        routingTable = strategy.reroute(clusterState).routingTable();
+        clusterState = newClusterStateBuilder().state(clusterState).routingTable(routingTable).build();
+        assertThat(clusterState.routingNodes().shardsWithState(STARTED).size(), equalTo(15));
+        assertThat(clusterState.routingNodes().shards(startedPrimaries).size(), equalTo(15));
+        assertThat(clusterState.routingNodes().shards(initializingPrimaries).size(), equalTo(1));
+        assertThat(clusterState.routingNodes().shardsWithState(INITIALIZING).size(), equalTo(9));
+
     }
 }
