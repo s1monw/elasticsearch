@@ -22,12 +22,14 @@ package org.elasticsearch.common;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import gnu.trove.set.hash.THashSet;
-
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.UnicodeUtil;
+import org.elasticsearch.ElasticSearchIllegalStateException;
 import org.elasticsearch.common.io.FastStringReader;
 
 import java.io.BufferedReader;
+import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.*;
 
 /**
@@ -48,24 +50,32 @@ public class Strings {
     private static final char EXTENSION_SEPARATOR = '.';
 
     public static void tabify(int tabs, String from, StringBuilder to) throws Exception {
-        BufferedReader reader = new BufferedReader(new FastStringReader(from));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            for (int i = 0; i < tabs; i++) {
-                to.append('\t');
+        final BufferedReader reader = new BufferedReader(new FastStringReader(from));
+        try {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                for (int i = 0; i < tabs; i++) {
+                    to.append('\t');
+                }
+                to.append(line).append('\n');
             }
-            to.append(line).append('\n');
+        } finally {
+            reader.close();
         }
     }
 
     public static void spaceify(int spaces, String from, StringBuilder to) throws Exception {
-        BufferedReader reader = new BufferedReader(new FastStringReader(from));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            for (int i = 0; i < spaces; i++) {
-                to.append(' ');
+        final BufferedReader reader = new BufferedReader(new FastStringReader(from));
+        try {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                for (int i = 0; i < spaces; i++) {
+                    to.append(' ');
+                }
+                to.append(line).append('\n');
             }
-            to.append(line).append('\n');
+        } finally {
+            reader.close();
         }
     }
 
@@ -1479,17 +1489,6 @@ public class Strings {
         return (array == null || array.length == 0);
     }
 
-    /**
-     * Return <code>true</code> if the supplied Collection is <code>null</code>
-     * or empty. Otherwise, return <code>false</code>.
-     *
-     * @param collection the Collection to check
-     * @return whether the given Collection is empty
-     */
-    private static boolean isEmpty(Collection collection) {
-        return (collection == null || collection.isEmpty());
-    }
-
     private Strings() {
 
     }
@@ -1503,5 +1502,32 @@ public class Strings {
         final byte[] bytes = new byte[spare.length];
         System.arraycopy(spare.bytes, spare.offset, bytes, 0, bytes.length);
         return bytes;
+    }
+    
+    private static class SecureRandomHolder {
+        private static final SecureRandom INSTANCE = new SecureRandom();
+    }
+    
+    public static String randomBase64UUID() {
+        return randomBase64UUID(SecureRandomHolder.INSTANCE);
+    }
+    
+    public static String randomBase64UUID(Random random) {
+        final byte[] randomBytes = new byte[16];
+        random.nextBytes(randomBytes);
+        return base64(randomBytes);
+    }
+
+    public static String base64(byte[] bytes) {
+        try {
+            byte[] encoded = Base64.encodeBytesToBytes(bytes, 0, bytes.length, Base64.URL_SAFE);
+            // we know the bytes are 16, and not a multi of 3, so remove the 2 padding chars that are added
+            assert encoded[encoded.length - 1] == '=';
+            assert encoded[encoded.length - 2] == '=';
+            // we always have padding of two at the end, encode it differently
+            return new String(encoded, 0, encoded.length - 2, Base64.PREFERRED_ENCODING);
+        } catch (IOException e) {
+            throw new ElasticSearchIllegalStateException("should not be thrown");
+        }
     }
 }
