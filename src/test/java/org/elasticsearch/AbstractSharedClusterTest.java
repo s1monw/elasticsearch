@@ -19,8 +19,11 @@
 package org.elasticsearch;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap.Builder;
 import com.google.common.collect.Iterators;
 import org.apache.lucene.util.AbstractRandomizedTest.IntegrationTests;
+import org.apache.lucene.util.IOUtils;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ActionResponse;
@@ -58,11 +61,14 @@ import org.elasticsearch.indices.IndexMissingException;
 import org.elasticsearch.indices.IndexTemplateMissingException;
 import org.elasticsearch.rest.RestStatus;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Ignore;
 
 import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -96,15 +102,44 @@ import static org.hamcrest.Matchers.equalTo;
 @IntegrationTests
 public abstract class AbstractSharedClusterTest extends ElasticsearchTestCase {
 
-    private static final TestCluster cluster = new TestCluster(SHARED_CLUSTER_SEED, TestCluster.clusterName("shared", ElasticsearchTestCase.CHILD_VM_ID, SHARED_CLUSTER_SEED));
-
+    private static final TestCluster globalCluster = new TestCluster(SHARED_CLUSTER_SEED, TestCluster.clusterName("shared", ElasticsearchTestCase.CHILD_VM_ID, SHARED_CLUSTER_SEED));
+    private static TestCluster currentCluster;
+    private static final Map<Class<?>, TestCluster> clusters = new IdentityHashMap<Class<?>, TestCluster>();
+    
     @Before
-    public final void before() {
-        cluster.beforeTest(getRandom());
+    public final void before() throws IOException {
+        ClusterScope currentClusterScope = getCurrentClusterScope();
+        if (currentClusterScope == ClusterScope.Suite) {
+            TestCluster testCluster = clusters.get(this.getClass());
+            if (testCluster == null) {
+                currentCluster = buildTestCluster(currentClusterScope);
+                clearClusters();
+                clusters.put(this.getClass(), currentCluster);
+            } else {
+                currentCluster = testCluster;
+            }
+        } else if (currentClusterScope == ClusterScope.Test) {
+            currentCluster = buildTestCluster(currentClusterScope);
+            clearClusters();
+            clusters.put(this.getClass(), currentCluster);
+        } else {
+            clearClusters();
+            currentCluster = globalCluster;
+        }
+        currentCluster.beforeTest(getRandom());
         wipeIndices();
         wipeTemplates();
         logger.info("[{}#{}]: before test", getTestClass().getSimpleName(), getTestName());
     }
+    
+    private void clearClusters() throws IOException {
+        if (!clusters.isEmpty()) {
+            IOUtils.close(clusters.values());
+            clusters.clear();
+        }
+    }
+    
+    
 
     @After
     public void after() throws IOException {
@@ -118,18 +153,22 @@ public abstract class AbstractSharedClusterTest extends ElasticsearchTestCase {
         wipeTemplates();
         ensureAllFilesClosed();
         logger.info("[{}#{}]: cleaned up after test", getTestClass().getSimpleName(), getTestName());
+        ClusterScope currentClusterScope = getCurrentClusterScope();
+        if (currentClusterScope == ClusterScope.Test) {
+            if (!clusters.isEmpty()) {
+                IOUtils.close(clusters.values());
+                clusters.clear();
+            }
+        }
+        currentCluster = null;
     }
 
     public static TestCluster cluster() {
-        return cluster;
+        return currentCluster;
     }
-
+    
     public ClusterService clusterService() {
         return cluster().clusterService();
-    }
-
-    @AfterClass
-    public static void afterClass() {
     }
 
     public static Client client() {
@@ -151,10 +190,12 @@ public abstract class AbstractSharedClusterTest extends ElasticsearchTestCase {
     }
 
     public static void wipeIndices(String... names) {
-        try {
-            assertAcked(client().admin().indices().prepareDelete(names));
-        } catch (IndexMissingException e) {
-            // ignore
+        if (cluster().numNodes() > 0) {
+            try {
+                assertAcked(client().admin().indices().prepareDelete(names));
+            } catch (IndexMissingException e) {
+                // ignore
+            }
         }
     }
 
@@ -166,15 +207,17 @@ public abstract class AbstractSharedClusterTest extends ElasticsearchTestCase {
      * Deletes index templates, support wildcard notation.
      */
     public static void wipeTemplates(String... templates) {
-        // if nothing is provided, delete all
-        if (templates.length == 0) {
-            templates = new String[]{"*"};
-        }
-        for (String template : templates) {
-            try {
-                client().admin().indices().prepareDeleteTemplate(template).execute().actionGet();
-            } catch (IndexTemplateMissingException e) {
-                // ignore
+        if (cluster().numNodes() > 0) {
+            // if nothing is provided, delete all
+            if (templates.length == 0) {
+                templates = new String[]{"*"};
+            }
+            for (String template : templates) {
+                try {
+                    client().admin().indices().prepareDeleteTemplate(template).execute().actionGet();
+                } catch (IndexTemplateMissingException e) {
+                    // ignore
+                }
             }
         }
     }
@@ -487,6 +530,42 @@ public abstract class AbstractSharedClusterTest extends ElasticsearchTestCase {
         ClearScrollResponse clearResponse = client().prepareClearScroll()
                 .setScrollIds(Arrays.asList(scrollIds)).get();
         assertThat(clearResponse.isSucceeded(), equalTo(true));
+    }
+    
+    public static enum ClusterScope {
+        Global, Suite, Test;
+    }
+    
+    private ClusterScope getCurrentClusterScope() {
+        SharedClusterScope annotation = this.getClass().getAnnotation(SharedClusterScope.class);
+        return annotation == null ? ClusterScope.Global : annotation.scope();
+    }
+    
+    private int getNumNodes() {
+        SharedClusterScope annotation = this.getClass().getAnnotation(SharedClusterScope.class);
+        return annotation == null ? -1 : annotation.numNodes();
+    }
+    
+    
+    protected Settings nodeSettings(int nodeOrdinal) {
+        return ImmutableSettings.EMPTY;
+    }
+    
+    protected TestCluster buildTestCluster(ClusterScope scope) {
+        long currentClusterSeed = randomLong();
+        Builder<Integer, Settings> ordinalMap = ImmutableMap.builder();
+        int numNodes = getNumNodes();
+        for (int i = 0; i < numNodes; i++) {
+            ordinalMap.put(i, nodeSettings(i));
+        }
+        return new TestCluster(currentClusterSeed, getNumNodes(), TestCluster.clusterName(scope.name(), ElasticsearchTestCase.CHILD_VM_ID, currentClusterSeed), ordinalMap.build());
+    }
+    
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE})
+    public @interface SharedClusterScope {
+        ClusterScope scope() default ClusterScope.Global; 
+        int numNodes() default -1;
     }
 
 }
