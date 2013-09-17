@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.basic;
 
+import org.elasticsearch.AbstractSharedClusterTest;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
@@ -26,7 +27,6 @@ import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.common.lucene.search.function.CombineFunction;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.AbstractSharedClusterTest;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
@@ -71,10 +71,7 @@ public class SearchWhileRelocatingTests extends AbstractSharedClusterTest {
         List<IndexRequestBuilder> indexBuilders = new ArrayList<IndexRequestBuilder>();
         final int numDocs = between(10, 20);
         for (int i = 0; i < numDocs; i++) {
-            indexBuilders.add(new IndexRequestBuilder(client())
-                    .setType("type")
-                    .setId(Integer.toString(i))
-                    .setIndex("test")
+            indexBuilders.add(client().prepareIndex("test", "type", Integer.toString(i))
                     .setSource(
                             jsonBuilder().startObject().field("test", "value").startObject("loc").field("lat", 11).field("lon", 21)
                                     .endObject().endObject()));

@@ -20,6 +20,7 @@
 package org.elasticsearch.search.highlight;
 
 import org.apache.lucene.util.LuceneTestCase.Slow;
+import org.elasticsearch.AbstractSharedClusterTest;
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.action.search.SearchPhaseExecutionException;
 import org.elasticsearch.action.search.SearchResponse;
@@ -36,7 +37,6 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.test.hamcrest.ElasticsearchAssertions;
-import org.elasticsearch.AbstractSharedClusterTest;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -1139,15 +1139,12 @@ public class HighlighterSearchTests extends AbstractSharedClusterTest {
                 .execute().actionGet();
 
         assertNoFailures(search);
-
-        search = client().prepareSearch()
+        search = client().prepareSearch().setSearchType(randomBoolean() ?  SearchType.QUERY_THEN_FETCH :  SearchType.DFS_QUERY_THEN_FETCH )
                 .setQuery(matchPhraseQuery("title", "this is a test"))
                 .addHighlightedField("title", 50, 1, 10)
                 .setHighlighterType("fast-vector-highlighter")
                 .execute().actionGet();
-
         assertThat(search.getFailedShards(), equalTo(2));
-
     }
 
     @Test

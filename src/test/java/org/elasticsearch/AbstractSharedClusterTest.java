@@ -138,7 +138,7 @@ public abstract class AbstractSharedClusterTest extends ElasticsearchTestCase {
     }
 
     public static Client client() {
-        return cluster().client();
+        return new RandomizedClient(cluster().client(), new Random(getCurrentSeed()));
     }
 
     public static Iterable<Client> clients() {

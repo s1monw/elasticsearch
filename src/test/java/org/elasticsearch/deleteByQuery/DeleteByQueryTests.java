@@ -19,6 +19,7 @@
 
 package org.elasticsearch.deleteByQuery;
 
+import org.elasticsearch.AbstractSharedClusterTest;
 import org.elasticsearch.action.deletebyquery.DeleteByQueryRequestBuilder;
 import org.elasticsearch.action.deletebyquery.DeleteByQueryResponse;
 import org.elasticsearch.action.search.SearchResponse;
@@ -26,12 +27,10 @@ import org.elasticsearch.action.support.IgnoreIndices;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.IndexMissingException;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.AbstractSharedClusterTest;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
@@ -47,7 +46,7 @@ public class DeleteByQueryTests extends AbstractSharedClusterTest {
     public void testDeleteAllNoIndices() {
         client().admin().indices().prepareDelete().execute().actionGet();
         client().admin().indices().prepareRefresh().execute().actionGet();
-        DeleteByQueryRequestBuilder deleteByQueryRequestBuilder = new DeleteByQueryRequestBuilder(client());
+        DeleteByQueryRequestBuilder deleteByQueryRequestBuilder = client().prepareDeleteByQuery();
         deleteByQueryRequestBuilder.setQuery(QueryBuilders.matchAllQuery());
         DeleteByQueryResponse actionGet = deleteByQueryRequestBuilder.execute().actionGet();
         assertThat(actionGet.getIndices().size(), equalTo(0));
@@ -63,7 +62,7 @@ public class DeleteByQueryTests extends AbstractSharedClusterTest {
         
         SearchResponse search = client().prepareSearch().setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
         assertThat(search.getHits().totalHits(), equalTo(1l));
-        DeleteByQueryRequestBuilder deleteByQueryRequestBuilder = new DeleteByQueryRequestBuilder(client());
+        DeleteByQueryRequestBuilder deleteByQueryRequestBuilder = client().prepareDeleteByQuery();
         deleteByQueryRequestBuilder.setQuery(QueryBuilders.matchAllQuery());
         
         DeleteByQueryResponse actionGet = deleteByQueryRequestBuilder.execute().actionGet();
@@ -86,7 +85,7 @@ public class DeleteByQueryTests extends AbstractSharedClusterTest {
 
         SearchResponse search = client().prepareSearch().setQuery(QueryBuilders.matchAllQuery()).execute().actionGet();
         assertThat(search.getHits().totalHits(), equalTo(1l));
-        DeleteByQueryRequestBuilder deleteByQueryRequestBuilder = new DeleteByQueryRequestBuilder(client());
+        DeleteByQueryRequestBuilder deleteByQueryRequestBuilder = client().prepareDeleteByQuery();
         deleteByQueryRequestBuilder.setIndices("twitter", "missing");
         deleteByQueryRequestBuilder.setQuery(QueryBuilders.matchAllQuery());
 
