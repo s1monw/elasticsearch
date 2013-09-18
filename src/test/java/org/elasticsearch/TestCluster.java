@@ -108,13 +108,8 @@ public class TestCluster implements Closeable {
         logger.info("Setup TestCluster [{}] with seed [{}] using [{}] nodes" , clusterName, SeedUtils.formatSeed(clusterSeed), numSharedNodes);
         this.defaultSettings = ImmutableSettings.settingsBuilder()
                 /* use RAM directories in 10% of the runs */
-<<<<<<< HEAD
 //                .put("index.store.type", random.nextInt(10) == 0 ? MockRamIndexStoreModule.class.getName() : MockFSIndexStoreModule.class.getName())
                 .put("index.store.type", MockFSIndexStoreModule.class.getName()) // no RAM dir for now!
-                .put(defaultSettings)
-                .put("cluster.name", clusterName).build();
-=======
-                .put("index.store.type", random.nextInt(10) == 0 ? MockRamIndexStoreModule.class.getName() : MockFSIndexStoreModule.class.getName())
                 .put("cluster.name", clusterName)
                 // decrease the routing schedule so new nodes will be added quickly - some random value between 30 and 80 ms
                 .put("cluster.routing.schedule", (30 + random.nextInt(50)) + "ms")
@@ -134,7 +129,6 @@ public class TestCluster implements Closeable {
             builder.put(others);
         }
         return builder.build();
->>>>>>> abfe90f... first cut at getting rid of abstractNodesTest
     }
     
     public static String clusterName(String prefix, String childVMId, long clusterSeed) {
@@ -233,7 +227,7 @@ public class TestCluster implements Closeable {
         return getOrBuildRandomNode().client();
     }
     
-    public synchronized Client masterClient() {
+    private synchronized Client masterClient() { // should we expose this?
         Collection<NodeAndClient> values = nodes.values();
         for (NodeAndClient nodeAndClient : values) {
             ClusterService instance = getInstance(ClusterService.class, (InternalNode)nodeAndClient.node());
@@ -369,9 +363,7 @@ public class TestCluster implements Closeable {
         }
         logger.debug("Cluster is NOT consistent - restarting shared nodes - nodes: [{}] nextNodeId: [{}] numSharedNodes: [{}]", nodes.keySet(), nextNodeId.get(), sharedNodesSeeds.length);
 
-        if (nodes.size() > 0) {
-            client().admin().cluster().prepareHealth().setWaitForNodes(""+nodes.size()).get();
-        }
+       
         Set<NodeAndClient> sharedNodes = new HashSet<NodeAndClient>();
         boolean changed = false;
         for (int i = 0; i < sharedNodesSeeds.length; i++) {
@@ -387,6 +379,9 @@ public class TestCluster implements Closeable {
         }
         if (!changed && sharedNodes.size() == nodes.size()) {
             logger.debug("Cluster is consistent - moving out - nodes: [{}] nextNodeId: [{}] numSharedNodes: [{}]", nodes.keySet(), nextNodeId.get(), sharedNodesSeeds.length);
+            if (numNodes() > 0) {
+                client().admin().cluster().prepareHealth().setWaitForNodes(Integer.toString(sharedNodesSeeds.length)).get();
+            }
             return; // we are consistent - return
         }
         for (NodeAndClient nodeAndClient : sharedNodes) {
@@ -405,7 +400,9 @@ public class TestCluster implements Closeable {
         }
         nextNodeId.set(sharedNodesSeeds.length);
         assert numNodes() == sharedNodesSeeds.length;
-        client().admin().cluster().prepareHealth().setWaitForNodes(Integer.toString(sharedNodesSeeds.length)).get();
+        if (numNodes()  > 0) {
+            client().admin().cluster().prepareHealth().setWaitForNodes(Integer.toString(sharedNodesSeeds.length)).get();
+        }
         logger.debug("Cluster is consistent again - nodes: [{}] nextNodeId: [{}] numSharedNodes: [{}]", nodes.keySet(), nextNodeId.get(), sharedNodesSeeds.length);
     }
     
@@ -526,6 +523,10 @@ public class TestCluster implements Closeable {
                 return nodeAndClient.name;
             }
         }));
+    }
+    
+    public String startNode() {
+        return startNode(ImmutableSettings.EMPTY);
     }
 
     public String startNode(Settings settings) {

@@ -36,6 +36,7 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.junit.annotations.TestLogging;
 import org.junit.Test;
 
 import java.io.File;
@@ -115,6 +116,7 @@ public class ClusterRerouteTests extends AbstractSharedClusterTest {
     }
 
     @Test
+    @TestLogging("_root:TRACE")
     public void rerouteWithAllocateLocalGateway() throws Exception {
         Settings commonSettings = settingsBuilder()
                 .put(DisableAllocationDecider.CLUSTER_ROUTING_ALLOCATION_DISABLE_NEW_ALLOCATION, true)
@@ -122,16 +124,12 @@ public class ClusterRerouteTests extends AbstractSharedClusterTest {
                 .put("gateway.type", "local")
                 .build();
 
-        // clean three nodes
-        logger.info("--> cleaning nodes");
-        cluster().startNode(settingsBuilder().put("gateway.type", "local").build());
-        cluster().startNode(settingsBuilder().put("gateway.type", "local").build());
-        cluster().resetAllGateways();
-        cluster().closeAllNodesAndReset();
-
         logger.info("--> starting 2 nodes");
         String node_1 = cluster().startNode(commonSettings);
-        String node_2 = cluster().startNode(commonSettings);
+        cluster().startNode(commonSettings);
+        assertThat(cluster().numNodes(), equalTo(2));
+        ClusterHealthResponse healthResponse = client().admin().cluster().prepareHealth().setWaitForNodes("2").execute().actionGet();
+        assertThat(healthResponse.isTimedOut(), equalTo(false));
 
         logger.info("--> create an index with 1 shard, 1 replica, nothing should allocate");
         client().admin().indices().prepareCreate("test")
@@ -148,7 +146,7 @@ public class ClusterRerouteTests extends AbstractSharedClusterTest {
         assertThat(state.routingNodes().unassigned().size(), equalTo(1));
         assertThat(state.routingNodes().node(state.nodes().resolveNode(node_1).id()).shards().get(0).state(), equalTo(ShardRoutingState.INITIALIZING));
 
-        ClusterHealthResponse healthResponse = client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForYellowStatus().execute().actionGet();
+        healthResponse = client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setWaitForYellowStatus().execute().actionGet();
         assertThat(healthResponse.isTimedOut(), equalTo(false));
 
         logger.info("--> get the state, verify shard 1 primary allocated");
@@ -160,19 +158,20 @@ public class ClusterRerouteTests extends AbstractSharedClusterTest {
 
         logger.info("--> closing all nodes");
         File shardLocation = cluster().getInstance(NodeEnvironment.class).shardLocations(new ShardId("test", 0))[0];
+        
         cluster().resetAllGateways();
         cluster().closeAllNodesAndReset();
 
-        logger.info("--> deleting the shard data");
+        logger.info("--> deleting the shard data [{}] ", shardLocation);
         FileSystemUtils.deleteRecursively(shardLocation);
 
         logger.info("--> starting nodes back, will not allocate the shard since it has no data, but the index will be there");
         node_1 = cluster().startNode(commonSettings);
-        node_2 = cluster().startNode(commonSettings);
+        cluster().startNode(commonSettings);
         // wait a bit for the cluster to realize that the shard is not there...
         // TODO can we get around this? the cluster is RED, so what do we wait for?
         client().admin().cluster().prepareReroute().get();
-        assertThat(cluster().masterClient().admin().cluster().prepareHealth().setWaitForNodes("2").execute().actionGet().getStatus(), equalTo(ClusterHealthStatus.RED));
+        assertThat(cluster().client().admin().cluster().prepareHealth().setWaitForNodes("2").execute().actionGet().getStatus(), equalTo(ClusterHealthStatus.RED));
         logger.info("--> explicitly allocate primary");
         state = client().admin().cluster().prepareReroute()
                 .add(new AllocateAllocationCommand(new ShardId("test", 0), node_1, true))
