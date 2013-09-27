@@ -387,7 +387,9 @@ public class TestCluster implements Closeable, Iterable<Client> {
         }
 
         void restart() {
-            node.close();
+            if (!node.isClosed()) {
+                node.close();
+            }
             node = (InternalNode) nodeBuilder().settings(node.settings()).node();
             resetClient();
         }
@@ -635,13 +637,29 @@ public class TestCluster implements Closeable, Iterable<Client> {
         }
     }
 
-    public void restartAllNodes() {
+    public void restartAllNodes(boolean rollingRestart) {
         ensureOpen();
-        logger.info("Restarting all nodes");
-        for (NodeAndClient nodeAndClient : nodes.values()) {
-            logger.info("Restarting node [{}] ", nodeAndClient.name);
-            nodeAndClient.restart();
+        if (rollingRestart) {
+            logger.info("Restarting all nodes");
+            for (NodeAndClient nodeAndClient : nodes.values()) {
+                logger.info("Restarting node [{}] ", nodeAndClient.name);
+                nodeAndClient.restart();
+            }
+        } else {
+            logger.info("Restarting all nodes");
+            for (NodeAndClient nodeAndClient : nodes.values()) {
+                logger.info("Stopping node [{}] ", nodeAndClient.name);
+                nodeAndClient.node.close();
+            }
+            for (NodeAndClient nodeAndClient : nodes.values()) {
+                logger.info("Starting node [{}] ", nodeAndClient.name);
+                nodeAndClient.restart();
+            }
         }
+    }
+    
+    public void restartAllNodes() {
+        restartAllNodes(true);
     }
 
     private String getMasterName() {
