@@ -62,3 +62,15 @@ JAVA_OPTS="$JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError"
 # The path to the heap dump location, note directory must exists and have enough
 # space for a full heap dump.
 #JAVA_OPTS="$JAVA_OPTS -XX:HeapDumpPath=$ES_HOME/logs/heapdump.hprof"
+
+# If numactl is available, use it. For Lucene & Elasticsearch, the priority is to
+# avoid disk I/O. Even for the purpose of CPU efficiency, we don't
+# really have CPU<->data affinity anyway.
+NUMACTL=""
+NUMACTL_ARGS="--interleave=all"
+if  which numactl >/dev/null 2>/dev/null && numactl $NUMACTL_ARGS ls / >/dev/null 2>/dev/null ; then
+  NUMACTL="numactl $NUMACTL_ARGS" # only if numactl is available 
+fi
+
+
+
