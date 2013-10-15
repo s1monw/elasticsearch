@@ -310,6 +310,10 @@ abstract class SortedSetDVAtomicFieldData {
             }
             return ords.longs[i++];
         }
+        
+        public int size() {
+            return ords.length;
+        }
 
         public void reset(LongsRef ords) {
             this.ords = ords;

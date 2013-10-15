@@ -20,13 +20,15 @@
 package org.elasticsearch.index.fielddata;
 
 import org.elasticsearch.ElasticSearchIllegalStateException;
+import org.elasticsearch.index.fielddata.FieldDataIterable.DoubleRef;
 import org.elasticsearch.index.fielddata.ordinals.Ordinals;
 import org.elasticsearch.index.fielddata.ordinals.Ordinals.Docs;
 
 /**
  */
-public abstract class DoubleValues {
+public abstract class DoubleValues implements FieldDataIterable<DoubleRef>, org.elasticsearch.index.fielddata.FieldDataIterable.Scratchable<DoubleRef>{
 
+    
     public static final DoubleValues EMPTY = new Empty();
     protected boolean multiValued;
     protected final Iter.Single iter = new Iter.Single();
@@ -64,7 +66,34 @@ public abstract class DoubleValues {
             return Iter.Empty.INSTANCE;
         }
     }
+    
+    @Override
+    public DoubleRef getValueScratch(int docId,
+            DoubleRef spare) {
+        if (hasValue(docId)) {
+            spare.value = getValue(docId);
+            return spare;
+        }
+        return null;
+    }
 
+    @Override
+    public DoubleRef newScratch() {
+        return new DoubleRef();
+    }
+
+    @Override
+    public Enum<DoubleRef> newIter(ConsumptionHint hint) {
+        if (isMultiValued()) {
+            return new SingelValueEnum<DoubleRef>(this);    
+        } else {
+            assert this instanceof WithOrdinals;
+            WithOrdinals withOrds = ((WithOrdinals)this);
+            return new MultiValueIterator<DoubleRef>(withOrds, withOrds.ordinals());
+        }
+        
+    }
+    
 
     public static abstract class Dense extends DoubleValues {
 
@@ -92,7 +121,7 @@ public abstract class DoubleValues {
 
     }
 
-    public static abstract class WithOrdinals extends DoubleValues {
+    public static abstract class WithOrdinals extends DoubleValues implements OrdScratchable<DoubleRef>{
 
         protected final Docs ordinals;
         private final Iter.Multi iter;
@@ -133,6 +162,14 @@ public abstract class DoubleValues {
         public final Iter getIter(int docId) {
             return iter.reset(ordinals.getIter(docId));
         }
+        
+        @Override
+        public DoubleRef getValueScratchByOrd(long ordinal,
+                DoubleRef spare) {
+            spare.value = getValueByOrd(ordinal);
+            return spare;
+        }
+
 
     }
 

@@ -124,6 +124,8 @@ public interface Ordinals {
          * An iterator over ordinals values.
          */
         interface Iter {
+            
+            int size();
 
             /**
              * Gets the next ordinal. Returning 0 if the iteration is exhausted.
@@ -134,7 +136,11 @@ public interface Ordinals {
         static class EmptyIter implements Iter {
 
             public static EmptyIter INSTANCE = new EmptyIter();
-
+            
+            public int size() {
+                return 0;
+            }
+            
             @Override
             public long next() {
                 return 0;
@@ -149,7 +155,11 @@ public interface Ordinals {
                 this.value = value;
                 return this;
             }
-
+            
+            public int size() {
+                return 1;
+            }
+            
             @Override
             public long next() {
                 long actual = value;

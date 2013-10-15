@@ -20,16 +20,17 @@
 package org.elasticsearch.index.fielddata;
 
 import org.elasticsearch.ElasticSearchIllegalStateException;
+import org.elasticsearch.index.fielddata.FieldDataIterable.LongRef;
 import org.elasticsearch.index.fielddata.ordinals.Ordinals;
 import org.elasticsearch.index.fielddata.ordinals.Ordinals.Docs;
 
 /**
  */
-public abstract class LongValues {
+public abstract class LongValues implements FieldDataIterable<LongRef>, FieldDataIterable.Scratchable<LongRef> {
 
     public static final LongValues EMPTY = new Empty();
     protected boolean multiValued;
-    protected final Iter.Single iter = new Iter.Single();
+    protected Enum<LongRef> sharedIter;
 
 
     protected LongValues(boolean multiValued) {
@@ -56,14 +57,57 @@ public abstract class LongValues {
         }
         return missingValue;
     }
+    
+    @Override
+    public LongRef getValueScratch(int docId,
+            LongRef spare) {
+        if (hasValue(docId)) {
+            spare.value = getValue(docId);
+            return spare;
+        }
+        return null;
+    }
+
+    @Override
+    public LongRef newScratch() {
+        return new LongRef();
+    }
 
     public Iter getIter(int docId) {
-        if (hasValue(docId)) {
-            return iter.reset(getValue(docId));
+        if (sharedIter == null) {
+            sharedIter = newIter(ConsumptionHint.LAZY);
+        }
+        return new Iter() {
+            long val;
+            @Override
+            public boolean hasNext() {
+                LongRef next = sharedIter.next();
+                if (next == null) {
+                    return false;
+                }
+                val = next.value;
+                return true;
+            }
+
+            @Override
+            public long next() {
+                return val;
+            }
+            
+        };
+        
+    }
+    @Override
+    public Enum<LongRef> newIter(ConsumptionHint hint) {
+        if (isMultiValued()) {
+            return new SingelValueEnum<LongRef>(this);    
         } else {
-            return Iter.Empty.INSTANCE;
+            assert this instanceof WithOrdinals;
+            WithOrdinals withOrds = ((WithOrdinals)this);
+            return new MultiValueIterator<LongRef>(withOrds, withOrds.ordinals());
         }
     }
+    
 
 
     public static abstract class Dense extends LongValues {
@@ -84,23 +128,15 @@ public abstract class LongValues {
             return getValue(docId);
         }
 
-        public final Iter getIter(int docId) {
-            assert hasValue(docId);
-            assert !isMultiValued();
-            return iter.reset(getValue(docId));
-        }
-
     }
 
-    public static abstract class WithOrdinals extends LongValues {
+    public static abstract class WithOrdinals extends LongValues implements FieldDataIterable.OrdScratchable<LongRef> {
 
         protected final Docs ordinals;
-        private final Iter.Multi iter;
 
         protected WithOrdinals(Ordinals.Docs ordinals) {
             super(ordinals.isMultiValued());
             this.ordinals = ordinals;
-            iter = new Iter.Multi(this);
         }
 
         public Docs ordinals() {
@@ -120,11 +156,6 @@ public abstract class LongValues {
         public abstract long getValueByOrd(long ord);
 
         @Override
-        public final Iter getIter(int docId) {
-            return iter.reset(ordinals.getIter(docId));
-        }
-
-        @Override
         public final long getValueMissing(int docId, long missingValue) {
             final long ord = ordinals.getOrd(docId);
             if (ord == 0) {
@@ -133,6 +164,14 @@ public abstract class LongValues {
                 return getValueByOrd(ord);
             }
         }
+        
+        @Override
+        public LongRef getValueScratchByOrd(long ordinal,
+                LongRef spare) {
+            spare.value = getValueByOrd(ordinal);
+            return spare;
+        }
+
 
     }
 
@@ -156,59 +195,6 @@ public abstract class LongValues {
                 throw new ElasticSearchIllegalStateException();
             }
         }
-
-        static class Single implements Iter {
-
-            public long value;
-            public boolean done;
-
-            public Single reset(long value) {
-                this.value = value;
-                this.done = false;
-                return this;
-            }
-
-            @Override
-            public boolean hasNext() {
-                return !done;
-            }
-
-            @Override
-            public long next() {
-                assert !done;
-                done = true;
-                return value;
-            }
-        }
-
-        static class Multi implements Iter {
-
-            private org.elasticsearch.index.fielddata.ordinals.Ordinals.Docs.Iter ordsIter;
-            private long ord;
-            private WithOrdinals values;
-
-            public Multi(WithOrdinals values) {
-                this.values = values;
-            }
-
-            public Multi reset(Ordinals.Docs.Iter ordsIter) {
-                this.ordsIter = ordsIter;
-                this.ord = ordsIter.next();
-                return this;
-            }
-
-            @Override
-            public boolean hasNext() {
-                return ord != 0;
-            }
-
-            @Override
-            public long next() {
-                long value = values.getValueByOrd(ord);
-                ord = ordsIter.next();
-                return value;
-            }
-        }
     }
 
     static class Empty extends LongValues {
@@ -227,12 +213,6 @@ public abstract class LongValues {
             // conforms with all other impls when there is no value
             return 0;
         }
-
-        @Override
-        public Iter getIter(int docId) {
-            return Iter.Empty.INSTANCE;
-        }
-
     }
 
     public static class Filtered extends LongValues {

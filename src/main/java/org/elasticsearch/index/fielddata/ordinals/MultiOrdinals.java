@@ -204,6 +204,10 @@ public class MultiOrdinals implements Ordinals {
         MultiIter(AppendingPackedLongBuffer ordinals) {
             this.ordinals = ordinals;
         }
+        
+        public int size() {
+            return (int) (endOffset - offset);
+        }
 
         @Override
         public long next() {

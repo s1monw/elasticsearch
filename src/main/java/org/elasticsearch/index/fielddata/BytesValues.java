@@ -26,7 +26,7 @@ import org.elasticsearch.index.fielddata.ordinals.Ordinals.Docs;
 
 /**
  */
-public abstract class BytesValues {
+public abstract class BytesValues implements FieldDataIterable<BytesRef>, org.elasticsearch.index.fielddata.FieldDataIterable.Scratchable<BytesRef>{
 
     public static final BytesValues EMPTY = new Empty();
     protected boolean multiValued;
@@ -79,6 +79,11 @@ public abstract class BytesValues {
      */
     public abstract BytesRef getValueScratch(int docId, BytesRef ret);
 
+    
+    @Override
+    public BytesRef newScratch() {
+        return new BytesRef();
+    }
 
     /**
      * Fills the given spare for the given doc ID and returns the hashcode of the reference as defined by
@@ -87,6 +92,20 @@ public abstract class BytesValues {
     public int getValueHashed(int docId, BytesRef spare) {
         return getValueScratch(docId, spare).hashCode();
     }
+    
+    @Override
+    public Enum<BytesRef> newIter(ConsumptionHint hint) {
+        if (isMultiValued()) {
+            return new SingelValueEnum<BytesRef>(this);    
+        } else {
+            assert this instanceof WithOrdinals;
+            WithOrdinals withOrds = ((WithOrdinals)this);
+            return new MultiValueIterator<BytesRef>(withOrds, withOrds.ordinals());
+        }
+        
+    }
+    
+    
 
     /**
      * Returns a bytes value iterator for a docId. Note, the content of it might be shared across invocation.
@@ -230,7 +249,7 @@ public abstract class BytesValues {
     /**
      * Bytes values that are based on ordinals.
      */
-    public static abstract class WithOrdinals extends BytesValues {
+    public static abstract class WithOrdinals extends BytesValues implements OrdScratchable<BytesRef> {
 
         protected final Docs ordinals;
 
