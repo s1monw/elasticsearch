@@ -21,9 +21,11 @@ package org.elasticsearch.recovery;
 
 import com.google.common.base.Predicate;
 import org.apache.lucene.util.LuceneTestCase.Slow;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.admin.indices.refresh.RefreshResponse;
 import org.elasticsearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.elasticsearch.action.admin.indices.stats.ShardStats;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.client.Client;
@@ -43,13 +45,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
-import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
-import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoFailures;
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 
 /**
  *
  */
+@AbstractIntegrationTest.ClusterScope(numNodes = 1, scope = AbstractIntegrationTest.Scope.TEST, transportClientRatio = 0.0)
 public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
 
     private final ESLogger logger = Loggers.getLogger(RecoveryWhileUnderLoadTests.class);
@@ -57,8 +60,10 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
     @Test @TestLogging("action.search.type:TRACE,action.admin.indices.refresh:TRACE")
     @Slow
     public void recoverWhileUnderLoadAllocateBackupsTest() throws Exception {
-        logger.info("--> creating test index ...");
-        prepareCreate("test", 1);
+        final int numShards = between(1, 5);
+        final int numReplicas = 1;
+        logger.info("--> creating test index ... num_shards [{}] num_replicas [{}]", numShards, numReplicas);
+        prepareCreate("test").setSettings(randomSettingsBuilder().put("number_of_shards", numShards).put("number_of_replicas", numReplicas).build()).get();
 
         final AtomicLong idGenerator = new AtomicLong();
         final AtomicLong indexCounter = new AtomicLong();
@@ -69,8 +74,7 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
         logger.info("--> starting {} indexing threads", writers.length);
         for (int i = 0; i < writers.length; i++) {
             final int indexerId = i;
-            final Client client = client();
-            writers[i] = new Thread() {
+            writers[i] = new Thread("TEST_INDEXER_THREAD") {
                 @Override
                 public void run() {
                     try {
@@ -78,9 +82,9 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
                         while (!stop.get()) {
                             long id = idGenerator.incrementAndGet();
                             if (id % 1000 == 0) {
-                                client.admin().indices().prepareFlush().execute().actionGet();
+                                client().admin().indices().prepareFlush().execute().actionGet();
                             }
-                            client.prepareIndex("test", "type1", Long.toString(id))
+                            client().prepareIndex("test", "type1", Long.toString(id))
                                     .setSource(MapBuilder.<String, Object>newMapBuilder().put("test", "value" + id).map()).execute().actionGet();
                             indexCounter.incrementAndGet();
                         }
@@ -110,11 +114,12 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
 
         logger.info("--> allow 2 nodes for index [test] ...");
         // now start another node, while we index
-        allowNodes("test", 2);
+        cluster().ensureAtLeastNumNodes(2);
+
 
         logger.info("--> waiting for GREEN health status ...");
         // make sure the cluster state is green, and all has been recovered
-        assertThat(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=2").execute().actionGet().isTimedOut(), equalTo(false));
+        assertStatus(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=2").execute().actionGet(), ClusterHealthStatus.GREEN);
 
         logger.info("--> waiting for 10000 docs to be indexed ...");
         waitForDocs(15000);
@@ -126,16 +131,18 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
         logger.info("--> indexing threads stopped");
 
         logger.info("--> refreshing the index");
-        refreshAndAssert();
+        refreshAndAssert(numShards * (numReplicas+1));
         logger.info("--> verifying indexed content");
-        iterateAssertCount(5, indexCounter.get(), 10);
+        iterateAssertCount(numShards, indexCounter.get(), 10);
     }
 
     @Test @TestLogging("action.search.type:TRACE,action.admin.indices.refresh:TRACE")
     @Slow
     public void recoverWhileUnderLoadAllocateBackupsRelocatePrimariesTest() throws Exception {
-        logger.info("--> creating test index ...");
-        prepareCreate("test", 1);
+        final int numShards = between(1, 5);
+        final int numReplicas = 1;
+        logger.info("--> creating test index ... num_shards [{}] num_replicas [{}]", numShards, numReplicas);
+        prepareCreate("test").setSettings(randomSettingsBuilder().put("number_of_shards", numShards).put("number_of_replicas", numReplicas).build()).get();
 
         final AtomicLong idGenerator = new AtomicLong();
         final AtomicLong indexCounter = new AtomicLong();
@@ -145,15 +152,14 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
         final CountDownLatch stopLatch = new CountDownLatch(writers.length);
         for (int i = 0; i < writers.length; i++) {
             final int indexerId = i;
-            final Client client = client();
-            writers[i] = new Thread() {
+            writers[i] = new Thread("TEST_INDEXER_THREAD") {
                 @Override
                 public void run() {
                     try {
                         logger.info("**** starting indexing thread {}", indexerId);
                         while (!stop.get()) {
                             long id = idGenerator.incrementAndGet();
-                            client.prepareIndex("test", "type1", Long.toString(id))
+                            client().prepareIndex("test", "type1", Long.toString(id))
                                     .setSource(MapBuilder.<String, Object>newMapBuilder().put("test", "value" + id).map()).execute().actionGet();
                             indexCounter.incrementAndGet();
                         }
@@ -180,11 +186,11 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
         logger.info("--> waiting for 4000 docs to be indexed ...");
         waitForDocs(4000);
         logger.info("--> 4000 docs indexed");
-        logger.info("--> allow 4 nodes for index [test] ...");
-        allowNodes("test", 4);
+        logger.info("--> allow at least 4 nodes for index [test] ...");
+        cluster().ensureAtLeastNumNodes(4);
 
         logger.info("--> waiting for GREEN health status ...");
-        assertThat(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=4").execute().actionGet().isTimedOut(), equalTo(false));
+        assertStatus(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=4").execute().actionGet(), ClusterHealthStatus.GREEN);
 
 
         logger.info("--> waiting for 15000 docs to be indexed ...");
@@ -200,16 +206,19 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
         logger.info("--> indexing threads stopped");
 
         logger.info("--> refreshing the index");
-        refreshAndAssert();
+        refreshAndAssert(numShards * (numReplicas+1));
         logger.info("--> verifying indexed content");
-        iterateAssertCount(5, indexCounter.get(), 10);
+        iterateAssertCount(numShards, indexCounter.get(), 10);
     }
 
     @Test @TestLogging("action.search.type:TRACE,action.admin.indices.refresh:TRACE")
     @Slow
     public void recoverWhileUnderLoadWithNodeShutdown() throws Exception {
-        logger.info("--> creating test index ...");
-        prepareCreate("test", 2);
+        final int numShards = between(1, 5);
+        final int numReplicas = 1;
+        logger.info("--> creating test index ... num_shards [{}] num_replicas [{}]", numShards, numReplicas);
+        prepareCreate("test").setSettings(randomSettingsBuilder().put("number_of_shards", numShards).put("number_of_replicas", numReplicas).build()).get();
+        cluster().ensureAtLeastNumNodes(2);
 
         final AtomicLong idGenerator = new AtomicLong();
         final AtomicLong indexCounter = new AtomicLong();
@@ -218,17 +227,22 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
         final CountDownLatch stopLatch = new CountDownLatch(writers.length);
         logger.info("--> starting {} indexing threads", writers.length);
         for (int i = 0; i < writers.length; i++) {
-            final int indexerId = i;
             final Client client = client();
-            writers[i] = new Thread() {
+            final int indexerId = i;
+            writers[i] = new Thread("TEST_INDEXER_THREAD") {
                 @Override
                 public void run() {
                     try {
                         logger.info("**** starting indexing thread {}", indexerId);
                         while (!stop.get()) {
                             long id = idGenerator.incrementAndGet();
-                            client.prepareIndex("test", "type1", Long.toString(id))
-                                    .setSource(MapBuilder.<String, Object>newMapBuilder().put("test", "value" + id).map()).execute().actionGet();
+                            Client currentclient = client;
+                            // currentclient = client();  // use this and it won't fail / hang
+                            IndexResponse response = currentclient.prepareIndex("test", "type1", Long.toString(id))
+                                    .setSource(MapBuilder.<String, Object>newMapBuilder()
+                                    .put("test", "value" + id).map()).execute().actionGet();
+
+                            assertThat(response.isCreated(), is(true));
                             indexCounter.incrementAndGet();
                         }
                         logger.info("**** done indexing thread {}", indexerId);
@@ -257,10 +271,10 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
 
         // now start more nodes, while we index
         logger.info("--> allow 4 nodes for index [test] ...");
-        allowNodes("test", 4);
+        cluster().ensureAtLeastNumNodes(4);
 
         logger.info("--> waiting for GREEN health status ...");
-        assertThat(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=4").execute().actionGet().isTimedOut(), equalTo(false));
+        assertStatus(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=4").execute().actionGet(), ClusterHealthStatus.GREEN);
 
 
         logger.info("--> waiting for 10000 docs to be indexed ...");
@@ -268,32 +282,33 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
         logger.info("--> 10000 docs indexed");
 
         // now, shutdown nodes
-        logger.info("--> allow 3 nodes for index [test] ...");
-        allowNodes("test", 3);
+        logger.info("--> stop a random node for index [test] ... num nodes in the cluster: [" + cluster().numNodes() + "]");
+        cluster().stopRandomNode();
         logger.info("--> waiting for GREEN health status ...");
-        assertThat(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=3").execute().actionGet().isTimedOut(), equalTo(false));
+        assertStatus(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=3").execute().actionGet(), ClusterHealthStatus.GREEN);
 
-        logger.info("--> allow 2 nodes for index [test] ...");
-        allowNodes("test", 2);
+        logger.info("--> stop a random node for index [test] ... num nodes in the cluster: [" + cluster().numNodes() + "]");
+        cluster().stopRandomNode();
+
         logger.info("--> waiting for GREEN health status ...");
-        assertThat(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=2").execute().actionGet().isTimedOut(), equalTo(false));
+        assertStatus(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForGreenStatus().setWaitForNodes(">=2").execute().actionGet(), ClusterHealthStatus.GREEN);
         
         logger.info("--> allow 1 nodes for index [test] ...");
-        allowNodes("test", 1);
+        cluster().ensureAtMostNumNodes(1);
         logger.info("--> waiting for YELLOW health status ...");
-        assertThat(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForYellowStatus().setWaitForNodes(">=1").execute().actionGet().isTimedOut(), equalTo(false));
+        assertStatus(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForYellowStatus().setWaitForNodes(">=1").execute().actionGet(), ClusterHealthStatus.YELLOW);
 
         logger.info("--> marking and waiting for indexing threads to stop ...");
         stop.set(true);
         stopLatch.await();
         logger.info("--> indexing threads stopped");
 
-        assertThat(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForYellowStatus().setWaitForNodes(">=1").execute().actionGet().isTimedOut(), equalTo(false));
+        assertStatus(client().admin().cluster().prepareHealth().setWaitForEvents(Priority.LANGUID).setTimeout("1m").setWaitForYellowStatus().setWaitForNodes(">=1").execute().actionGet(), ClusterHealthStatus.YELLOW);
 
         logger.info("--> refreshing the index");
-        refreshAndAssert();
+        refreshAndAssert(numShards);
         logger.info("--> verifying indexed content");
-        iterateAssertCount(5, indexCounter.get(), 10);
+        iterateAssertCount(numShards, indexCounter.get(), 10);
 
     }
 
@@ -349,13 +364,14 @@ public class RecoveryWhileUnderLoadTests extends AbstractIntegrationTest {
         logger.info("iteration [{}] - returned documents: {} (expected {})", iteration, searchResponse.getHits().totalHits(), numberOfDocs);
     }
 
-    private void refreshAndAssert() throws InterruptedException {
+    private void refreshAndAssert(final int expectedSuccessfulShards) throws InterruptedException {
         assertThat(awaitBusy(new Predicate<Object>() {
             public boolean apply(Object o) {
                 try {
                     RefreshResponse actionGet = client().admin().indices().prepareRefresh().execute().actionGet();
                     assertNoFailures(actionGet);
-                    return actionGet.getTotalShards() == actionGet.getSuccessfulShards();
+                    logger.debug("Asserting Refresh success [{}] total [{}] failed [{}] expectedSuccessfulShards [{}]", actionGet.getTotalShards(), actionGet.getSuccessfulShards(), actionGet.getFailedShards(), expectedSuccessfulShards);
+                    return actionGet.getFailedShards() == 0 && actionGet.getSuccessfulShards() == expectedSuccessfulShards;
                 } catch (Throwable e) {
                     throw new RuntimeException(e);
                 }

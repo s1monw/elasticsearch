@@ -530,24 +530,19 @@ public class RecoveryTarget extends AbstractComponent {
                     filesToRename.add(existingFile.substring(prefix.length(), existingFile.length()));
                 }
             }
-            Exception failureToRename = null;
             if (!filesToRename.isEmpty()) {
                 // first, go and delete the existing ones
                 for (String fileToRename : filesToRename) {
-                    store.directory().deleteFile(fileToRename);
+                    try {
+                        store.directory().deleteFile(fileToRename);
+                    } catch (Exception ex) {
+                        logger.debug("Failed to delete file [{}] ", ex, fileToRename);
+                    }
                 }
                 for (String fileToRename : filesToRename) {
                     // now, rename the files...
-                    try {
-                        store.renameFile(prefix + fileToRename, fileToRename);
-                    } catch (Exception e) {
-                        failureToRename = e;
-                        break;
-                    }
+                    store.renameFile(prefix + fileToRename, fileToRename);
                 }
-            }
-            if (failureToRename != null) {
-                throw failureToRename;
             }
             // now write checksums
             store.writeChecksums(onGoingRecovery.checksums);

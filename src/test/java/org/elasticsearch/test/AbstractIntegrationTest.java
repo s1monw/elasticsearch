@@ -341,6 +341,7 @@ public abstract class AbstractIntegrationTest extends ElasticsearchTestCase {
         }
         Settings build = builder.build();
         if (!build.getAsMap().isEmpty()) {
+            logger.debug("exclude index [{}] from nodes: [{}]", index, build.get("index.routing.allocation.exclude._name", ""));
             client().admin().indices().prepareUpdateSettings(index).setSettings(build).execute().actionGet();
         }
     }

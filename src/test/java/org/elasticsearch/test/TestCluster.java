@@ -219,7 +219,7 @@ public class TestCluster implements Closeable, Iterable<Client> {
         }
         Collection<NodeAndClient> values = nodes.values();
         Iterator<NodeAndClient> limit = Iterators.limit(values.iterator(), nodes.size() - num);
-        logger.info("reducing cluster size from {} to {}", nodes.size() - num, num);
+        logger.info("reducing cluster size from {} to {}", nodes.size(), num);
         while (limit.hasNext()) {
             NodeAndClient next = limit.next();
             limit.remove();

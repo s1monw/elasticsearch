@@ -26,6 +26,8 @@ import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.ShardOperationFailedException;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequestBuilder;
@@ -350,4 +352,8 @@ public class ElasticsearchAssertions {
         }
     }
 
+    public static void assertStatus(ClusterHealthResponse clusterIndexHealths, ClusterHealthStatus status) {
+        assertThat(clusterIndexHealths.isTimedOut(), equalTo(false));
+        assertThat(clusterIndexHealths.getStatus(), equalTo(status));
+    }
 }
