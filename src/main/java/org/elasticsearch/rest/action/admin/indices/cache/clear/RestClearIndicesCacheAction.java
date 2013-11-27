@@ -63,30 +63,7 @@ public class RestClearIndicesCacheAction extends BaseRestHandler {
             clearIndicesCacheRequest.ignoreIndices(IgnoreIndices.fromString(request.param("ignore_indices")));
         }
         try {
-            if (request.hasParam("filter")) {
-                clearIndicesCacheRequest.filterCache(request.paramAsBoolean("filter", clearIndicesCacheRequest.filterCache()));
-            }
-            if (request.hasParam("filter_cache")) {
-                clearIndicesCacheRequest.filterCache(request.paramAsBoolean("filter_cache", clearIndicesCacheRequest.filterCache()));
-            }
-            if (request.hasParam("field_data")) {
-                clearIndicesCacheRequest.fieldDataCache(request.paramAsBoolean("field_data", clearIndicesCacheRequest.fieldDataCache()));
-            }
-            if (request.hasParam("fielddata")) {
-                clearIndicesCacheRequest.fieldDataCache(request.paramAsBoolean("fielddata", clearIndicesCacheRequest.fieldDataCache()));
-            }
-            if (request.hasParam("id")) {
-                clearIndicesCacheRequest.idCache(request.paramAsBoolean("id", clearIndicesCacheRequest.idCache()));
-            }
-            if (request.hasParam("id_cache")) {
-                clearIndicesCacheRequest.idCache(request.paramAsBoolean("id_cache", clearIndicesCacheRequest.idCache()));
-            }
-            if (request.hasParam("recycler")) {
-                clearIndicesCacheRequest.recycler(request.paramAsBoolean("recycler", clearIndicesCacheRequest.recycler()));
-            }
-            clearIndicesCacheRequest.fields(request.paramAsStringArray("fields", clearIndicesCacheRequest.fields()));
-            clearIndicesCacheRequest.filterKeys(request.paramAsStringArray("filter_keys", clearIndicesCacheRequest.filterKeys()));
-
+            fromRequest(request, clearIndicesCacheRequest);
             BroadcastOperationThreading operationThreading = BroadcastOperationThreading.fromString(request.param("operationThreading"), BroadcastOperationThreading.THREAD_PER_SHARD);
             if (operationThreading == BroadcastOperationThreading.NO_THREADS) {
                 // since we don't spawn, don't allow no_threads, but change it to a single thread
@@ -128,5 +105,32 @@ public class RestClearIndicesCacheAction extends BaseRestHandler {
                 }
             }
         });
+    }
+
+    public static ClearIndicesCacheRequest fromRequest(final RestRequest request, ClearIndicesCacheRequest clearIndicesCacheRequest) {
+        if (request.hasParam("filter")) {
+            clearIndicesCacheRequest.filterCache(request.paramAsBoolean("filter", clearIndicesCacheRequest.filterCache()));
+        }
+        if (request.hasParam("filter_cache")) {
+            clearIndicesCacheRequest.filterCache(request.paramAsBoolean("filter_cache", clearIndicesCacheRequest.filterCache()));
+        }
+        if (request.hasParam("field_data")) {
+            clearIndicesCacheRequest.fieldDataCache(request.paramAsBoolean("field_data", clearIndicesCacheRequest.fieldDataCache()));
+        }
+        if (request.hasParam("fielddata")) {
+            clearIndicesCacheRequest.fieldDataCache(request.paramAsBoolean("fielddata", clearIndicesCacheRequest.fieldDataCache()));
+        }
+        if (request.hasParam("id")) {
+            clearIndicesCacheRequest.idCache(request.paramAsBoolean("id", clearIndicesCacheRequest.idCache()));
+        }
+        if (request.hasParam("id_cache")) {
+            clearIndicesCacheRequest.idCache(request.paramAsBoolean("id_cache", clearIndicesCacheRequest.idCache()));
+        }
+        if (request.hasParam("recycler")) {
+            clearIndicesCacheRequest.recycler(request.paramAsBoolean("recycler", clearIndicesCacheRequest.recycler()));
+        }
+        clearIndicesCacheRequest.fields(request.paramAsStringArray("fields", clearIndicesCacheRequest.fields()));
+        clearIndicesCacheRequest.filterKeys(request.paramAsStringArray("filter_keys", clearIndicesCacheRequest.filterKeys()));
+        return clearIndicesCacheRequest;
     }
 }

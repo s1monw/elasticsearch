@@ -77,6 +77,7 @@ import org.elasticsearch.rest.action.admin.indices.validate.query.RestValidateQu
 import org.elasticsearch.rest.action.admin.indices.warmer.delete.RestDeleteWarmerAction;
 import org.elasticsearch.rest.action.admin.indices.warmer.get.RestGetWarmerAction;
 import org.elasticsearch.rest.action.admin.indices.warmer.put.RestPutWarmerAction;
+import org.elasticsearch.rest.action.bench.RestBenchAction;
 import org.elasticsearch.rest.action.bulk.RestBulkAction;
 import org.elasticsearch.rest.action.cat.*;
 import org.elasticsearch.rest.action.delete.RestDeleteAction;
@@ -222,5 +223,6 @@ public class RestActionModule extends AbstractModule {
         catActionMultibinder.addBinding().to(org.elasticsearch.rest.action.cat.RestPendingClusterTasksAction.class).asEagerSingleton();
         // no abstract cat action
         bind(RestCatAction.class).asEagerSingleton();
+        bind(RestBenchAction.class).asEagerSingleton();
     }
 }

@@ -20,6 +20,7 @@
 package org.elasticsearch.client;
 
 import org.elasticsearch.action.*;
+import org.elasticsearch.action.bench.*;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -555,4 +556,23 @@ public interface Client {
      */
     void clearScroll(ClearScrollRequest request, ActionListener<ClearScrollResponse> listener);
 
+    /**
+     * Runs a benchmark on the server
+     */
+    void bench(BenchRequest request, ActionListener<BenchResponse> listener);
+
+    /**
+     * Runs a benchmark on the server
+     */
+    BenchRequestBuilder prepareBench(String... indices);
+
+    /**
+     * Aborts a benchmark run on the server
+     */
+    void abortBench(AbortBenchRequest request, ActionListener<AbortBenchResponse> listener);
+
+    /**
+     * Aborts a benchmark run on the server
+     */
+    AbortBenchRequestBuilder prepareAbortBench(String benchmarkId);
 }

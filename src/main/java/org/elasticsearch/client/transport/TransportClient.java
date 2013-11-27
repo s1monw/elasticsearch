@@ -23,6 +23,9 @@ import com.google.common.collect.ImmutableList;
 import org.elasticsearch.ElasticSearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.*;
+import org.elasticsearch.action.bench.BenchRequest;
+import org.elasticsearch.action.bench.BenchRequestBuilder;
+import org.elasticsearch.action.bench.BenchResponse;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.count.CountRequest;
@@ -478,5 +481,15 @@ public class TransportClient extends AbstractClient {
     @Override
     public void explain(ExplainRequest request, ActionListener<ExplainResponse> listener) {
         internalClient.explain(request, listener);
+    }
+
+    @Override
+    public void bench(BenchRequest request, ActionListener<BenchResponse> listener) {
+        internalClient.bench(request, listener);
+    }
+
+    @Override
+    public BenchRequestBuilder prepareBench(String... indices) {
+        return internalClient.prepareBench(indices);
     }
 }

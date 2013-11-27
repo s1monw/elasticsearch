@@ -116,6 +116,10 @@ import org.elasticsearch.action.admin.indices.warmer.get.GetWarmersAction;
 import org.elasticsearch.action.admin.indices.warmer.get.TransportGetWarmersAction;
 import org.elasticsearch.action.admin.indices.warmer.put.PutWarmerAction;
 import org.elasticsearch.action.admin.indices.warmer.put.TransportPutWarmerAction;
+import org.elasticsearch.action.bench.AbortBenchAction;
+import org.elasticsearch.action.bench.BenchAction;
+import org.elasticsearch.action.bench.TransportAbortBenchAction;
+import org.elasticsearch.action.bench.TransportBenchAction;
 import org.elasticsearch.action.bulk.BulkAction;
 import org.elasticsearch.action.bulk.TransportBulkAction;
 import org.elasticsearch.action.bulk.TransportShardBulkAction;
@@ -278,6 +282,8 @@ public class ActionModule extends AbstractModule {
         registerAction(MultiPercolateAction.INSTANCE, TransportMultiPercolateAction.class, TransportShardMultiPercolateAction.class);
         registerAction(ExplainAction.INSTANCE, TransportExplainAction.class);
         registerAction(ClearScrollAction.INSTANCE, TransportClearScrollAction.class);
+        registerAction(BenchAction.INSTANCE, TransportBenchAction.class);
+        registerAction(AbortBenchAction.INSTANCE, TransportAbortBenchAction.class);
 
         // register Name -> GenericAction Map that can be injected to instances.
         MapBinder<String, GenericAction> actionsBinder
