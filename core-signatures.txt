@@ -30,3 +30,10 @@ org.apache.lucene.index.IndexWriter#forceMerge(int) @ use Merges#forceMerge
 org.apache.lucene.index.IndexWriter#forceMerge(int,boolean) @ use Merges#forceMerge
 org.apache.lucene.index.IndexWriter#forceMergeDeletes() @ use Merges#forceMergeDeletes
 org.apache.lucene.index.IndexWriter#forceMergeDeletes(boolean) @ use Merges#forceMergeDeletes
+
+@defaultMessage Only use wait / notify when really needed try to use concurrency primitives, latches or callbacks instead. 
+java.lang.Object#wait()
+java.lang.Object#wait(long)
+java.lang.Object#wait(long,int)
+java.lang.Object#notify()
+java.lang.Object#notifyAll()
