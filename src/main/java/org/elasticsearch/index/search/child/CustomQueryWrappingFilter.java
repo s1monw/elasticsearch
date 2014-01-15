@@ -18,12 +18,17 @@
  */
 package org.elasticsearch.index.search.child;
 
+import org.apache.lucene.index.AtomicReader;
 import org.apache.lucene.index.AtomicReaderContext;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.*;
 import org.apache.lucene.util.Bits;
+import org.elasticsearch.common.lucene.docset.DocIdSets;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
+import java.util.IdentityHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Forked from {@link QueryWrapperFilter} to make sure the weight is only created once.
@@ -37,6 +42,7 @@ public class CustomQueryWrappingFilter extends Filter {
 
     private IndexSearcher searcher;
     private Weight weight;
+    private IdentityHashMap<AtomicReader, DocIdSet> docIdSets = new IdentityHashMap<AtomicReader, DocIdSet>();
 
     /** Constructs a filter which only matches documents matching
      * <code>query</code>.
@@ -54,24 +60,31 @@ public class CustomQueryWrappingFilter extends Filter {
 
     @Override
     public DocIdSet getDocIdSet(final AtomicReaderContext context, final Bits acceptDocs) throws IOException {
-        SearchContext searchContext = SearchContext.current();
+        final SearchContext searchContext = SearchContext.current();
         if (weight == null) {
             assert searcher == null;
             IndexSearcher searcher = searchContext.searcher();
             weight = searcher.createNormalizedWeight(query);
             this.searcher = searcher;
+            for (final AtomicReaderContext leaf : searcher.getTopReaderContext().leaves()) {
+                final DocIdSet set = DocIdSets.toCacheable(leaf.reader(), new DocIdSet() {
+                    @Override
+                    public DocIdSetIterator iterator() throws IOException {
+                        return weight.scorer(leaf, true, false, null);
+                    }
+                    @Override
+                    public boolean isCacheable() { return false; }
+                });
+                docIdSets.put(leaf.reader(), set);
+            }
         } else {
             assert searcher == SearchContext.current().searcher();
         }
-
-        return new DocIdSet() {
-            @Override
-            public DocIdSetIterator iterator() throws IOException {
-                return weight.scorer(context, true, false, acceptDocs);
-            }
-            @Override
-            public boolean isCacheable() { return false; }
-        };
+        final DocIdSet set = docIdSets.get(context.reader());
+        if (set != null && acceptDocs != null) {
+            return BitsFilteredDocIdSet.wrap(set, acceptDocs);
+        }
+        return set;
     }
 
     @Override
@@ -81,9 +94,27 @@ public class CustomQueryWrappingFilter extends Filter {
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof CustomQueryWrappingFilter))
-            return false;
-        return this.query.equals(((CustomQueryWrappingFilter)o).query);
+        if (o == this) {
+            return true;
+        }
+        if (o != null && o instanceof CustomQueryWrappingFilter &&
+                this.query.equals(((CustomQueryWrappingFilter)o).query)) {
+            if (this.getThisOrContextReader() == ((CustomQueryWrappingFilter)o).getThisOrContextReader()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private IndexReader getThisOrContextReader() {
+        if (this.searcher == null) {
+            SearchContext searchContext = SearchContext.current();
+            if (searchContext != null) {
+                return searchContext.searcher().getIndexReader();
+            }
+        }
+        return searcher.getIndexReader();
     }
 
     @Override
