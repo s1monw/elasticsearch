@@ -30,6 +30,7 @@ import org.apache.lucene.search.similarities.Similarity;
 import org.elasticsearch.cache.recycler.CacheRecycler;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.ParseField;
+import org.elasticsearch.common.lucene.search.NoCacheFilter;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.analysis.AnalysisService;
@@ -74,6 +75,8 @@ public class QueryParseContext {
     }
 
     private final Index index;
+
+    private boolean propagateNoCache = false;
 
     IndexQueryParserService indexQueryParser;
 
@@ -165,6 +168,9 @@ public class QueryParseContext {
     }
 
     public Filter cacheFilter(Filter filter, @Nullable CacheKeyFilter.Key cacheKey) {
+        if (this.propagateNoCache) {
+            return filter;
+        }
         if (filter == null) {
             return null;
         }
@@ -251,7 +257,7 @@ public class QueryParseContext {
         if (filterParser == null) {
             throw new QueryParsingException(index, "No filter registered for [" + filterName + "]");
         }
-        Filter result = filterParser.parse(this);
+        Filter result = executeFilterParser(filterParser);
         if (parser.currentToken() == XContentParser.Token.END_OBJECT || parser.currentToken() == XContentParser.Token.END_ARRAY) {
             // if we are at END_OBJECT, move to the next one...
             parser.nextToken();
@@ -260,16 +266,23 @@ public class QueryParseContext {
     }
 
     public Filter parseInnerFilter(String filterName) throws IOException, QueryParsingException {
+
         FilterParser filterParser = indexQueryParser.filterParser(filterName);
         if (filterParser == null) {
             throw new QueryParsingException(index, "No filter registered for [" + filterName + "]");
         }
+        return executeFilterParser(filterParser);
+    }
+
+    private Filter executeFilterParser(FilterParser filterParser) throws IOException {
+        final boolean propagateNoCache = this.propagateNoCache;
+        this.propagateNoCache = false;
         Filter result = filterParser.parse(this);
-        // don't move to the nextToken in this case...
-//        if (parser.currentToken() == XContentParser.Token.END_OBJECT || parser.currentToken() == XContentParser.Token.END_ARRAY) {
-//            // if we are at END_OBJECT, move to the next one...
-//            parser.nextToken();
-//        }
+        if (result instanceof NoCacheFilter) {
+            result = NoCacheFilter.wrap(result);
+            this.propagateNoCache = true;
+        }
+        this.propagateNoCache |= propagateNoCache;
         return result;
     }
 

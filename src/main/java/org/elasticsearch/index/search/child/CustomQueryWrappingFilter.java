@@ -24,11 +24,11 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.search.*;
 import org.apache.lucene.util.Bits;
 import org.elasticsearch.common.lucene.docset.DocIdSets;
+import org.elasticsearch.common.lucene.search.NoCacheFilter;
 import org.elasticsearch.search.internal.SearchContext;
 
 import java.io.IOException;
 import java.util.IdentityHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * Forked from {@link QueryWrapperFilter} to make sure the weight is only created once.
@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @elasticsearch.internal
  */
-public class CustomQueryWrappingFilter extends Filter {
+public class CustomQueryWrappingFilter extends NoCacheFilter {
 
     private final Query query;
 
@@ -99,9 +99,7 @@ public class CustomQueryWrappingFilter extends Filter {
         }
         if (o != null && o instanceof CustomQueryWrappingFilter &&
                 this.query.equals(((CustomQueryWrappingFilter)o).query)) {
-            if (this.getThisOrContextReader() == ((CustomQueryWrappingFilter)o).getThisOrContextReader()) {
-                return true;
-            }
+            return true;
         }
 
         return false;
