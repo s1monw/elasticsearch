@@ -67,6 +67,9 @@ public abstract class NoCacheFilter extends Filter {
 
     }
 
+    /**
+     * Wraps a filter in a NoCacheFilter or returns it if it already is a NoCacheFilter.
+     */
     public static Filter wrap(Filter filter) {
         if (filter instanceof NoCacheFilter) {
             return filter;

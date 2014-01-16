@@ -168,11 +168,11 @@ public class QueryParseContext {
     }
 
     public Filter cacheFilter(Filter filter, @Nullable CacheKeyFilter.Key cacheKey) {
-        if (this.propagateNoCache) {
-            return filter;
-        }
         if (filter == null) {
             return null;
+        }
+        if (this.propagateNoCache || filter instanceof NoCacheFilter) {
+            return filter;
         }
         if (cacheKey != null) {
             filter = new CacheKeyFilter.Wrapper(filter, cacheKey);
@@ -275,14 +275,13 @@ public class QueryParseContext {
     }
 
     private Filter executeFilterParser(FilterParser filterParser) throws IOException {
-        final boolean propagateNoCache = this.propagateNoCache;
-        this.propagateNoCache = false;
+        final boolean propagateNoCache = this.propagateNoCache; // first safe the state that we need to restore
+        this.propagateNoCache = false; // parse the subfilter with caching, that's fine
         Filter result = filterParser.parse(this);
-        if (result instanceof NoCacheFilter) {
-            result = NoCacheFilter.wrap(result);
-            this.propagateNoCache = true;
-        }
-        this.propagateNoCache |= propagateNoCache;
+        // now make sure we set propagateNoCache to true if it is true already or if the result is
+        // an instance of NoCacheFilter or if we used to be true! all filters above will
+        // be not cached ie. wrappers of this filter!
+        this.propagateNoCache |= (result instanceof NoCacheFilter) || propagateNoCache;
         return result;
     }
 
