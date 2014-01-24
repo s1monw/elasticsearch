@@ -59,9 +59,9 @@ public class CompletionSuggester extends Suggester<CompletionSuggestionContext> 
 
         CompletionSuggestion.Entry completionSuggestEntry = new CompletionSuggestion.Entry(new StringText(spare.toString()), 0, spare.length());
         completionSuggestion.addTerm(completionSuggestEntry);
-
+        final boolean deduplicate = suggestionContext.getDeduplicate();
         String fieldName = suggestionContext.getField();
-        Map<String, CompletionSuggestion.Entry.Option> results = Maps.newHashMapWithExpectedSize(indexReader.leaves().size() * suggestionContext.getSize());
+        Map<CompletionSuggestion.Entry.Option, CompletionSuggestion.Entry.Option> results = Maps.newHashMapWithExpectedSize(indexReader.leaves().size() * suggestionContext.getSize());
         for (AtomicReaderContext atomicReaderContext : indexReader.leaves()) {
             AtomicReader atomicReader = atomicReaderContext.reader();
             Terms terms = atomicReader.fields().terms(fieldName);
@@ -78,11 +78,11 @@ public class CompletionSuggester extends Suggester<CompletionSuggestionContext> 
 
                     final String key = res.key.toString();
                     final float score = res.value;
-                    final Option value = results.get(key);
+                    final Option option = new CompletionSuggestion.Entry.Option(new StringText(key), score, res.payload == null ? null
+                            : new BytesArray(res.payload), deduplicate);
+                    final Option value = results.get(option);
                     if (value == null) {
-                        final Option option = new CompletionSuggestion.Entry.Option(new StringText(key), score, res.payload == null ? null
-                                : new BytesArray(res.payload));
-                        results.put(key, option);
+                        results.put(option, option);
                     } else if (value.getScore() < score) {
                         value.setScore(score);
                         value.setPayload(res.payload == null ? null : new BytesArray(res.payload));

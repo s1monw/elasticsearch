@@ -18,6 +18,7 @@
  */
 package org.elasticsearch.search.suggest.completion;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -70,10 +71,12 @@ public class CompletionSuggestion extends Suggest.Suggestion<CompletionSuggestio
 
         public static class Option extends org.elasticsearch.search.suggest.Suggest.Suggestion.Entry.Option {
             private BytesReference payload;
+            private boolean deduplicate = true;
 
-            public Option(Text text, float score, BytesReference payload) {
+            public Option(Text text, float score, BytesReference payload, boolean deduplicate) {
                 super(text, score);
                 this.payload = payload;
+                this.deduplicate = deduplicate;
             }
 
 
@@ -122,12 +125,46 @@ public class CompletionSuggestion extends Suggest.Suggestion<CompletionSuggestio
             public void readFrom(StreamInput in) throws IOException {
                 super.readFrom(in);
                 payload = in.readBytesReference();
+                if (in.getVersion().onOrAfter(Version.V_1_0_0_RC2)) {
+                    deduplicate = in.readBoolean();
+                }
             }
 
             @Override
             public void writeTo(StreamOutput out) throws IOException {
                 super.writeTo(out);
                 out.writeBytesReference(payload);
+                if (out.getVersion().onOrAfter(Version.V_1_0_0_RC2)) {
+                    out.writeBoolean(deduplicate);
+                }
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (deduplicate) {
+                    return super.equals(o);
+                }
+                if (this == o) return true;
+                if (o != null && o instanceof Option && super.equals(o)) {
+                    Option that = (Option) o;
+                    if (payload == null) {
+                        return payload.equals(that.payload);
+                    }
+                    return that.payload == null;
+                }
+                return false;
+            }
+
+            @Override
+            public int hashCode() {
+                if (deduplicate) {
+                    return super.hashCode();
+                }
+                int result = super.hashCode();
+                if (payload != null) {
+                    result = 31 * result + payload.hashCode();
+                }
+                return result;
             }
         }
     }

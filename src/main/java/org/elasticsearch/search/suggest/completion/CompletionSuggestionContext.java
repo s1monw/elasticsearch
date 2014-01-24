@@ -35,6 +35,7 @@ public class CompletionSuggestionContext extends SuggestionSearchContext.Suggest
     private int fuzzyPrefixLength = XFuzzySuggester.DEFAULT_NON_FUZZY_PREFIX;
     private boolean fuzzy = false;
     private boolean fuzzyUnicodeAware = XFuzzySuggester.DEFAULT_UNICODE_AWARE;
+    private boolean deduplicate = true;
 
     public CompletionSuggestionContext(Suggester suggester) {
         super(suggester);
@@ -94,5 +95,13 @@ public class CompletionSuggestionContext extends SuggestionSearchContext.Suggest
 
     public boolean isFuzzyUnicodeAware() {
         return fuzzyUnicodeAware;
+    }
+
+    public boolean getDeduplicate() {
+        return deduplicate;
+    }
+
+    public void setDeduplicate(boolean deduplicate) {
+        this.deduplicate = deduplicate;
     }
 }

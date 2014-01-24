@@ -604,11 +604,11 @@ public class Suggest implements Iterable<Suggest.Suggestion<? extends Entry<? ex
                 @Override
                 public boolean equals(Object o) {
                     if (this == o) return true;
-                    if (o == null || getClass() != o.getClass()) return false;
-
-                    Option that = (Option) o;
-                    return text.equals(that.text);
-
+                    if (o != null && o instanceof Option) {
+                        Option that = (Option) o;
+                        return text.equals(that.text);
+                    }
+                    return false;
                 }
 
                 @Override

@@ -30,12 +30,23 @@ import java.io.IOException;
  */
 public class CompletionSuggestionBuilder extends SuggestBuilder.SuggestionBuilder<CompletionSuggestionBuilder> {
 
+    private Boolean deduplicate = null;
+
     public CompletionSuggestionBuilder(String name) {
         super(name, "completion");
     }
 
+    public CompletionSuggestionBuilder setDeduplicate(boolean deduplicate) {
+        this.deduplicate = deduplicate;
+        return this;
+    }
+
+
     @Override
     protected XContentBuilder innerToXContent(XContentBuilder builder, Params params) throws IOException {
+        if (deduplicate != null) {
+            builder.field("deduplicate", deduplicate);
+        }
         return builder;
     }
 }

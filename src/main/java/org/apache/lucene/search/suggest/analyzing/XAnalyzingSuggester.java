@@ -967,6 +967,7 @@ public class XAnalyzingSuggester extends Lookup {
         private int count;
         private ObjectIntOpenHashMap<BytesRef> seenSurfaceForms = HppcMaps.Object.Integer.ensureNoNullKeys(256, 0.75f);
         private int payloadSep;
+        private int maxAnalyzedPathsForOneInput = 0;
 
         public XBuilder(int maxSurfaceFormsPerAnalyzedForm, boolean hasPayloads, int payloadSep) {
             this.payloadSep = payloadSep;
@@ -985,11 +986,13 @@ public class XAnalyzingSuggester extends Lookup {
         private final static class SurfaceFormAndPayload implements Comparable<SurfaceFormAndPayload> {
             BytesRef payload;
             long weight;
+            int maxAnalyzedPaths;
             
-            public SurfaceFormAndPayload(BytesRef payload, long cost) {
+            public SurfaceFormAndPayload(BytesRef payload, long cost, int analyzedPaths) {
                 super();
                 this.payload = payload;
                 this.weight = cost;
+                this.maxAnalyzedPaths = analyzedPaths;
             }
 
             @Override
@@ -1005,7 +1008,7 @@ public class XAnalyzingSuggester extends Lookup {
             }
         }
 
-        public void addSurface(BytesRef surface, BytesRef payload, long cost) throws IOException {
+        public void addSurface(BytesRef surface, BytesRef payload, long cost, int analyzedPaths) throws IOException {
             int surfaceIndex = -1;
             long encodedWeight = cost == -1 ? cost : encodeWeight(cost);
             /*
@@ -1019,7 +1022,8 @@ public class XAnalyzingSuggester extends Lookup {
                 return;
             }
             BytesRef surfaceCopy;
-            if (count > 0 && seenSurfaceForms.containsKey(surface)) {
+            boolean seenSurfaceForm = false;
+            if (count > 0 && (seenSurfaceForm = seenSurfaceForms.containsKey(surface)) && surfaceFormsAndPayload[seenSurfaceForms.lget()].payload.bytesEquals(payload)) {
                 surfaceIndex = seenSurfaceForms.lget();
                 SurfaceFormAndPayload surfaceFormAndPayload = surfaceFormsAndPayload[surfaceIndex];
                 if (encodedWeight >= surfaceFormAndPayload.weight) {
@@ -1027,6 +1031,9 @@ public class XAnalyzingSuggester extends Lookup {
                 }
                 surfaceCopy = BytesRef.deepCopyOf(surface);
             } else {
+                if (seenSurfaceForm) {
+                    analyzedPaths += surfaceFormsAndPayload[seenSurfaceForms.lget()].maxAnalyzedPaths;
+                }
                 surfaceIndex = count++;
                 surfaceCopy = BytesRef.deepCopyOf(surface);
                 seenSurfaceForms.put(surfaceCopy, surfaceIndex);
@@ -1045,27 +1052,32 @@ public class XAnalyzingSuggester extends Lookup {
                 payloadRef = br;
             }
             if (surfaceFormsAndPayload[surfaceIndex] == null) {
-                surfaceFormsAndPayload[surfaceIndex] = new SurfaceFormAndPayload(payloadRef, encodedWeight);
+                surfaceFormsAndPayload[surfaceIndex] = new SurfaceFormAndPayload(payloadRef, encodedWeight, analyzedPaths);
             } else {
                 surfaceFormsAndPayload[surfaceIndex].payload = payloadRef;
                 surfaceFormsAndPayload[surfaceIndex].weight = encodedWeight;
+                surfaceFormsAndPayload[surfaceIndex].maxAnalyzedPaths = Math.max(surfaceFormsAndPayload[surfaceIndex].maxAnalyzedPaths, analyzedPaths);
             }
         }
         
-        public void finishTerm(long defaultWeight) throws IOException {
+        public int finishTerm(long defaultWeight) throws IOException {
             ArrayUtil.timSort(surfaceFormsAndPayload, 0, count);
             int deduplicator = 0;
             analyzed.bytes[analyzed.offset + analyzed.length] = 0;
             analyzed.length += 2;
+            int maxAnalyzedPaths = 0;
             for (int i = 0; i < count; i++) {
                 analyzed.bytes[analyzed.offset + analyzed.length - 1 ] = (byte) deduplicator++;
                 Util.toIntsRef(analyzed, scratchInts);
                 SurfaceFormAndPayload candiate = surfaceFormsAndPayload[i];
+                maxAnalyzedPaths = Math.max(maxAnalyzedPaths, candiate.maxAnalyzedPaths);
+                candiate.maxAnalyzedPaths = 0;
                 long cost = candiate.weight == -1 ? encodeWeight(Math.min(Integer.MAX_VALUE, defaultWeight)) : candiate.weight;
                 builder.add(scratchInts, outputs.newPair(cost, candiate.payload));
             }
             seenSurfaceForms.clear();
             count = 0;
+            return maxAnalyzedPaths;
         }
 
         public FST<Pair<Long, BytesRef>> build() throws IOException {

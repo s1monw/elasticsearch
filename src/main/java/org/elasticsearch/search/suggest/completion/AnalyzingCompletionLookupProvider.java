@@ -113,6 +113,7 @@ public class AnalyzingCompletionLookupProvider extends CompletionLookupProvider 
                 return new TermsConsumer() {
                     final XAnalyzingSuggester.XBuilder builder = new XAnalyzingSuggester.XBuilder(maxSurfaceFormsPerAnalyzedForm, hasPayloads, XAnalyzingSuggester.PAYLOAD_SEP);
                     final CompletionPostingsConsumer postingsConsumer = new CompletionPostingsConsumer(AnalyzingCompletionLookupProvider.this, builder);
+                    int maxAnalyzedPathsForOneInput = 0;
 
                     @Override
                     public PostingsConsumer startTerm(BytesRef text) throws IOException {
@@ -127,7 +128,7 @@ public class AnalyzingCompletionLookupProvider extends CompletionLookupProvider 
 
                     @Override
                     public void finishTerm(BytesRef text, TermStats stats) throws IOException {
-                        builder.finishTerm(stats.docFreq); // use  doc freq as a fallback
+                        maxAnalyzedPathsForOneInput = Math.max(maxAnalyzedPathsForOneInput, builder.finishTerm(stats.docFreq)); // use  doc freq as a fallback
                     }
 
                     @Override
@@ -148,7 +149,7 @@ public class AnalyzingCompletionLookupProvider extends CompletionLookupProvider 
                             fieldOffsets.put(field, output.getFilePointer());
                             build.save(output);
                             /* write some more meta-info */
-                            output.writeVInt(postingsConsumer.getMaxAnalyzedPathsForOneInput());
+                            output.writeVInt(maxAnalyzedPathsForOneInput);
                             output.writeVInt(maxSurfaceFormsPerAnalyzedForm);
                             output.writeInt(maxGraphExpansions); // can be negative
                             int options = 0;
@@ -171,7 +172,6 @@ public class AnalyzingCompletionLookupProvider extends CompletionLookupProvider 
         private final SuggestPayload spare = new SuggestPayload();
         private AnalyzingCompletionLookupProvider analyzingSuggestLookupProvider;
         private XAnalyzingSuggester.XBuilder builder;
-        private int maxAnalyzedPathsForOneInput = 0;
 
         public CompletionPostingsConsumer(AnalyzingCompletionLookupProvider analyzingSuggestLookupProvider, XAnalyzingSuggester.XBuilder builder) {
             this.analyzingSuggestLookupProvider = analyzingSuggestLookupProvider;
@@ -185,18 +185,15 @@ public class AnalyzingCompletionLookupProvider extends CompletionLookupProvider 
         @Override
         public void addPosition(int position, BytesRef payload, int startOffset, int endOffset) throws IOException {
             analyzingSuggestLookupProvider.parsePayload(payload, spare);
-            builder.addSurface(spare.surfaceForm, spare.payload, spare.weight);
-            // multi fields have the same surface form so we sum up here
-            maxAnalyzedPathsForOneInput = Math.max(maxAnalyzedPathsForOneInput, position + 1);
+            builder.addSurface(spare.surfaceForm, spare.payload, spare.weight, position + 1);
+
         }
 
         @Override
         public void finishDoc() throws IOException {
         }
 
-        public int getMaxAnalyzedPathsForOneInput() {
-            return maxAnalyzedPathsForOneInput;
-        }
+
     }
 
     ;

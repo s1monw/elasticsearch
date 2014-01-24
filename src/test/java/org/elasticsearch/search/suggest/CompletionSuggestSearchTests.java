@@ -1100,4 +1100,58 @@ public class CompletionSuggestSearchTests extends ElasticsearchIntegrationTest {
             return this;
         }
     }
+    @Test
+    public void testSameSurfaceForms() throws Exception{
+            completionMappingBuilder.payloads(true);
+            createIndexAndMapping(completionMappingBuilder);
+            client().prepareIndex(INDEX, TYPE, "1").setSource(jsonBuilder()
+                    .startObject().startObject(FIELD)
+                    .startArray("input").value("Foo Fighters").endArray()
+                    .field("output", "Boo Fighters")
+                    .field("weight", 2)
+                    .startObject("payload").field("foo", "bar").endObject()
+                    .endObject().endObject()
+            ).get();
+
+            client().prepareIndex(INDEX, TYPE, "2").setSource(jsonBuilder()
+                    .startObject().startObject(FIELD)
+                    .startArray("input").value("Foo Fighters").endArray()
+                    .field("output", "Boo Fighters")
+                    .field("weight", 1)
+                    .startObject("payload").field("foo", "foobar").endObject()
+                    .endObject().endObject()
+            ).get();
+
+            refresh();
+
+
+            SuggestResponse suggestResponse = client().prepareSuggest(INDEX).addSuggestion(
+                    new CompletionSuggestionBuilder("testSuggestions").setDeduplicate(false).field(FIELD).text("foo").size(10)
+            ).execute().actionGet();
+
+            assertSuggestions(suggestResponse, "testSuggestions", "Boo Fighters", "Boo Fighters");
+        {
+            Suggest.Suggestion.Entry.Option option = suggestResponse.getSuggest().getSuggestion("testSuggestions").getEntries().get(0).getOptions().get(0);
+            assertThat(option, is(instanceOf(CompletionSuggestion.Entry.Option.class)));
+            CompletionSuggestion.Entry.Option prefixOption = (CompletionSuggestion.Entry.Option) option;
+            assertThat(prefixOption.getPayload(), is(notNullValue()));
+
+            // parse JSON
+            Map<String, Object> jsonMap = prefixOption.getPayloadAsMap();
+            assertThat(jsonMap.size(), is(1));
+            assertThat(jsonMap.get("foo").toString(), is("bar"));
+        }
+        {
+            Suggest.Suggestion.Entry.Option option = suggestResponse.getSuggest().getSuggestion("testSuggestions").getEntries().get(0).getOptions().get(1);
+            assertThat(option, is(instanceOf(CompletionSuggestion.Entry.Option.class)));
+            CompletionSuggestion.Entry.Option prefixOption = (CompletionSuggestion.Entry.Option) option;
+            assertThat(prefixOption.getPayload(), is(notNullValue()));
+
+            // parse JSON
+            Map<String, Object> jsonMap = prefixOption.getPayloadAsMap();
+            assertThat(jsonMap.size(), is(1));
+            assertThat(jsonMap.get("foo").toString(), is("foobar"));
+        }
+
+    }
 }
