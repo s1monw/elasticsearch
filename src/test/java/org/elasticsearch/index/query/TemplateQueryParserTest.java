@@ -58,8 +58,8 @@ public class TemplateQueryParserTest extends ElasticsearchTestCase {
     @Test
     public void testParser() throws IOException {
         String templateString = "{\"template\": {"
-                + "\"template_string\":\"{\\\"match_{{template}}\\\": {}}\","
-                + "\"template_vars\":{\"template\":\"all\"}}" + "}";
+                + "\"query\":\"{\\\"match_{{template}}\\\": {}}\","
+                + "\"params\":{\"template\":\"all\"}}" + "}";
 
         Settings settings = ImmutableSettings.Builder.EMPTY_SETTINGS;
 

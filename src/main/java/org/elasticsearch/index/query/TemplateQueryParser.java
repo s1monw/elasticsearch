@@ -18,11 +18,6 @@
  */
 package org.elasticsearch.index.query;
 
-import java.io.IOException;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.lucene.search.Query;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.inject.Inject;
@@ -30,6 +25,10 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.script.ExecutableScript;
 import org.elasticsearch.script.ScriptService;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * In the simplest case, parse template string and variables from the request, compile the template and
@@ -42,9 +41,9 @@ public class TemplateQueryParser implements QueryParser {
     /** Name to reference this type of query. */
     public static final String NAME = "template";
     /** Name of query parameter containing the template string. */
-    public static final String STRING = "template_string";
+    public static final String STRING = "query";
     /** Name of query parameter containing the template parameters. */
-    public static final String VARS = "template_vars";
+    public static final String VARS = "params";
     /** This is what we are registered with for query executions. */
     private final ScriptService scriptService;
 
