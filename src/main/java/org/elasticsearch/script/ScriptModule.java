@@ -26,6 +26,7 @@ import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.common.inject.multibindings.MapBinder;
 import org.elasticsearch.common.inject.multibindings.Multibinder;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.script.mustache.MustacheScriptEngineService;
 import org.elasticsearch.script.mvel.MvelScriptEngineService;
 
 import java.util.List;
@@ -80,6 +81,13 @@ public class ScriptModule extends AbstractModule {
         } catch (Throwable t) {
             // no MVEL
         }
+        
+        try {
+            multibinder.addBinding().to(MustacheScriptEngineService.class);
+        } catch (Throwable t) {
+            // no Mustache
+        }
+
         for (Class<? extends ScriptEngineService> scriptEngine : scriptEngines) {
             multibinder.addBinding().to(scriptEngine);
         }
