@@ -168,7 +168,7 @@
             <groupId>com.github.spullara.mustache.java</groupId>
             <artifactId>compiler</artifactId>
             <version>0.8.13</version>
-            <!--optional>false</optional-->
+            <optional>true</optional>
         </dependency>
        <!-- Lucene spatial -->
 
