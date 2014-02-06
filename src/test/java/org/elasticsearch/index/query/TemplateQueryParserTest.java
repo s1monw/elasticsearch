@@ -46,6 +46,7 @@ import org.elasticsearch.indices.query.IndicesQueriesModule;
 import org.elasticsearch.script.ScriptModule;
 import org.elasticsearch.test.ElasticsearchTestCase;
 import org.elasticsearch.threadpool.ThreadPoolModule;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -55,16 +56,15 @@ import java.io.IOException;
  * */
 public class TemplateQueryParserTest extends ElasticsearchTestCase {
 
-    @Test
-    public void testParser() throws IOException {
-        String templateString = "{\"template\": {"
-                + "\"query\":\"{\\\"match_{{template}}\\\": {}}\","
-                + "\"params\":{\"template\":\"all\"}}" + "}";
-
+    private Injector injector;
+    private QueryParseContext context;
+    
+    @Before
+    public void setup() {
         Settings settings = ImmutableSettings.Builder.EMPTY_SETTINGS;
 
         Index index = new Index("test");
-        Injector injector = new ModulesBuilder().add(
+        injector = new ModulesBuilder().add(
                 new SettingsModule(settings),
                 new CacheRecyclerModule(settings),
                 new CodecModule(settings),
@@ -89,9 +89,16 @@ public class TemplateQueryParserTest extends ElasticsearchTestCase {
         ).createInjector();
 
         IndexQueryParserService queryParserService = injector.getInstance(IndexQueryParserService.class);
+        context = new QueryParseContext(index, queryParserService);
+    }
+
+    @Test
+    public void testParser() throws IOException {
+        String templateString = "{\"template\": {"
+                + "\"query\":{\"match_{{template}}\": {}},"
+                + "\"params\":{\"template\":\"all\"}}" + "}";
 
         XContentParser templateSourceParser = XContentFactory.xContent(templateString).createParser(templateString);
-        QueryParseContext context = new QueryParseContext(index, queryParserService);
         context.reset(templateSourceParser);
 
         TemplateQueryParser parser = injector.getInstance(TemplateQueryParser.class);

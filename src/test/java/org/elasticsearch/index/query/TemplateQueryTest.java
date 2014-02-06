@@ -24,6 +24,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -31,10 +32,10 @@ import java.util.Map;
  * Full integration test of the template query plugin.
  * */
 @ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.SUITE)
-public class TemplateQueryPluginTest extends ElasticsearchIntegrationTest {
+public class TemplateQueryTest extends ElasticsearchIntegrationTest {
 
     @Test
-    public void testTemplateInBody() {
+    public void testTemplateInBody() throws IOException {
         createIndex("test");
         ensureGreen();
 
@@ -77,6 +78,61 @@ public class TemplateQueryPluginTest extends ElasticsearchIntegrationTest {
 
     }
 
+    @Test
+    public void testRawEscapedTemplate() throws IOException {
+        createIndex("test");
+        ensureGreen();
+
+        client().prepareIndex("test", "testtype").setId("1")
+                .setSource("text", "value1").get();
+        client().prepareIndex("test", "testtype").setId("2")
+                .setSource("text", "value2").get();
+        refresh();
+
+        String query = "{\"template\": {\"query\": \"{\\\"match_{{template}}\\\": {}}\\\"\",\"params\" : {\"template\" : \"all\"}}}";
+
+        SearchResponse sr = client().prepareSearch().setQuery(query)
+                .execute().actionGet();
+        assertEquals("Template query didn't return correct number of hits.", 2,
+                sr.getHits().totalHits());
+    }
+
+    @Test
+    public void testRawTemplate() throws IOException {
+        createIndex("test");
+        ensureGreen();
+
+        client().prepareIndex("test", "testtype").setId("1")
+                .setSource("text", "value1").get();
+        client().prepareIndex("test", "testtype").setId("2")
+                .setSource("text", "value2").get();
+        refresh();
+
+        String query = "{\"template\": {\"query\": {\"match_{{template}}\": {}},\"params\" : {\"template\" : \"all\"}}}";
+        SearchResponse sr = client().prepareSearch().setQuery(query)
+                .execute().actionGet();
+        assertEquals("Template query didn't return correct number of hits.", 2,
+                sr.getHits().totalHits());
+    }
+
+    @Test
+    public void testRawFSTemplate() throws IOException {
+        createIndex("test");
+        ensureGreen();
+
+        client().prepareIndex("test", "testtype").setId("1")
+                .setSource("text", "value1").get();
+        client().prepareIndex("test", "testtype").setId("2")
+                .setSource("text", "value2").get();
+        refresh();
+
+        String query = "{\"template\": {\"query\": \"storedTemplate\",\"params\" : {\"template\" : \"all\"}}}";
+
+        SearchResponse sr = client().prepareSearch().setQuery(query)
+                .execute().actionGet();
+        assertEquals("Template query didn't return correct number of hits.", 2,
+                sr.getHits().totalHits());
+    }
     @Override
     public Settings nodeSettings(int nodeOrdinal) {
         String scriptPath = this.getClass()

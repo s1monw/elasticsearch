@@ -168,7 +168,7 @@
             <groupId>com.github.spullara.mustache.java</groupId>
             <artifactId>compiler</artifactId>
             <version>0.8.13</version>
-            <optional>true</optional>
+            <!--optional>false</optional-->
         </dependency>
        <!-- Lucene spatial -->
 
@@ -506,6 +506,7 @@
                             <include>org.joda:joda-convert</include>
                             <include>io.netty:netty</include>
                             <include>com.ning:compress-lzf</include>
+                            <include>com.github.spullara.mustache.java:compiler</include>
                         </includes>
                     </artifactSet>
                     <relocations>

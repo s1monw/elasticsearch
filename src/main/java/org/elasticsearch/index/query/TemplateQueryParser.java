@@ -21,8 +21,10 @@ package org.elasticsearch.index.query;
 import org.apache.lucene.search.Query;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.script.ExecutableScript;
 import org.elasticsearch.script.ScriptService;
 
@@ -41,9 +43,9 @@ public class TemplateQueryParser implements QueryParser {
     /** Name to reference this type of query. */
     public static final String NAME = "template";
     /** Name of query parameter containing the template string. */
-    public static final String STRING = "query";
+    public static final String QUERY = "query";
     /** Name of query parameter containing the template parameters. */
-    public static final String VARS = "params";
+    public static final String PARAMS = "params";
     /** This is what we are registered with for query executions. */
     private final ScriptService scriptService;
 
@@ -67,7 +69,6 @@ public class TemplateQueryParser implements QueryParser {
     @Nullable
     public Query parse(QueryParseContext parseContext) throws IOException {
         XContentParser parser = parseContext.parser();
-
         String template = "";
         Map<String, Object> vars = new HashMap<String, Object>();
 
@@ -76,9 +77,17 @@ public class TemplateQueryParser implements QueryParser {
         while ((token = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
             if (token == XContentParser.Token.FIELD_NAME) {
                 currentFieldName = parser.currentName();
-            } else if (STRING.equals(currentFieldName)) {
-                template = (String) parser.objectText();
-            } else if (VARS.equals(currentFieldName)) {
+            } else if (QUERY.equals(currentFieldName)) {
+                if (! parser.hasTextCharacters()) {
+                    // when called with un-escaped json string
+                    XContentBuilder builder = XContentBuilder.builder(JsonXContent.jsonXContent);
+                    builder.copyCurrentStructure(parser);
+                    template = builder.string();
+                } else {
+                    // when called with excaped json string or when called with filename
+                    template = parser.bytes().utf8ToString();
+                }
+            } else if (PARAMS.equals(currentFieldName)) {
                 XContentParser.Token innerToken;
                 String key = "";
                 while ((innerToken = parser.nextToken()) != XContentParser.Token.END_OBJECT) {

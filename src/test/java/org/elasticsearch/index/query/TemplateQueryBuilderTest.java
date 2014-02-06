@@ -45,5 +45,4 @@ public class TemplateQueryBuilderTest {
         content.close();
         assertEquals(content.string(), "{\"template\":{\"query\":\"I am a $template string\",\"params\":{\"template\":\"filled\"}}}");
     }
-
 }

@@ -18,10 +18,10 @@
  */
 package org.elasticsearch.index.query;
 
+import org.elasticsearch.common.xcontent.XContentBuilder;
+
 import java.io.IOException;
 import java.util.Map;
-
-import org.elasticsearch.common.xcontent.XContentBuilder;
 
 /**
  * Facilitates creating template query requests.
@@ -45,8 +45,8 @@ public class TemplateQueryBuilder extends BaseQueryBuilder {
     @Override
     protected void doXContent(XContentBuilder builder, Params params) throws IOException {
         builder.startObject(TemplateQueryParser.NAME);
-        builder.field(TemplateQueryParser.STRING, template);
-        builder.field(TemplateQueryParser.VARS, vars);
+        builder.field(TemplateQueryParser.QUERY, template);
+        builder.field(TemplateQueryParser.PARAMS, vars);
         builder.endObject();
     }
 }
