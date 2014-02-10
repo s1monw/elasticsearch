@@ -16,19 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.elasticsearch.index.engine.internal;
 
 import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.index.engine.Engine;
 
-/**
- *
- */
-public class InternalEngineModule extends AbstractModule {
+public class RealtimeIndexEngineModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(Engine.class).to(InternalEngine.class).asEagerSingleton();
+        bind(Engine.class).to(RealtimeEngine.class).asEagerSingleton();
     }
 }

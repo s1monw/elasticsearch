@@ -24,8 +24,8 @@ import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.common.inject.SpawnModules;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.engine.internal.InternalEngineModule;
-import org.elasticsearch.index.engine.internal.InternalIndexEngineModule;
+import org.elasticsearch.index.engine.internal.AppendOnlyIndexEngineModule;
+import org.elasticsearch.index.engine.internal.RealtimeIndexEngineModule;
 
 import static org.elasticsearch.common.inject.Modules.createModule;
 
@@ -37,8 +37,8 @@ public class IndexEngineModule extends AbstractModule implements SpawnModules {
     public static final class EngineSettings {
         public static final String ENGINE_TYPE = "index.engine.type";
         public static final String INDEX_ENGINE_TYPE = "index.index_engine.type";
-        public static final Class<? extends Module> DEFAULT_INDEX_ENGINE = InternalIndexEngineModule.class;
-        public static final Class<? extends Module> DEFAULT_ENGINE = InternalEngineModule.class;
+        public static final Class<? extends Module> DEFAULT_INDEX_ENGINE = RealtimeIndexEngineModule.class;
+        public static final Class<? extends Module> DEFAULT_ENGINE = RealtimeIndexEngineModule.class;
     }
 
     private final Settings settings;
@@ -49,7 +49,15 @@ public class IndexEngineModule extends AbstractModule implements SpawnModules {
 
     @Override
     public Iterable<? extends Module> spawnModules() {
-        return ImmutableList.of(createModule(settings.getAsClass(EngineSettings.INDEX_ENGINE_TYPE, EngineSettings.DEFAULT_INDEX_ENGINE, "org.elasticsearch.index.engine.", "IndexEngineModule"), settings));
+        Class<? extends Module> engineModule = RealtimeIndexEngineModule.class;
+        String engineType = settings.get(EngineSettings.INDEX_ENGINE_TYPE);
+        if ("default".equals(engineType) || "realtime".equals(engineType)) {
+            engineModule = EngineSettings.DEFAULT_INDEX_ENGINE;
+        } else if ("append".equals(engineType)) {
+            engineModule = AppendOnlyIndexEngineModule.class;
+        }
+
+        return ImmutableList.of(createModule(settings.getAsClass(EngineSettings.INDEX_ENGINE_TYPE, engineModule, "org.elasticsearch.index.engine.", "IndexEngineModule"), settings));
     }
 
     @Override

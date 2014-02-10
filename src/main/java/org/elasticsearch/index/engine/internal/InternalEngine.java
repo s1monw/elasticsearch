@@ -89,25 +89,25 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  *
  */
-public class InternalEngine extends AbstractIndexShardComponent implements Engine {
+public abstract class InternalEngine extends AbstractIndexShardComponent implements Engine {
 
     private volatile ByteSizeValue indexingBufferSize;
-    private volatile int indexConcurrency;
+    protected volatile int indexConcurrency;
     private volatile boolean compoundOnFlush = true;
 
-    private long gcDeletesInMillis;
-    private volatile boolean enableGcDeletes = true;
+    protected long gcDeletesInMillis;
+    protected volatile boolean enableGcDeletes = true;
     private volatile String codecName;
 
-    private final ThreadPool threadPool;
+    protected final ThreadPool threadPool;
 
-    private final ShardIndexingService indexingService;
+    protected final ShardIndexingService indexingService;
     private final IndexSettingsService indexSettingsService;
     @Nullable
     private final InternalIndicesWarmer warmer;
     private final Store store;
     private final SnapshotDeletionPolicy deletionPolicy;
-    private final Translog translog;
+    protected final Translog translog;
     private final MergePolicyProvider mergePolicyProvider;
     private final MergeSchedulerProvider mergeScheduler;
     private final AnalysisService analysisService;
@@ -138,13 +138,6 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
 
     private final RecoveryCounter onGoingRecoveries = new RecoveryCounter();
 
-
-    // A uid (in the form of BytesRef) to the version map
-    // we use the hashed variant since we iterate over it and check removal and additions on existing keys
-    private final ConcurrentMap<HashedBytesRef, VersionValue> versionMap;
-
-    private final Object[] dirtyLocks;
-
     private final Object refreshMutex = new Object();
 
     private final ApplySettings applySettings = new ApplySettings();
@@ -158,8 +151,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
 
     private SegmentInfos lastCommittedSegmentInfos;
 
-    @Inject
-    public InternalEngine(ShardId shardId, @IndexSettings Settings indexSettings, ThreadPool threadPool,
+    protected InternalEngine(ShardId shardId, @IndexSettings Settings indexSettings, ThreadPool threadPool,
                           IndexSettingsService indexSettingsService, ShardIndexingService indexingService, @Nullable IndicesWarmer warmer,
                           Store store, SnapshotDeletionPolicy deletionPolicy, Translog translog,
                           MergePolicyProvider mergePolicyProvider, MergeSchedulerProvider mergeScheduler,
@@ -187,12 +179,6 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         this.codecService = codecService;
         this.compoundOnFlush = indexSettings.getAsBoolean(INDEX_COMPOUND_ON_FLUSH, this.compoundOnFlush);
         this.indexConcurrency = indexSettings.getAsInt(INDEX_INDEX_CONCURRENCY, Math.max(IndexWriterConfig.DEFAULT_MAX_THREAD_STATES, (int) (EsExecutors.boundedNumberOfProcessors(indexSettings) * 0.65)));
-        this.versionMap = ConcurrentCollections.newConcurrentMapWithAggressiveConcurrency();
-        this.dirtyLocks = new Object[indexConcurrency * 50]; // we multiply it to have enough...
-        for (int i = 0; i < dirtyLocks.length; i++) {
-            dirtyLocks[i] = new Object();
-        }
-
         this.indexSettingsService.addListener(applySettings);
 
         this.failOnMergeFailure = indexSettings.getAsBoolean(INDEX_FAIL_ON_MERGE_FAILURE, true);
@@ -312,33 +298,10 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
     public GetResult get(Get get) throws EngineException {
         rwl.readLock().lock();
         try {
-            if (get.realtime()) {
-                VersionValue versionValue = versionMap.get(versionKey(get.uid()));
-                if (versionValue != null) {
-                    if (versionValue.delete()) {
-                        return GetResult.NOT_EXISTS;
-                    }
-                    if (get.version() != Versions.MATCH_ANY) {
-                        if (get.versionType().isVersionConflict(versionValue.version(), get.version())) {
-                            Uid uid = Uid.createUid(get.uid().text());
-                            throw new VersionConflictEngineException(shardId, uid.type(), uid.id(), versionValue.version(), get.version());
-                        }
-                    }
-                    if (!get.loadSource()) {
-                        return new GetResult(true, versionValue.version(), null);
-                    }
-                    byte[] data = translog.read(versionValue.translogLocation());
-                    if (data != null) {
-                        try {
-                            Translog.Source source = TranslogStreams.readSource(data);
-                            return new GetResult(true, versionValue.version(), source);
-                        } catch (IOException e) {
-                            // switched on us, read it from the reader
-                        }
-                    }
-                }
+            GetResult innerResult = innerGet(get);
+            if (innerResult != null) {
+                return innerResult;
             }
-
             // no version, get the version from the index, we know that we refresh on flush
             Searcher searcher = acquireSearcher("get");
             final Versions.DocIdAndVersion docIdAndVersion;
@@ -371,6 +334,8 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         }
     }
 
+    protected abstract GetResult innerGet(Get get);
+
     @Override
     public void create(Create create) throws EngineException {
         rwl.readLock().lock();
@@ -398,74 +363,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         }
     }
 
-    private void innerCreate(Create create, IndexWriter writer) throws IOException {
-        synchronized (dirtyLock(create.uid())) {
-            HashedBytesRef versionKey = versionKey(create.uid());
-            final long currentVersion;
-            VersionValue versionValue = versionMap.get(versionKey);
-            if (versionValue == null) {
-                currentVersion = loadCurrentVersionFromIndex(create.uid());
-            } else {
-                if (enableGcDeletes && versionValue.delete() && (threadPool.estimatedTimeInMillis() - versionValue.time()) > gcDeletesInMillis) {
-                    currentVersion = Versions.NOT_FOUND; // deleted, and GC
-                } else {
-                    currentVersion = versionValue.version();
-                }
-            }
-
-            // same logic as index
-            long updatedVersion;
-            long expectedVersion = create.version();
-            if (create.origin() == Operation.Origin.PRIMARY) {
-                if (create.versionType().isVersionConflict(currentVersion, expectedVersion)) {
-                    throw new VersionConflictEngineException(shardId, create.type(), create.id(), currentVersion, expectedVersion);
-                }
-                updatedVersion = create.versionType().updateVersion(currentVersion, expectedVersion);
-            } else { // if (index.origin() == Operation.Origin.REPLICA || index.origin() == Operation.Origin.RECOVERY) {
-                // replicas treat the version as "external" as it comes from the primary ->
-                // only exploding if the version they got is lower or equal to what they know.
-                if (VersionType.EXTERNAL.isVersionConflict(currentVersion, expectedVersion)) {
-                    if (create.origin() == Operation.Origin.RECOVERY) {
-                        return;
-                    } else {
-                        throw new VersionConflictEngineException(shardId, create.type(), create.id(), currentVersion, expectedVersion);
-                    }
-                }
-                updatedVersion = VersionType.EXTERNAL.updateVersion(currentVersion, expectedVersion);
-            }
-
-            // if the doc does not exists or it exists but not delete
-            if (versionValue != null) {
-                if (!versionValue.delete()) {
-                    if (create.origin() == Operation.Origin.RECOVERY) {
-                        return;
-                    } else {
-                        throw new DocumentAlreadyExistsException(shardId, create.type(), create.id());
-                    }
-                }
-            } else if (currentVersion != Versions.NOT_FOUND) {
-                // its not deleted, its already there
-                if (create.origin() == Operation.Origin.RECOVERY) {
-                    return;
-                } else {
-                    throw new DocumentAlreadyExistsException(shardId, create.type(), create.id());
-                }
-            }
-
-            create.version(updatedVersion);
-
-            if (create.docs().size() > 1) {
-                writer.addDocuments(create.docs(), create.analyzer());
-            } else {
-                writer.addDocument(create.docs().get(0), create.analyzer());
-            }
-            Translog.Location translogLocation = translog.add(new Translog.Create(create));
-
-            versionMap.put(versionKey, new VersionValue(updatedVersion, false, threadPool.estimatedTimeInMillis(), translogLocation));
-
-            indexingService.postCreateUnderLock(create);
-        }
-    }
+    protected abstract void innerCreate(Create create, IndexWriter writer) throws IOException;
 
     @Override
     public void index(Index index) throws EngineException {
@@ -495,69 +393,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         }
     }
 
-    private void innerIndex(Index index, IndexWriter writer) throws IOException {
-        synchronized (dirtyLock(index.uid())) {
-            HashedBytesRef versionKey = versionKey(index.uid());
-            final long currentVersion;
-            VersionValue versionValue = versionMap.get(versionKey);
-            if (versionValue == null) {
-                currentVersion = loadCurrentVersionFromIndex(index.uid());
-            } else {
-                if (enableGcDeletes && versionValue.delete() && (threadPool.estimatedTimeInMillis() - versionValue.time()) > gcDeletesInMillis) {
-                    currentVersion = Versions.NOT_FOUND; // deleted, and GC
-                } else {
-                    currentVersion = versionValue.version();
-                }
-            }
-
-            long updatedVersion;
-            long expectedVersion = index.version();
-            if (index.origin() == Operation.Origin.PRIMARY) {
-                if (index.versionType().isVersionConflict(currentVersion, expectedVersion)) {
-                    throw new VersionConflictEngineException(shardId, index.type(), index.id(), currentVersion, expectedVersion);
-                }
-
-                updatedVersion = index.versionType().updateVersion(currentVersion, expectedVersion);
-
-            } else { // if (index.origin() == Operation.Origin.REPLICA || index.origin() == Operation.Origin.RECOVERY) {
-                // replicas treat the version as "external" as it comes from the primary ->
-                // only exploding if the version they got is lower or equal to what they know.
-                if (VersionType.EXTERNAL.isVersionConflict(currentVersion, expectedVersion)) {
-                    if (index.origin() == Operation.Origin.RECOVERY) {
-                        return;
-                    } else {
-                        throw new VersionConflictEngineException(shardId, index.type(), index.id(), currentVersion, expectedVersion);
-                    }
-                }
-                updatedVersion = VersionType.EXTERNAL.updateVersion(currentVersion, expectedVersion);
-            }
-
-            index.version(updatedVersion);
-            if (currentVersion == Versions.NOT_FOUND) {
-                // document does not exists, we can optimize for create
-                index.created(true);
-                if (index.docs().size() > 1) {
-                    writer.addDocuments(index.docs(), index.analyzer());
-                } else {
-                    writer.addDocument(index.docs().get(0), index.analyzer());
-                }
-            } else {
-                if (versionValue != null) {
-                    index.created(versionValue.delete()); // we have a delete which is not GC'ed...
-                }
-                if (index.docs().size() > 1) {
-                    writer.updateDocuments(index.uid(), index.docs(), index.analyzer());
-                } else {
-                    writer.updateDocument(index.uid(), index.docs().get(0), index.analyzer());
-                }
-            }
-            Translog.Location translogLocation = translog.add(new Translog.Index(index));
-
-            versionMap.put(versionKey, new VersionValue(updatedVersion, false, threadPool.estimatedTimeInMillis(), translogLocation));
-
-            indexingService.postIndexUnderLock(index);
-        }
-    }
+    protected abstract void innerIndex(Index index, IndexWriter writer) throws IOException;
 
     @Override
     public void delete(Delete delete) throws EngineException {
@@ -586,63 +422,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         }
     }
 
-    private void innerDelete(Delete delete, IndexWriter writer) throws IOException {
-        synchronized (dirtyLock(delete.uid())) {
-            final long currentVersion;
-            HashedBytesRef versionKey = versionKey(delete.uid());
-            VersionValue versionValue = versionMap.get(versionKey);
-            if (versionValue == null) {
-                currentVersion = loadCurrentVersionFromIndex(delete.uid());
-            } else {
-                if (enableGcDeletes && versionValue.delete() && (threadPool.estimatedTimeInMillis() - versionValue.time()) > gcDeletesInMillis) {
-                    currentVersion = Versions.NOT_FOUND; // deleted, and GC
-                } else {
-                    currentVersion = versionValue.version();
-                }
-            }
-
-            long updatedVersion;
-            long expectedVersion = delete.version();
-            if (delete.origin() == Operation.Origin.PRIMARY) {
-                if (delete.versionType().isVersionConflict(currentVersion, expectedVersion)) {
-                    throw new VersionConflictEngineException(shardId, delete.type(), delete.id(), currentVersion, expectedVersion);
-                }
-
-                updatedVersion = delete.versionType().updateVersion(currentVersion, expectedVersion);
-
-            } else { // if (index.origin() == Operation.Origin.REPLICA || index.origin() == Operation.Origin.RECOVERY) {
-                // replicas treat the version as "external" as it comes from the primary ->
-                // only exploding if the version they got is lower or equal to what they know.
-                if (VersionType.EXTERNAL.isVersionConflict(currentVersion, expectedVersion)) {
-                    if (delete.origin() == Operation.Origin.RECOVERY) {
-                        return;
-                    } else {
-                        throw new VersionConflictEngineException(shardId, delete.type(), delete.id(), currentVersion - 1, expectedVersion);
-                    }
-                }
-                updatedVersion = VersionType.EXTERNAL.updateVersion(currentVersion, expectedVersion);
-            }
-
-            if (currentVersion == Versions.NOT_FOUND) {
-                // doc does not exists and no prior deletes
-                delete.version(updatedVersion).found(false);
-                Translog.Location translogLocation = translog.add(new Translog.Delete(delete));
-                versionMap.put(versionKey, new VersionValue(updatedVersion, true, threadPool.estimatedTimeInMillis(), translogLocation));
-            } else if (versionValue != null && versionValue.delete()) {
-                // a "delete on delete", in this case, we still increment the version, log it, and return that version
-                delete.version(updatedVersion).found(false);
-                Translog.Location translogLocation = translog.add(new Translog.Delete(delete));
-                versionMap.put(versionKey, new VersionValue(updatedVersion, true, threadPool.estimatedTimeInMillis(), translogLocation));
-            } else {
-                delete.version(updatedVersion).found(true);
-                writer.deleteDocuments(delete.uid());
-                Translog.Location translogLocation = translog.add(new Translog.Delete(delete));
-                versionMap.put(versionKey, new VersionValue(updatedVersion, true, threadPool.estimatedTimeInMillis(), translogLocation));
-            }
-
-            indexingService.postDeleteUnderLock(delete);
-        }
-    }
+    protected abstract void innerDelete(Delete delete, IndexWriter writer) throws IOException;
 
     @Override
     public void delete(DeleteByQuery delete) throws EngineException {
@@ -674,8 +454,6 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         } finally {
             rwl.readLock().unlock();
         }
-        //TODO: This is heavy, since we refresh, but we really have to...
-        refreshVersioningTable(System.currentTimeMillis());
     }
 
     @Override
@@ -804,7 +582,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                         } catch (Throwable t) {
                             logger.warn("Failed to close current SearcherManager", t);
                         }
-                        refreshVersioningTable(threadPool.estimatedTimeInMillis());
+                        onFlushSuccess(Flush.Type.NEW_WRITER);
                     } catch (OutOfMemoryError e) {
                         failEngine(e);
                         throw new FlushFailedEngineException(shardId, e);
@@ -834,7 +612,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                             translog.newTransientTranslog(translogId);
                             indexWriter.setCommitData(MapBuilder.<String, String>newMapBuilder().put(Translog.TRANSLOG_ID_KEY, Long.toString(translogId)).map());
                             indexWriter.commit();
-                            refreshVersioningTable(threadPool.estimatedTimeInMillis());
+                            onFlushSuccess(Flush.Type.COMMIT_TRANSLOG);
                             // we need to move transient to current only after we refresh
                             // so items added to current will still be around for realtime get
                             // when tans overrides it
@@ -870,6 +648,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                         long translogId = translog.currentId();
                         indexWriter.setCommitData(MapBuilder.<String, String>newMapBuilder().put(Translog.TRANSLOG_ID_KEY, Long.toString(translogId)).map());
                         indexWriter.commit();
+                        onFlushSuccess(Flush.Type.COMMIT);
                     } catch (OutOfMemoryError e) {
                         translog.revertTransient();
                         failEngine(e);
@@ -908,33 +687,13 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         }
     }
 
+    protected void onFlushSuccess(Flush.Type type) {
+        //noop
+    }
+
     private void ensureOpen() {
         if (indexWriter == null) {
             throw new EngineClosedException(shardId, failedEngine);
-        }
-    }
-
-    private void refreshVersioningTable(long time) {
-        // we need to refresh in order to clear older version values
-        refresh(new Refresh("version_table").force(true));
-        for (Map.Entry<HashedBytesRef, VersionValue> entry : versionMap.entrySet()) {
-            HashedBytesRef uid = entry.getKey();
-            synchronized (dirtyLock(uid.bytes)) { // can we do it without this lock on each value? maybe batch to a set and get the lock once per set?
-                VersionValue versionValue = versionMap.get(uid);
-                if (versionValue == null) {
-                    continue;
-                }
-                if (time - versionValue.time() <= 0) {
-                    continue; // its a newer value, from after/during we refreshed, don't clear it
-                }
-                if (versionValue.delete()) {
-                    if (enableGcDeletes && (time - versionValue.time()) > gcDeletesInMillis) {
-                        versionMap.remove(uid);
-                    }
-                } else {
-                    versionMap.remove(uid);
-                }
-            }
         }
     }
 
@@ -1269,13 +1028,12 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         }
     }
 
-    private void innerClose() {
+    protected void innerClose() {
         if (closed) {
             return;
         }
         indexSettingsService.removeListener(applySettings);
         closed = true;
-        this.versionMap.clear();
         this.failedEngineListeners.clear();
         try {
             try {
@@ -1295,32 +1053,6 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             logger.debug("failed to rollback writer on close", e);
         } finally {
             indexWriter = null;
-        }
-    }
-
-    private HashedBytesRef versionKey(Term uid) {
-        return new HashedBytesRef(uid.bytes());
-    }
-
-    private Object dirtyLock(BytesRef uid) {
-        int hash = DjbHashFunction.DJB_HASH(uid.bytes, uid.offset, uid.length);
-        // abs returns Integer.MIN_VALUE, so we need to protect against it...
-        if (hash == Integer.MIN_VALUE) {
-            hash = 0;
-        }
-        return dirtyLocks[Math.abs(hash) % dirtyLocks.length];
-    }
-
-    private Object dirtyLock(Term uid) {
-        return dirtyLock(uid.bytes());
-    }
-
-    private long loadCurrentVersionFromIndex(Term uid) throws IOException {
-        Searcher searcher = acquireSearcher("load_version");
-        try {
-            return Versions.loadVersion(searcher.reader(), uid);
-        } finally {
-            searcher.release();
         }
     }
 
