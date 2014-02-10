@@ -24,8 +24,7 @@ import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.common.inject.SpawnModules;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.index.engine.internal.AppendOnlyIndexEngineModule;
-import org.elasticsearch.index.engine.internal.RealtimeIndexEngineModule;
+import org.elasticsearch.index.engine.internal.*;
 
 import static org.elasticsearch.common.inject.Modules.createModule;
 
@@ -38,7 +37,7 @@ public class IndexEngineModule extends AbstractModule implements SpawnModules {
         public static final String ENGINE_TYPE = "index.engine.type";
         public static final String INDEX_ENGINE_TYPE = "index.index_engine.type";
         public static final Class<? extends Module> DEFAULT_INDEX_ENGINE = RealtimeIndexEngineModule.class;
-        public static final Class<? extends Module> DEFAULT_ENGINE = RealtimeIndexEngineModule.class;
+        public static final Class<? extends Module> DEFAULT_ENGINE = RealtimeEngineModule.class;
     }
 
     private final Settings settings;
@@ -49,7 +48,7 @@ public class IndexEngineModule extends AbstractModule implements SpawnModules {
 
     @Override
     public Iterable<? extends Module> spawnModules() {
-        Class<? extends Module> engineModule = RealtimeIndexEngineModule.class;
+        Class<? extends Module> engineModule = EngineSettings.DEFAULT_INDEX_ENGINE;
         String engineType = settings.get(EngineSettings.INDEX_ENGINE_TYPE);
         if ("default".equals(engineType) || "realtime".equals(engineType)) {
             engineModule = EngineSettings.DEFAULT_INDEX_ENGINE;
