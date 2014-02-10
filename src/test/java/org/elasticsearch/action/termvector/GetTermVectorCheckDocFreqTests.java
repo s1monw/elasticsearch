@@ -38,6 +38,7 @@ import java.io.IOException;
 
 import static org.hamcrest.Matchers.equalTo;
 
+@ElasticsearchIntegrationTest.SupressAppendEngine
 public class GetTermVectorCheckDocFreqTests extends ElasticsearchIntegrationTest {
 
     

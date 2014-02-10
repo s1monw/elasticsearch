@@ -25,6 +25,8 @@ import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.common.inject.Modules;
 import org.elasticsearch.common.inject.SpawnModules;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.index.engine.internal.AppendEngineModule;
+import org.elasticsearch.index.engine.internal.AppendIndexEngineModule;
 
 /**
  *
@@ -39,7 +41,16 @@ public class EngineModule extends AbstractModule implements SpawnModules {
 
     @Override
     public Iterable<? extends Module> spawnModules() {
-        return ImmutableList.of(Modules.createModule(settings.getAsClass(IndexEngineModule.EngineSettings.ENGINE_TYPE, IndexEngineModule.EngineSettings.DEFAULT_ENGINE, "org.elasticsearch.index.engine.", "EngineModule"), settings));
+        Class<? extends Module> engineModule = IndexEngineModule.EngineSettings.DEFAULT_ENGINE;
+        String engineType = settings.get(IndexEngineModule.EngineSettings.ENGINE_TYPE);
+        if ("default".equals(engineType) || "versioned".equals(engineType)) {
+            engineModule =  IndexEngineModule.EngineSettings.DEFAULT_ENGINE;
+        } else if ("append".equals(engineType)) {
+            engineModule = AppendEngineModule.class;
+        } else {
+            engineModule = settings.getAsClass(IndexEngineModule.EngineSettings.ENGINE_TYPE, engineModule, "org.elasticsearch.index.engine.", "EngineModule");
+        }
+        return ImmutableList.of(Modules.createModule(engineModule, settings));
     }
 
     @Override

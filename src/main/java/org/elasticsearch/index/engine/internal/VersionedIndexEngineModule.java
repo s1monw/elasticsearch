@@ -25,7 +25,7 @@ import org.elasticsearch.index.engine.IndexEngine;
 /**
  *
  */
-public class AppendOnlyIndexEngineModule extends AbstractModule {
+public class VersionedIndexEngineModule extends AbstractModule {
 
     @Override
     protected void configure() {

@@ -132,73 +132,71 @@ public class RealtimeEngine extends InternalEngine {
 
     @Override
     protected final void innerCreate(Create create, IndexWriter writer) throws IOException {
-        {
-            synchronized (dirtyLock(create.uid())) {
-                HashedBytesRef versionKey = versionKey(create.uid());
-                final long currentVersion;
-                VersionValue versionValue = versionMap.get(versionKey);
-                if (versionValue == null) {
-                    currentVersion = loadCurrentVersionFromIndex(create.uid());
+        synchronized (dirtyLock(create.uid())) {
+            HashedBytesRef versionKey = versionKey(create.uid());
+            final long currentVersion;
+            VersionValue versionValue = versionMap.get(versionKey);
+            if (versionValue == null) {
+                currentVersion = loadCurrentVersionFromIndex(create.uid());
+            } else {
+                if (enableGcDeletes && versionValue.delete() && (threadPool.estimatedTimeInMillis() - versionValue.time()) > gcDeletesInMillis) {
+                    currentVersion = Versions.NOT_FOUND; // deleted, and GC
                 } else {
-                    if (enableGcDeletes && versionValue.delete() && (threadPool.estimatedTimeInMillis() - versionValue.time()) > gcDeletesInMillis) {
-                        currentVersion = Versions.NOT_FOUND; // deleted, and GC
-                    } else {
-                        currentVersion = versionValue.version();
-                    }
+                    currentVersion = versionValue.version();
                 }
+            }
 
-                // same logic as index
-                long updatedVersion;
-                long expectedVersion = create.version();
-                if (create.origin() == Operation.Origin.PRIMARY) {
-                    if (create.versionType().isVersionConflict(currentVersion, expectedVersion)) {
+            // same logic as index
+            long updatedVersion;
+            long expectedVersion = create.version();
+            if (create.origin() == Operation.Origin.PRIMARY) {
+                if (create.versionType().isVersionConflict(currentVersion, expectedVersion)) {
+                    throw new VersionConflictEngineException(shardId, create.type(), create.id(), currentVersion, expectedVersion);
+                }
+                updatedVersion = create.versionType().updateVersion(currentVersion, expectedVersion);
+            } else { // if (index.origin() == Operation.Origin.REPLICA || index.origin() == Operation.Origin.RECOVERY) {
+                // replicas treat the version as "external" as it comes from the primary ->
+                // only exploding if the version they got is lower or equal to what they know.
+                if (VersionType.EXTERNAL.isVersionConflict(currentVersion, expectedVersion)) {
+                    if (create.origin() == Operation.Origin.RECOVERY) {
+                        return;
+                    } else {
                         throw new VersionConflictEngineException(shardId, create.type(), create.id(), currentVersion, expectedVersion);
                     }
-                    updatedVersion = create.versionType().updateVersion(currentVersion, expectedVersion);
-                } else { // if (index.origin() == Operation.Origin.REPLICA || index.origin() == Operation.Origin.RECOVERY) {
-                    // replicas treat the version as "external" as it comes from the primary ->
-                    // only exploding if the version they got is lower or equal to what they know.
-                    if (VersionType.EXTERNAL.isVersionConflict(currentVersion, expectedVersion)) {
-                        if (create.origin() == Operation.Origin.RECOVERY) {
-                            return;
-                        } else {
-                            throw new VersionConflictEngineException(shardId, create.type(), create.id(), currentVersion, expectedVersion);
-                        }
-                    }
-                    updatedVersion = VersionType.EXTERNAL.updateVersion(currentVersion, expectedVersion);
                 }
+                updatedVersion = VersionType.EXTERNAL.updateVersion(currentVersion, expectedVersion);
+            }
 
-                // if the doc does not exists or it exists but not delete
-                if (versionValue != null) {
-                    if (!versionValue.delete()) {
-                        if (create.origin() == Operation.Origin.RECOVERY) {
-                            return;
-                        } else {
-                            throw new DocumentAlreadyExistsException(shardId, create.type(), create.id());
-                        }
-                    }
-                } else if (currentVersion != Versions.NOT_FOUND) {
-                    // its not deleted, its already there
+            // if the doc does not exists or it exists but not delete
+            if (versionValue != null) {
+                if (!versionValue.delete()) {
                     if (create.origin() == Operation.Origin.RECOVERY) {
                         return;
                     } else {
                         throw new DocumentAlreadyExistsException(shardId, create.type(), create.id());
                     }
                 }
-
-                create.version(updatedVersion);
-
-                if (create.docs().size() > 1) {
-                    writer.addDocuments(create.docs(), create.analyzer());
+            } else if (currentVersion != Versions.NOT_FOUND) {
+                // its not deleted, its already there
+                if (create.origin() == Operation.Origin.RECOVERY) {
+                    return;
                 } else {
-                    writer.addDocument(create.docs().get(0), create.analyzer());
+                    throw new DocumentAlreadyExistsException(shardId, create.type(), create.id());
                 }
-                Translog.Location translogLocation = translog.add(new Translog.Create(create));
-
-                versionMap.put(versionKey, new VersionValue(updatedVersion, false, threadPool.estimatedTimeInMillis(), translogLocation));
-
-                indexingService.postCreateUnderLock(create);
             }
+
+            create.version(updatedVersion);
+
+            if (create.docs().size() > 1) {
+                writer.addDocuments(create.docs(), create.analyzer());
+            } else {
+                writer.addDocument(create.docs().get(0), create.analyzer());
+            }
+            Translog.Location translogLocation = translog.add(new Translog.Create(create));
+
+            versionMap.put(versionKey, new VersionValue(updatedVersion, false, threadPool.estimatedTimeInMillis(), translogLocation));
+
+            indexingService.postCreateUnderLock(create);
         }
     }
 

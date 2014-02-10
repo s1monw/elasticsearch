@@ -25,10 +25,10 @@ import org.elasticsearch.index.engine.IndexEngine;
 /**
  *
  */
-public class RealtimeIndexEngineModule extends AbstractModule {
+public class AppendIndexEngineModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(IndexEngine.class).to(RealtimeIndexEngine.class).asEagerSingleton();
+        bind(IndexEngine.class).to(AppendIndexEngine.class).asEagerSingleton();
     }
 }

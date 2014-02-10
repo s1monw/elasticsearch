@@ -48,6 +48,7 @@ import static org.hamcrest.Matchers.equalTo;
 /**
  *
  */
+@ElasticsearchIntegrationTest.SupressAppendEngine
 public class CustomScoreSearchTests extends ElasticsearchIntegrationTest {
 
     @Test

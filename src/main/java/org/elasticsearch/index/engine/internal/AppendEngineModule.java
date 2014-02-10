@@ -21,10 +21,10 @@ package org.elasticsearch.index.engine.internal;
 import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.index.engine.Engine;
 
-public class AppendOnlyEngineModule extends AbstractModule {
+public class AppendEngineModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        bind(Engine.class).to(AppendOnlyEngine.class).asEagerSingleton();
+        bind(Engine.class).to(AppendEngine.class).asEagerSingleton();
     }
 }

@@ -43,6 +43,7 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertThrows;
 import static org.hamcrest.Matchers.*;
 
+@ElasticsearchIntegrationTest.SupressAppendEngine
 public class UpdateTests extends ElasticsearchIntegrationTest {
 
 
@@ -217,7 +218,7 @@ public class UpdateTests extends ElasticsearchIntegrationTest {
 
     @Test
     public void testVersionedUpdate() throws Exception {
-        createIndex("test");
+        createIndex();
         ensureGreen();
 
         index("test", "type", "1", "text", "value"); // version is now 1

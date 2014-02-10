@@ -42,6 +42,7 @@ import static org.elasticsearch.client.Requests.clusterHealthRequest;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.hamcrest.Matchers.*;
 
+@ElasticsearchIntegrationTest.SupressAppendEngine
 public class GetActionTests extends ElasticsearchIntegrationTest {
 
     @Test

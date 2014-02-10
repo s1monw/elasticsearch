@@ -31,14 +31,14 @@ import static org.elasticsearch.common.settings.ImmutableSettings.Builder.EMPTY_
 /**
  *
  */
-public class AppendOnlyIndexEngine extends AbstractIndexComponent implements IndexEngine {
+public class AppendIndexEngine extends AbstractIndexComponent implements IndexEngine {
 
-    public AppendOnlyIndexEngine(Index index) {
+    public AppendIndexEngine(Index index) {
         this(index, EMPTY_SETTINGS);
     }
 
     @Inject
-    public AppendOnlyIndexEngine(Index index, @IndexSettings Settings indexSettings) {
+    public AppendIndexEngine(Index index, @IndexSettings Settings indexSettings) {
         super(index, indexSettings);
     }
 

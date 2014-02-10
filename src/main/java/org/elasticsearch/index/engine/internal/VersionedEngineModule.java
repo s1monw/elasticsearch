@@ -21,7 +21,7 @@ package org.elasticsearch.index.engine.internal;
 import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.index.engine.Engine;
 
-public class RealtimeEngineModule extends AbstractModule {
+public class VersionedEngineModule extends AbstractModule {
 
     @Override
     protected void configure() {

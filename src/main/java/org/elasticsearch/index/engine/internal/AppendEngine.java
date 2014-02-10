@@ -40,20 +40,20 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 
-public final class AppendOnlyEngine extends InternalEngine {
+public final class AppendEngine extends InternalEngine {
 
-    private volatile boolean updateOnInsert = false;
+    private volatile boolean updateOnInsert = true;
     public static final String INDEX_UPDATE_ON_INSERT = "index.update_on_insert";
 
     @Inject
-    public AppendOnlyEngine(ShardId shardId, @IndexSettings Settings indexSettings, ThreadPool threadPool, IndexSettingsService indexSettingsService, ShardIndexingService indexingService, @Nullable IndicesWarmer warmer, Store store, SnapshotDeletionPolicy deletionPolicy, Translog translog, MergePolicyProvider mergePolicyProvider, MergeSchedulerProvider mergeScheduler, AnalysisService analysisService, SimilarityService similarityService, CodecService codecService) throws EngineException {
+    public AppendEngine(ShardId shardId, @IndexSettings Settings indexSettings, ThreadPool threadPool, IndexSettingsService indexSettingsService, ShardIndexingService indexingService, @Nullable IndicesWarmer warmer, Store store, SnapshotDeletionPolicy deletionPolicy, Translog translog, MergePolicyProvider mergePolicyProvider, MergeSchedulerProvider mergeScheduler, AnalysisService analysisService, SimilarityService similarityService, CodecService codecService) throws EngineException {
         super(shardId, indexSettings, threadPool, indexSettingsService, indexingService, warmer, store, deletionPolicy, translog, mergePolicyProvider, mergeScheduler, analysisService, similarityService, codecService);
         this.updateOnInsert = indexSettings.getAsBoolean(INDEX_UPDATE_ON_INSERT, this.updateOnInsert);
-
     }
 
     @Override
     protected GetResult innerGet(Get get) {
+        refresh(new Refresh("append_engine_get"));
         return null;
     }
 
@@ -64,6 +64,7 @@ public final class AppendOnlyEngine extends InternalEngine {
         } else {
             writer.addDocument(create.docs().get(0), create.analyzer());
         }
+        translog.add(new Translog.Create(create));
         indexingService.postCreateUnderLock(create);
     }
 
@@ -75,12 +76,14 @@ public final class AppendOnlyEngine extends InternalEngine {
             } else {
                 writer.updateDocument(index.uid(), index.docs().get(0), index.analyzer());
             }
+            translog.add(new Translog.Index(index));
         } else {
             if (index.docs().size() > 1) {
                 writer.addDocuments(index.docs(), index.analyzer());
             } else {
                 writer.addDocument(index.docs().get(0), index.analyzer());
             }
+            translog.add(new Translog.Create(new Create(index.docMapper(), index.uid(), index.parsedDoc())));
         }
         indexingService.postIndexUnderLock(index);
     }
@@ -88,6 +91,7 @@ public final class AppendOnlyEngine extends InternalEngine {
     @Override
     protected void innerDelete(Delete delete, IndexWriter writer) throws IOException {
         writer.deleteDocuments(delete.uid());
+        translog.add(new Translog.Delete(delete));
         indexingService.postDeleteUnderLock(delete);
     }
 }

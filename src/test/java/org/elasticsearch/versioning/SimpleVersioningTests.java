@@ -38,6 +38,7 @@ import static org.hamcrest.Matchers.equalTo;
 /**
  *
  */
+@ElasticsearchIntegrationTest.SupressAppendEngine
 public class SimpleVersioningTests extends ElasticsearchIntegrationTest {
 
     @Test

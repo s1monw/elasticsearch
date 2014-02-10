@@ -54,6 +54,7 @@ import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.util.concurrent.EsRejectedExecutionException;
 import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.index.engine.IndexEngineModule;
 import org.elasticsearch.index.mapper.FieldMapper.Loading;
 import org.elasticsearch.index.merge.policy.*;
 import org.elasticsearch.indices.IndexMissingException;
@@ -67,10 +68,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 
 import java.io.IOException;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -276,15 +274,15 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
      * Creates a randomized index template. This template is used to pass in randomized settings on a
      * per index basis.
      */
-    private static void randomIndexTemplate() {
+    private void randomIndexTemplate() {
         // TODO move settings for random directory etc here into the index based randomized settings.
         if (cluster().size() > 0) {
-            client().admin().indices().preparePutTemplate("random_index_template")
+            assertAcked(client().admin().indices().preparePutTemplate("random_index_template")
                     .setTemplate("*")
                     .setOrder(0)
-                    .setSettings(setRandomNormsLoading(setRandomMergePolicy(getRandom(), ImmutableSettings.builder())
-                            .put(INDEX_SEED_SETTING, randomLong())))
-                    .execute().actionGet();
+                    .setSettings(randomEngine(setRandomNormsLoading(setRandomMergePolicy(getRandom(), ImmutableSettings.builder())
+                            .put(INDEX_SEED_SETTING, randomLong()))))
+                    .execute().actionGet());
         }
     }
 
@@ -318,6 +316,15 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
 
     public static Iterable<Client> clients() {
         return cluster();
+    }
+
+    private  ImmutableSettings.Builder randomEngine(ImmutableSettings.Builder builder) {
+        if (getAnnotation(this.getClass(), SupressAppendEngine.class) == null) {
+            builder.put(IndexEngineModule.EngineSettings.ENGINE_TYPE, "append");
+        } else if (randomBoolean()) {
+            builder.put(IndexEngineModule.EngineSettings.ENGINE_TYPE, randomBoolean()? "default" : "versioned");
+        }
+        return builder;
     }
 
     /**
@@ -828,35 +835,35 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
         TEST
     }
 
-    private ClusterScope getAnnotation(Class<?> clazz) {
+    private <T extends Annotation> T getAnnotation(Class<?> clazz, Class<T> annoationClass) {
         if (clazz == Object.class || clazz == ElasticsearchIntegrationTest.class) {
             return null;
         }
-        ClusterScope annotation = clazz.getAnnotation(ClusterScope.class);
+        T annotation = clazz.getAnnotation(annoationClass);
         if (annotation != null) {
             return annotation;
         }
-        return getAnnotation(clazz.getSuperclass());
+        return getAnnotation(clazz.getSuperclass(), annoationClass);
     }
 
     private Scope getCurrentClusterScope() {
-        ClusterScope annotation = getAnnotation(this.getClass());
+        ClusterScope annotation = getAnnotation(this.getClass(), ClusterScope.class);
         // if we are not annotated assume global!
         return annotation == null ? Scope.GLOBAL : annotation.scope();
     }
 
     private int getNumNodes() {
-        ClusterScope annotation = getAnnotation(this.getClass());
+        ClusterScope annotation = getAnnotation(this.getClass(), ClusterScope.class);
         return annotation == null ? -1 : annotation.numNodes();
     }
 
     private int getMinNumNodes() {
-        ClusterScope annotation = getAnnotation(this.getClass());
+        ClusterScope annotation = getAnnotation(this.getClass(), ClusterScope.class);
         return annotation == null ? TestCluster.DEFAULT_MIN_NUM_NODES : annotation.minNumNodes();
     }
 
     private int getMaxNumNodes() {
-        ClusterScope annotation = getAnnotation(this.getClass());
+        ClusterScope annotation = getAnnotation(this.getClass(), ClusterScope.class);
         return annotation == null ? TestCluster.DEFAULT_MAX_NUM_NODES : annotation.maxNumNodes();
     }
 
@@ -940,6 +947,11 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
         double transportClientRatio() default -1;
     }
 
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE})
+    public @interface SupressAppendEngine {
+    }
+
     /**
      * Returns the client ratio configured via
      */
@@ -957,7 +969,7 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
      * return a random ratio in the interval <tt>[0..1]</tt>
      */
     protected double getPerTestTransportClientRatio() {
-        final ClusterScope annotation = getAnnotation(this.getClass());
+        final ClusterScope annotation = getAnnotation(this.getClass(), ClusterScope.class);
         double perTestRatio = -1;
         if (annotation != null) {
             perTestRatio = annotation.transportClientRatio();

@@ -36,8 +36,8 @@ public class IndexEngineModule extends AbstractModule implements SpawnModules {
     public static final class EngineSettings {
         public static final String ENGINE_TYPE = "index.engine.type";
         public static final String INDEX_ENGINE_TYPE = "index.index_engine.type";
-        public static final Class<? extends Module> DEFAULT_INDEX_ENGINE = RealtimeIndexEngineModule.class;
-        public static final Class<? extends Module> DEFAULT_ENGINE = RealtimeEngineModule.class;
+        public static final Class<? extends Module> DEFAULT_INDEX_ENGINE = VersionedIndexEngineModule.class;
+        public static final Class<? extends Module> DEFAULT_ENGINE = VersionedEngineModule.class;
     }
 
     private final Settings settings;
@@ -50,13 +50,15 @@ public class IndexEngineModule extends AbstractModule implements SpawnModules {
     public Iterable<? extends Module> spawnModules() {
         Class<? extends Module> engineModule = EngineSettings.DEFAULT_INDEX_ENGINE;
         String engineType = settings.get(EngineSettings.INDEX_ENGINE_TYPE);
-        if ("default".equals(engineType) || "realtime".equals(engineType)) {
+        if ("default".equals(engineType) || "versioned".equals(engineType)) {
             engineModule = EngineSettings.DEFAULT_INDEX_ENGINE;
         } else if ("append".equals(engineType)) {
-            engineModule = AppendOnlyIndexEngineModule.class;
+            engineModule = AppendIndexEngineModule.class;
+        } else {
+            engineModule = settings.getAsClass(EngineSettings.INDEX_ENGINE_TYPE, engineModule, "org.elasticsearch.index.engine.", "IndexEngineModule");
         }
 
-        return ImmutableList.of(createModule(settings.getAsClass(EngineSettings.INDEX_ENGINE_TYPE, engineModule, "org.elasticsearch.index.engine.", "IndexEngineModule"), settings));
+        return ImmutableList.of(createModule(engineModule, settings));
     }
 
     @Override
