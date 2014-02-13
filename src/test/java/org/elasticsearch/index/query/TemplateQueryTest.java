@@ -57,6 +57,27 @@ public class TemplateQueryTest extends ElasticsearchIntegrationTest {
     }
 
     @Test
+    public void testTemplateWOReplacementInBody() throws IOException {
+        createIndex("test");
+        ensureGreen();
+
+        client().prepareIndex("test", "testtype").setId("1")
+                .setSource("text", "value1").get();
+        client().prepareIndex("test", "testtype").setId("2")
+                .setSource("text", "value2").get();
+        refresh();
+
+        Map<String, Object> vars = new HashMap<String, Object>();
+
+        TemplateQueryBuilder builder = new TemplateQueryBuilder(
+                "{\"match_all\": {}}\"", vars);
+        SearchResponse sr = client().prepareSearch().setQuery(builder)
+                .execute().actionGet();
+        assertEquals("Template query didn't return correct number of hits.", 2,
+                sr.getHits().totalHits());
+    }
+
+    @Test
     public void testTemplateInFile() {
         createIndex("test");
         ensureGreen();

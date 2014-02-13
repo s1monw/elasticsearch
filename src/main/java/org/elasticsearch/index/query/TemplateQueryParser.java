@@ -35,8 +35,6 @@ import java.util.Map;
 /**
  * In the simplest case, parse template string and variables from the request, compile the template and
  * execute the template against the given variables.
- *
- * TODO support named templates
  * */
 public class TemplateQueryParser implements QueryParser {
 
@@ -69,6 +67,8 @@ public class TemplateQueryParser implements QueryParser {
     @Nullable
     public Query parse(QueryParseContext parseContext) throws IOException {
         XContentParser parser = parseContext.parser();
+        
+        
         String template = "";
         Map<String, Object> vars = new HashMap<String, Object>();
 
@@ -78,25 +78,29 @@ public class TemplateQueryParser implements QueryParser {
             if (token == XContentParser.Token.FIELD_NAME) {
                 currentFieldName = parser.currentName();
             } else if (QUERY.equals(currentFieldName)) {
-                if (! parser.hasTextCharacters()) {
+                if (token == XContentParser.Token.START_OBJECT && ! parser.hasTextCharacters()) {
                     // when called with un-escaped json string
                     XContentBuilder builder = XContentBuilder.builder(JsonXContent.jsonXContent);
                     builder.copyCurrentStructure(parser);
                     template = builder.string();
                 } else {
                     // when called with excaped json string or when called with filename
-                    template = parser.bytes().utf8ToString();
+                    template = parser.text();
                 }
             } else if (PARAMS.equals(currentFieldName)) {
                 XContentParser.Token innerToken;
-                String key = "";
+                String key = null;
                 while ((innerToken = parser.nextToken()) != XContentParser.Token.END_OBJECT) {
                     // parsing template parameter map
                     if (innerToken == XContentParser.Token.FIELD_NAME) {
                         key = parser.currentName();
                     } else {
-                        vars.put(key, parser.objectText());
-                        key = "";
+                        if (key != null) {
+                            vars.put(key, parser.text());
+                        } else {
+                            throw new IllegalStateException("Template parameter key must not be null.");
+                        }
+                        key = null;
                     }
                 }
             }

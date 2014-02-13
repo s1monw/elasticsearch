@@ -25,6 +25,7 @@ import org.elasticsearch.ElasticsearchIllegalArgumentException;
 import org.elasticsearch.common.inject.AbstractModule;
 import org.elasticsearch.common.inject.multibindings.MapBinder;
 import org.elasticsearch.common.inject.multibindings.Multibinder;
+import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.script.mustache.MustacheScriptEngineService;
 import org.elasticsearch.script.mvel.MvelScriptEngineService;
@@ -85,7 +86,7 @@ public class ScriptModule extends AbstractModule {
         try {
             multibinder.addBinding().to(MustacheScriptEngineService.class);
         } catch (Throwable t) {
-            // no Mustache
+            Loggers.getLogger(MustacheScriptEngineService.class).trace("failed to load mustache", t);
         }
 
         for (Class<? extends ScriptEngineService> scriptEngine : scriptEngines) {

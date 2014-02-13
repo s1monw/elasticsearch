@@ -59,13 +59,41 @@ GET _search
 ------------------------------------------
 
 
-Templating is based on Mustache. Substitution of tokens works as follows:
+Templating is based on Mustache. For simple token substitution all you provide
+is a query containing some variable that you want to substitute and the actual
+values:
 
 
 [source,js]
 ------------------------------------------
-            "query": "{\"match_{{template}}\": {}}\"",
+GET _search
+{
+    "query": {
+        "template": {
+            "query": {"match_{{template}}": {}},
             "params" : {
                 "template" : "all"
+            }
+        }
+    }
+}
+
 ------------------------------------------
+
+which is then turned into:
+
+[source,js]
+------------------------------------------
+GET _search
+{
+    "query": {
+            "match_all": {}
+    }
+}
+------------------------------------------
+
+
+For more information on how Mustache templating and what kind of templating you
+can do with it check out the [online
+documentation](http://mustache.github.io/mustache.5.html) of the mustache project.
 

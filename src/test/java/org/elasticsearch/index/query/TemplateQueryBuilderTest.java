@@ -20,18 +20,17 @@ package org.elasticsearch.index.query;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.test.ElasticsearchTestCase;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-
 /**
  * Test building and serialising a template search request.
  * */
-public class TemplateQueryBuilderTest {
+public class TemplateQueryBuilderTest extends ElasticsearchTestCase {
 
     @Test
     public void testJSONGeneration() throws IOException {
