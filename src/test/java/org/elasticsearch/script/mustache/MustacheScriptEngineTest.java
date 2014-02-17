@@ -18,19 +18,20 @@
  */
 package org.elasticsearch.script.mustache;
 
-import static org.junit.Assert.*;
-
-import java.util.HashMap;
-import java.util.Map;
-
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.test.ElasticsearchTestCase;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Mustache based templating test
  * */
-public class MustacheScriptEngineTest {
+public class MustacheScriptEngineTest extends ElasticsearchTestCase {
     private MustacheScriptEngineService qe;
 
     private static String TEMPLATE = "GET _search {\"query\": " + "{\"boosting\": {" + "\"positive\": {\"match\": {\"body\": \"gift\"}},"
@@ -45,9 +46,10 @@ public class MustacheScriptEngineTest {
     public void testSimpleParameterReplace() {
         Map<String, Object> vars = new HashMap<String, Object>();
         vars.put("boost_val", "0.3");
-        Object o = qe.execute(qe.compile(TEMPLATE), vars);
+        BytesReference o = (BytesReference) qe.execute(qe.compile(TEMPLATE), vars);
         assertEquals("GET _search {\"query\": {\"boosting\": {\"positive\": {\"match\": {\"body\": \"gift\"}},"
-                + "\"negative\": {\"term\": {\"body\": {\"value\": \"solr\"}}}, \"negative_boost\": 0.3 } }}", ((String) o));
+                + "\"negative\": {\"term\": {\"body\": {\"value\": \"solr\"}}}, \"negative_boost\": 0.3 } }}",
+                new String(o.toBytes(), Charset.forName("UTF-8")));
     }
 
 }

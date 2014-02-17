@@ -20,6 +20,7 @@ package org.elasticsearch.index.query;
 
 import org.apache.lucene.search.Query;
 import org.elasticsearch.common.Nullable;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -107,7 +108,7 @@ public class TemplateQueryParser implements QueryParser {
         }
 
         ExecutableScript executable = this.scriptService.executable("mustache", template, vars);
-        String querySource = (String) executable.run();
+        BytesReference querySource = (BytesReference) executable.run();
 
         XContentParser qSourceParser = XContentFactory.xContent(querySource).createParser(querySource);
         try {

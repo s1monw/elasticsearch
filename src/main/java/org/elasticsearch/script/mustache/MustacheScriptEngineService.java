@@ -18,22 +18,22 @@
  */
 package org.elasticsearch.script.mustache;
 
-import com.fasterxml.jackson.core.io.SegmentedStringWriter;
-import com.fasterxml.jackson.core.util.BufferRecycler;
 import com.github.mustachejava.DefaultMustacheFactory;
 import com.github.mustachejava.Mustache;
-import com.github.mustachejava.MustacheFactory;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.FastStringReader;
+import org.elasticsearch.common.io.UTF8StreamWriter;
+import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.script.ExecutableScript;
 import org.elasticsearch.script.ScriptEngineService;
 import org.elasticsearch.script.SearchScript;
 import org.elasticsearch.search.lookup.SearchLookup;
 
-import java.io.StringWriter;
+import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.util.Map;
 
 /**
@@ -46,8 +46,20 @@ import java.util.Map;
  */
 public class MustacheScriptEngineService extends AbstractComponent implements ScriptEngineService {
 
-    /** Factory to generate Mustache objects from. */
-    private static final MustacheFactory MFACTORY = new DefaultMustacheFactory();
+    /** Thread local UTF8StreamWriter to store template execution results in, thread local to save object creation.*/
+    private static ThreadLocal<SoftReference<UTF8StreamWriter>> utf8StreamWriter = new ThreadLocal<SoftReference<UTF8StreamWriter>>();
+
+    /** If exists, reset and return, otherwise create, reset and return a writer.*/
+    private static UTF8StreamWriter utf8StreamWriter() {
+        SoftReference<UTF8StreamWriter> ref = utf8StreamWriter.get();
+        UTF8StreamWriter writer = (ref == null) ? null : ref.get();
+        if (writer == null) {
+            writer = new UTF8StreamWriter(1024 * 4);
+            utf8StreamWriter.set(new SoftReference<UTF8StreamWriter>(writer));
+        }
+        writer.reset();
+        return writer;
+    }
 
     /**
      * @param settings automatically wired by Guice.
@@ -66,7 +78,8 @@ public class MustacheScriptEngineService extends AbstractComponent implements Sc
      * @return a compiled template object for later execution.
      * */
     public Object compile(String template) {
-        return MFACTORY.compile(new FastStringReader(template), "query-template");
+        /** Factory to generate Mustache objects from. */
+        return (new DefaultMustacheFactory()).compile(new FastStringReader(template), "query-template");
     }
 
     /**
@@ -81,9 +94,16 @@ public class MustacheScriptEngineService extends AbstractComponent implements Sc
      * @return the processed string with all given variables substitued.
      * */
     public Object execute(Object template, Map<String, Object> vars) {
-        SegmentedStringWriter result = new SegmentedStringWriter(new BufferRecycler());
-        ((Mustache) template).execute(result, vars);
-        return result.getAndClear();
+        BytesStreamOutput result = new BytesStreamOutput();
+        UTF8StreamWriter writer = utf8StreamWriter().setOutput(result);
+        ((Mustache) template).execute(writer, vars);
+        try {
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            logger.error("Could not execute query template: ", e);
+        }
+        return result.bytes();
     }
 
     @Override
@@ -144,9 +164,16 @@ public class MustacheScriptEngineService extends AbstractComponent implements Sc
 
         @Override
         public Object run() {
-            StringWriter result = new StringWriter();
-            ((Mustache) mustache).execute(result, vars);
-            return result.toString();
+            BytesStreamOutput result = new BytesStreamOutput();
+            UTF8StreamWriter writer = utf8StreamWriter().setOutput(result);
+            ((Mustache) mustache).execute(writer, vars);
+            try {
+                writer.flush();
+                writer.close();
+            } catch (IOException e) {
+                logger.error("Could not execute query template: ", e);
+            }
+            return result.bytes();
         }
 
         @Override

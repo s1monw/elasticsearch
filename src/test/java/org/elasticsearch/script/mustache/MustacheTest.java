@@ -18,22 +18,20 @@
  */
 package org.elasticsearch.script.mustache;
 
-import static org.junit.Assert.*;
+import com.github.mustachejava.DefaultMustacheFactory;
+import com.github.mustachejava.Mustache;
+import com.github.mustachejava.MustacheFactory;
+import org.elasticsearch.test.ElasticsearchTestCase;
+import org.junit.Test;
 
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.HashMap;
 
-import org.junit.Test;
-
-import com.github.mustachejava.DefaultMustacheFactory;
-import com.github.mustachejava.Mustache;
-import com.github.mustachejava.MustacheFactory;
-
 /**
  * Figure out how Mustache works for the simplest use case. Leaving in here for now for reference.
  * */
-public class MustacheTest {
+public class MustacheTest extends ElasticsearchTestCase {
 
     @Test
     public void test() {
