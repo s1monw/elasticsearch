@@ -614,7 +614,12 @@ public class XAnalyzingSuggester extends Lookup {
     return true;
   }
 
-  @Override
+    @Override
+    public long getCount() {
+        return 0;  //NOCOMMIT
+    }
+
+    @Override
   public boolean load(InputStream input) throws IOException {
     DataInput dataIn = new InputStreamDataInput(input);
     try {
@@ -837,7 +842,17 @@ public class XAnalyzingSuggester extends Lookup {
     }
   }
 
-  /** Returns all completion paths to initialize the search. */
+    @Override
+    public boolean store(DataOutput output) throws IOException {
+        return false; //NOCOMMIT
+    }
+
+    @Override
+    public boolean load(DataInput input) throws IOException {
+        return false; //NOCOMMIT
+    }
+
+    /** Returns all completion paths to initialize the search. */
   protected List<FSTUtil.Path<Pair<Long,BytesRef>>> getFullPrefixPaths(List<FSTUtil.Path<Pair<Long,BytesRef>>> prefixPaths,
                                                                        Automaton lookupAutomaton,
                                                                        FST<Pair<Long,BytesRef>> fst)

@@ -22,7 +22,6 @@ package org.elasticsearch.test.engine;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.AssertingIndexSearcher;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.XSearcherManager;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.inject.Inject;
