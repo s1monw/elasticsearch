@@ -99,9 +99,14 @@ public class MustacheScriptEngineService extends AbstractComponent implements Sc
         ((Mustache) template).execute(writer, vars);
         try {
             writer.flush();
-            writer.close();
         } catch (IOException e) {
-            logger.error("Could not execute query template: ", e);
+            logger.error("Could not execute query template (failed to flush writer): ", e);
+        } finally {
+            try {
+                writer.close();
+            } catch (IOException e) {
+                logger.error("Could not execute query template (failed to close writer): ", e);
+            }
         }
         return result.bytes();
     }
@@ -169,9 +174,14 @@ public class MustacheScriptEngineService extends AbstractComponent implements Sc
             ((Mustache) mustache).execute(writer, vars);
             try {
                 writer.flush();
-                writer.close();
             } catch (IOException e) {
-                logger.error("Could not execute query template: ", e);
+                logger.error("Could not execute query template (failed to flush writer): ", e);
+            } finally {
+                try {
+                    writer.close();
+                } catch (IOException e) {
+                    logger.error("Could not execute query template (failed to close writer): ", e);
+                }
             }
             return result.bytes();
         }

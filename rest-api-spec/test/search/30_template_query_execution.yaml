@@ -1,0 +1,24 @@
+---
+"Template query":
+
+  - do:
+      index:
+        index:  test
+        type:   testtype
+        id:     1
+        body:   { "text": "value1" }
+  - do:
+      indices.refresh: {}
+
+  - do:
+      search:
+        body: { "query": { "template": { "query": "{\"match_{{template}}\": {}}", "params" : { "template" : "all" } } } }
+
+  - match: { hits.total: 1 }
+
+
+  - do:
+      search:
+        body: { "query": { "template": { "query": {"match_{{template}}": {}}, "params" : { "template" : "all" } } } }
+
+  - match: { hits.total: 1 }

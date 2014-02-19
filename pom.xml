@@ -506,6 +506,7 @@
                             <include>org.joda:joda-convert</include>
                             <include>io.netty:netty</include>
                             <include>com.ning:compress-lzf</include>
+                            <include>com.github.spullara.mustache.java:compiler</include>
                         </includes>
                     </artifactSet>
                     <relocations>
