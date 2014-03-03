@@ -720,7 +720,6 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
                     // ignore
                 }
             } finally {
-                logger.warn("#### LET IT GO ");
                 store.decrementRef();
             }
         }
