@@ -33,13 +33,12 @@ import org.elasticsearch.common.settings.ImmutableSettings.Builder;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.index.query.FilterBuilders;
-import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.elasticsearch.test.engine.MockInternalEngine;
 import org.elasticsearch.test.engine.ThrowingAtomicReaderWrapper;
 import org.elasticsearch.test.store.MockDirectoryHelper;
+import org.elasticsearch.test.store.MockFSDirectoryService;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 
@@ -84,12 +83,13 @@ public class SearchWithRandomExceptionsTests extends ElasticsearchIntegrationTes
             exceptionRate = 0d;
             exceptionOnOpenRate = 0d;
         }
-        boolean createIndexWithoutErrors = randomBoolean();
+        boolean createIndexWithoutErrors = true;randomBoolean();
         long numInitialDocs = 0;
 
         if (createIndexWithoutErrors) {
             Builder settings = settingsBuilder()
                     .put("index.number_of_replicas", randomIntBetween(0, 1))
+                    .put(MockFSDirectoryService.CHECK_INDEX_ON_CLOSE, true)
                     .put("gateway.type", "local");
             logger.info("creating index: [test] using settings: [{}]", settings.build().getAsMap());
             client().admin().indices().prepareCreate("test")
@@ -104,16 +104,16 @@ public class SearchWithRandomExceptionsTests extends ElasticsearchIntegrationTes
             client().admin().indices().prepareFlush("test").execute().get();
             client().admin().indices().prepareClose("test").execute().get();
             client().admin().indices().prepareUpdateSettings("test").setSettings(settingsBuilder()
+                    .put(MockFSDirectoryService.CHECK_INDEX_ON_CLOSE, true)
                     .put(MockDirectoryHelper.RANDOM_IO_EXCEPTION_RATE, exceptionRate)
-                    .put(MockDirectoryHelper.RANDOM_IO_EXCEPTION_RATE_ON_OPEN, exceptionOnOpenRate)
-                    .put(MockDirectoryHelper.CHECK_INDEX_ON_CLOSE, true));
+                    .put(MockDirectoryHelper.RANDOM_IO_EXCEPTION_RATE_ON_OPEN, exceptionOnOpenRate));
             client().admin().indices().prepareOpen("test").execute().get();
         } else {
             Builder settings = settingsBuilder()
             .put("index.number_of_replicas", randomIntBetween(0, 1))
+            .put(MockFSDirectoryService.CHECK_INDEX_ON_CLOSE, false)
             .put(MockDirectoryHelper.RANDOM_IO_EXCEPTION_RATE, exceptionRate)
-            .put(MockDirectoryHelper.RANDOM_IO_EXCEPTION_RATE_ON_OPEN, exceptionOnOpenRate)
-            .put(MockDirectoryHelper.CHECK_INDEX_ON_CLOSE, false); // we cannot expect that the index will be valid
+            .put(MockDirectoryHelper.RANDOM_IO_EXCEPTION_RATE_ON_OPEN, exceptionOnOpenRate); // we cannot expect that the index will be valid
             logger.info("creating index: [test] using settings: [{}]", settings.build().getAsMap());
             client().admin().indices().prepareCreate("test")
                     .setSettings(settings)
@@ -177,8 +177,7 @@ public class SearchWithRandomExceptionsTests extends ElasticsearchIntegrationTes
             client().admin().indices().prepareClose("test").execute().get();
             client().admin().indices().prepareUpdateSettings("test").setSettings(settingsBuilder()
                     .put(MockDirectoryHelper.RANDOM_IO_EXCEPTION_RATE, 0)
-                    .put(MockDirectoryHelper.RANDOM_IO_EXCEPTION_RATE_ON_OPEN, 0)
-                    .put(MockDirectoryHelper.CHECK_INDEX_ON_CLOSE, true));
+                    .put(MockDirectoryHelper.RANDOM_IO_EXCEPTION_RATE_ON_OPEN, 0));
             client().admin().indices().prepareOpen("test").execute().get();
             ensureYellow();
             SearchResponse searchResponse = client().prepareSearch().setQuery(QueryBuilders.matchQuery("test", "init")).get();

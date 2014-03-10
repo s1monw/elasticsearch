@@ -136,7 +136,6 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
     // will not really happen, and then the commitUserData and the new translog will not be reflected
     private volatile boolean flushNeeded = false;
     private final AtomicInteger flushing = new AtomicInteger();
-    private final AtomicInteger resourceCounter = new AtomicInteger(1);
     private final Lock flushLock = new ReentrantLock();
 
     private final RecoveryCounter onGoingRecoveries = new RecoveryCounter();
@@ -241,19 +240,6 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
     @Override
     public void addFailedEngineListener(FailedEngineListener listener) {
         failedEngineListeners.add(listener);
-    }
-
-    private void decrementResourceCounter() {
-        assert resourceCounter.get() > 0;
-        if (resourceCounter.decrementAndGet() == 0) {
-            store.decrementRef();
-        }
-    }
-
-
-    private void incrementResourceCounter() {
-        ensureOpen();
-        resourceCounter.incrementAndGet();
     }
 
     @Override
@@ -1207,19 +1193,19 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
 
     @Override
     public void close() throws ElasticsearchException {
-        if (closed) {
-            return;
-        }
         rwl.writeLock().lock();
         try {
-            innerClose();
+            if (!closed) {
+                try {
+                    innerClose();
+                } finally {
+                    store.decRef();
+                }
+            }
         } finally {
             rwl.writeLock().unlock();
-            decrementResourceCounter();
         }
     }
-
-
 
     class FailEngineOnMergeFailure implements MergeSchedulerProvider.FailureListener {
         @Override
@@ -1447,7 +1433,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             this.searcher = searcher;
             this.manager = manager;
             this.released = new AtomicBoolean(false);
-            incrementResourceCounter();
+            store.incRef();
         }
 
         @Override
@@ -1486,7 +1472,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                  * IndexWriter to free up pending files. */
                 return false;
             } finally {
-                decrementResourceCounter();
+                store.decRef();
             }
         }
     }
@@ -1589,7 +1575,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         private final AtomicInteger onGoingRecoveries = new AtomicInteger();
 
         public void startRecovery() {
-            incrementResourceCounter();
+            store.incRef();
             onGoingRecoveries.incrementAndGet();
         }
 
@@ -1598,7 +1584,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         }
 
         public void endRecovery() throws ElasticsearchException {
-            decrementResourceCounter();
+            store.decRef();
             onGoingRecoveries.decrementAndGet();
             assert onGoingRecoveries.get() >= 0 : "ongoingRecoveries must be >= 0 but was: " + onGoingRecoveries.get();
         }

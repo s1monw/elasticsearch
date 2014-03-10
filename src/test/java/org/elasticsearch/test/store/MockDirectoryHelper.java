@@ -36,7 +36,6 @@ import org.elasticsearch.index.store.fs.MmapFsDirectoryService;
 import org.elasticsearch.index.store.fs.NioFsDirectoryService;
 import org.elasticsearch.index.store.fs.SimpleFsDirectoryService;
 import org.elasticsearch.index.store.ram.RamDirectoryService;
-import org.elasticsearch.test.ElasticsearchIntegrationTest;
 
 import java.io.IOException;
 import java.util.Random;
@@ -46,9 +45,9 @@ public class MockDirectoryHelper {
     public static final String RANDOM_IO_EXCEPTION_RATE = "index.store.mock.random.io_exception_rate";
     public static final String RANDOM_IO_EXCEPTION_RATE_ON_OPEN = "index.store.mock.random.io_exception_rate_on_open";
     public static final String RANDOM_THROTTLE = "index.store.mock.random.throttle";
-    public static final String CHECK_INDEX_ON_CLOSE = "index.store.mock.check_index_on_close";
     public static final String RANDOM_PREVENT_DOUBLE_WRITE = "index.store.mock.random.prevent_double_write";
     public static final String RANDOM_NO_DELETE_OPEN_FILE = "index.store.mock.random.no_delete_open_file";
+    public static final String CRASH_INDEX = "index.store.mock.random.crash_index";
 
     public static final Set<ElasticsearchMockDirectoryWrapper> wrappers = ConcurrentCollections.newConcurrentSet();
 
@@ -57,27 +56,26 @@ public class MockDirectoryHelper {
     private final double randomIOExceptionRate;
     private final double randomIOExceptionRateOnOpen;
     private final Throttling throttle;
-    private final boolean checkIndexOnClose;
     private final Settings indexSettings;
     private final ShardId shardId;
     private final boolean preventDoubleWrite;
     private final boolean noDeleteOpenFile;
     private final ESLogger logger;
+    private final boolean crashIndex;
 
-    public MockDirectoryHelper(ShardId shardId, Settings indexSettings, ESLogger logger) {
-        final long seed = indexSettings.getAsLong(ElasticsearchIntegrationTest.INDEX_SEED_SETTING, 0l);
-        random = new Random(seed);
+    public MockDirectoryHelper(ShardId shardId, Settings indexSettings, ESLogger logger, Random random, long seed) {
+        this.random = random;
         randomIOExceptionRate = indexSettings.getAsDouble(RANDOM_IO_EXCEPTION_RATE, 0.0d);
         randomIOExceptionRateOnOpen = indexSettings.getAsDouble(RANDOM_IO_EXCEPTION_RATE_ON_OPEN, 0.0d);
         preventDoubleWrite = indexSettings.getAsBoolean(RANDOM_PREVENT_DOUBLE_WRITE, true); // true is default in MDW
         noDeleteOpenFile = indexSettings.getAsBoolean(RANDOM_NO_DELETE_OPEN_FILE, random.nextBoolean()); // true is default in MDW
         random.nextInt(shardId.getId() + 1); // some randomness per shard
         throttle = Throttling.valueOf(indexSettings.get(RANDOM_THROTTLE, random.nextDouble() < 0.1 ? "SOMETIMES" : "NEVER"));
-        checkIndexOnClose = indexSettings.getAsBoolean(CHECK_INDEX_ON_CLOSE, random.nextDouble() < 0.1 && false);
+        crashIndex = indexSettings.getAsBoolean(CRASH_INDEX, true);
 
         if (logger.isDebugEnabled()) {
-            logger.debug("Using MockDirWrapper with seed [{}] throttle: [{}] checkIndexOnClose: [{}]", SeedUtils.formatSeed(seed),
-                    throttle, checkIndexOnClose);
+            logger.debug("Using MockDirWrapper with seed [{}] throttle: [{}] crashIndex: [{}]", SeedUtils.formatSeed(seed),
+                    throttle, crashIndex);
         }
         this.indexSettings = indexSettings;
         this.shardId = shardId;
@@ -85,11 +83,11 @@ public class MockDirectoryHelper {
     }
 
     public Directory wrap(Directory dir) {
-        final ElasticsearchMockDirectoryWrapper w = new ElasticsearchMockDirectoryWrapper(random, dir, logger);
+        final ElasticsearchMockDirectoryWrapper w = new ElasticsearchMockDirectoryWrapper(random, dir, logger, this.crashIndex);
         w.setRandomIOExceptionRate(randomIOExceptionRate);
         w.setRandomIOExceptionRateOnOpen(randomIOExceptionRateOnOpen);
         w.setThrottling(throttle);
-        w.setCheckIndexOnClose(checkIndexOnClose);
+        w.setCheckIndexOnClose(false); // we do this on the index level
         w.setPreventDoubleWrite(preventDoubleWrite);
         w.setNoDeleteOpenFile(noDeleteOpenFile);
         wrappers.add(w);
@@ -126,10 +124,12 @@ public class MockDirectoryHelper {
     public static final class ElasticsearchMockDirectoryWrapper extends MockDirectoryWrapper {
 
         private final ESLogger logger;
+        private final boolean crash;
         private RuntimeException closeException;
 
-        public ElasticsearchMockDirectoryWrapper(Random random, Directory delegate, ESLogger logger) {
+        public ElasticsearchMockDirectoryWrapper(Random random, Directory delegate, ESLogger logger, boolean crash) {
             super(random, delegate);
+            this.crash = crash;
             this.logger = logger;
         }
 
@@ -138,7 +138,7 @@ public class MockDirectoryHelper {
             try {
                 super.close();
             } catch (RuntimeException ex) {
-                logger.debug("MockDirectoryWrapper#close() threw exception", ex);
+                logger.info("MockDirectoryWrapper#close() threw exception", ex);
                 closeException = ex;
                 throw ex;
             }
@@ -150,6 +150,13 @@ public class MockDirectoryHelper {
 
         public synchronized RuntimeException closeException() {
             return closeException;
+        }
+
+        @Override
+        public synchronized void crash() throws IOException {
+            if (crash) {
+                super.crash();
+            }
         }
     }
 }

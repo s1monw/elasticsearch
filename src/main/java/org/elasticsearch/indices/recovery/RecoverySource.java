@@ -119,6 +119,7 @@ public class RecoverySource extends AbstractComponent {
             public void phase1(final SnapshotIndexCommit snapshot) throws ElasticsearchException {
                 long totalSize = 0;
                 long existingTotalSize = 0;
+                shard.store().incRef();
                 try {
                     StopWatch stopWatch = new StopWatch().start();
 
@@ -173,6 +174,7 @@ public class RecoverySource extends AbstractComponent {
                             @Override
                             public void run() {
                                 IndexInput indexInput = null;
+                                shard.store().incRef();
                                 try {
                                     final int BUFFER_SIZE = (int) recoverySettings.fileChunkSize().bytes();
                                     byte[] buf = new byte[BUFFER_SIZE];
@@ -207,6 +209,7 @@ public class RecoverySource extends AbstractComponent {
                                     lastException.set(e);
                                 } finally {
                                     IOUtils.closeWhileHandlingException(indexInput);
+                                    shard.store().decRef();
                                     latch.countDown();
                                 }
                             }
@@ -229,6 +232,8 @@ public class RecoverySource extends AbstractComponent {
                     response.phase1Time = stopWatch.totalTime().millis();
                 } catch (Throwable e) {
                     throw new RecoverFilesRecoveryException(request.shardId(), response.phase1FileNames.size(), new ByteSizeValue(totalSize), e);
+                } finally {
+                    shard.store().decRef();
                 }
             }
 

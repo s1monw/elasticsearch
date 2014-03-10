@@ -474,7 +474,7 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
                 cleanup(newSnapshotsList, blobs);
                 snapshotStatus.updateStage(IndexShardSnapshotStatus.Stage.DONE);
             } finally {
-                store.decrementRef();
+                store.decRef();
             }
         }
 
@@ -720,7 +720,7 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
                     // ignore
                 }
             } finally {
-                store.decrementRef();
+                store.decRef();
             }
         }
 

@@ -638,14 +638,14 @@ public class RecoveryTarget extends AbstractComponent {
                         }
                         store.directory().sync(Collections.singleton(request.name()));
                         IndexOutput remove = onGoingRecovery.removeOpenIndexOutputs(request.name());
-                        assert remove == indexOutput;
+                        assert remove == null || remove == indexOutput; // remove maybe null if we got canceled
 
                     }
                     success = true;
                 } finally {
                     if (!success || onGoingRecovery.isCanceled()) {
                         IndexOutput remove = onGoingRecovery.removeOpenIndexOutputs(request.name());
-                        assert remove == indexOutput;
+                        assert remove == null || remove == indexOutput;
                         IOUtils.closeWhileHandlingException(indexOutput);
                     }
                 }

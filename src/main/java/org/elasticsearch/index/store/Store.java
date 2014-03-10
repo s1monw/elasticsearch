@@ -272,12 +272,12 @@ public class Store extends AbstractIndexShardComponent implements CloseableIndex
                     return;
                 }
             } else {
-                ensureOpen();
+                throw new AlreadyClosedException("Store is already closed can't increment refCount current count [" + i + "]");
             }
         } while(true);
     }
 
-    public final void decrementRef() {
+    public final void decRef() {
         int i = refCount.decrementAndGet();
         assert i >= 0;
         if (i == 0) {
@@ -288,14 +288,15 @@ public class Store extends AbstractIndexShardComponent implements CloseableIndex
 
     public void close() {
         if (isClosed.compareAndSet(false, true)) {
-            decrementRef();
+            // only do this once!
+            decRef();
         }
     }
 
     private void closeInternal() {
         synchronized (mutex) { // if we close the dir we need to make sure nobody writes checksums
             try {
-                directory.close();
+                directory.closeInternal(); // don't call close here we throw an exception there!
             } catch (IOException e) {
                 logger.debug("failed to close directory", e);
             }
@@ -552,14 +553,20 @@ public class Store extends AbstractIndexShardComponent implements CloseableIndex
         }
 
         @Override
-        public synchronized void close() throws IOException {
-            isOpen = false;
-            for (Directory delegate : distributor.all()) {
-                delegate.close();
-            }
-            synchronized (mutex) {
-                filesMetadata = ImmutableOpenMap.of();
-                files = Strings.EMPTY_ARRAY;
+        public void close() throws IOException {
+            assert false : "Nobody should close this directory except of the Store itself";
+        }
+
+        synchronized void closeInternal() throws IOException {
+            if (isOpen) {
+                isOpen = false;
+                for (Directory delegate : distributor.all()) {
+                    delegate.close();
+                }
+                synchronized (mutex) {
+                    filesMetadata = ImmutableOpenMap.of();
+                    files = Strings.EMPTY_ARRAY;
+                }
             }
         }
 

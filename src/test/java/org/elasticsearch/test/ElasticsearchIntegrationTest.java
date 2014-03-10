@@ -295,12 +295,14 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
     private static void randomIndexTemplate() {
         // TODO move settings for random directory etc here into the index based randomized settings.
         if (cluster().size() > 0) {
+            ImmutableSettings.Builder builder = setRandomNormsLoading(setRandomMerge(getRandom(), ImmutableSettings.builder())
+                    .put(INDEX_SEED_SETTING, randomLong()))
+
+                    .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, between(DEFAULT_MIN_NUM_SHARDS, DEFAULT_MAX_NUM_SHARDS));
             client().admin().indices().preparePutTemplate("random_index_template")
                     .setTemplate("*")
                     .setOrder(0)
-                    .setSettings(setRandomNormsLoading(setRandomMerge(getRandom(), ImmutableSettings.builder())
-                            .put(INDEX_SEED_SETTING, randomLong()))
-                            .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, between(DEFAULT_MIN_NUM_SHARDS, DEFAULT_MAX_NUM_SHARDS)))
+                    .setSettings(builder)
                     .execute().actionGet();
         }
     }
