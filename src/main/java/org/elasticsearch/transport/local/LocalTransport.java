@@ -253,6 +253,8 @@ public class LocalTransport extends AbstractLifecycleComponent<Transport> implem
                                     logger.warn("Failed to send error message back to client for action [" + action + "]", e1);
                                     logger.warn("Actual Exception", e);
                                 }
+                            } else {
+                                logger.warn("Failed to send error message back to client for action [" + action + "] transport is not started", e);
                             }
                         }
                     }
@@ -267,8 +269,8 @@ public class LocalTransport extends AbstractLifecycleComponent<Transport> implem
             try {
                 transportChannel.sendResponse(e);
             } catch (Throwable e1) {
-                logger.warn("Failed to send error message back to client for action [" + action + "]", e);
-                logger.warn("Actual Exception", e1);
+                logger.warn("Failed to send error message back to client for action [" + action + "]", e1);
+                logger.warn("Actual Exception", e);
             }
         }
     }

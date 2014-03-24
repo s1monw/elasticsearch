@@ -217,8 +217,8 @@ public class MessageChannelHandler extends SimpleChannelUpstreamHandler {
             try {
                 transportChannel.sendResponse(e);
             } catch (IOException e1) {
-                logger.warn("Failed to send error message back to client for action [" + action + "]", e);
-                logger.warn("Actual Exception", e1);
+                logger.warn("Failed to send error message back to client for action [" + action + "]", e1);
+                logger.warn("Actual Exception", e);
             }
         }
         return action;
@@ -277,6 +277,8 @@ public class MessageChannelHandler extends SimpleChannelUpstreamHandler {
                         logger.warn("Failed to send error message back to client for action [" + action + "]", e1);
                         logger.warn("Actual Exception", e);
                     }
+                } else {
+                    logger.warn("Failed to send error message back to client for action [" + action + "] transport is not started", e);
                 }
             }
         }
