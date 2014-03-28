@@ -20,7 +20,7 @@ package org.elasticsearch.search.aggregations.metrics;
 
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
-import org.junit.Before;
+import org.elasticsearch.test.ElasticsearchIntegrationTest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,12 +30,13 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 /**
  *
  */
+@ElasticsearchIntegrationTest.WipeAfterClass
 public abstract class AbstractNumericTests extends ElasticsearchIntegrationTest {
 
-    protected long minValue, maxValue, minValues, maxValues;
+    protected static long minValue, maxValue, minValues, maxValues;
 
-    @Before
-    public void init() throws Exception {
+    @Override
+    public void beforeTestStarts() throws Exception {
         createIndex("idx");
         createIndex("idx_unmapped");
 

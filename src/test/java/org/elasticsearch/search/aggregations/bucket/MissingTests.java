@@ -25,7 +25,7 @@ import org.elasticsearch.search.aggregations.bucket.missing.Missing;
 import org.elasticsearch.search.aggregations.metrics.avg.Avg;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.hamcrest.Matchers;
-import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -42,12 +42,13 @@ import static org.hamcrest.core.IsNull.notNullValue;
 /**
  *
  */
+@ElasticsearchIntegrationTest.WipeAfterClass
 public class MissingTests extends ElasticsearchIntegrationTest {
 
-    int numDocs, numDocsMissing, numDocsUnmapped;
+    static int numDocs, numDocsMissing, numDocsUnmapped;
 
-    @Before
-    public void init() throws Exception {
+    @Override
+    public void beforeTestStarts() throws Exception {
         createIndex("idx");
         List<IndexRequestBuilder> builders = new ArrayList<>();
         numDocs = randomIntBetween(5, 20);
@@ -77,6 +78,11 @@ public class MissingTests extends ElasticsearchIntegrationTest {
         indexRandom(true, builders.toArray(new IndexRequestBuilder[builders.size()]));
         ensureGreen(); // wait until we are ready to serve requests
         ensureSearchable();
+    }
+
+    @After
+    public void afterEachTest() {
+        cluster().wipeIndices("empty_bucket_idx");
     }
 
     @Test

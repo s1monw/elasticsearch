@@ -21,6 +21,7 @@ package org.elasticsearch.test;
 import com.carrotsearch.randomizedtesting.RandomizedContext;
 import com.carrotsearch.randomizedtesting.SeedUtils;
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import org.apache.lucene.util.AbstractRandomizedTest;
 import org.elasticsearch.ExceptionsHelper;
@@ -47,6 +48,7 @@ import org.elasticsearch.client.Requests;
 import org.elasticsearch.client.internal.InternalClient;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.MetaData;
+import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.settings.ImmutableSettings;
@@ -56,10 +58,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.discovery.zen.elect.ElectMasterService;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.client.RandomizingClient;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
+import org.junit.*;
 
 import java.io.IOException;
 import java.lang.annotation.ElementType;
@@ -70,10 +69,12 @@ import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_REPLICAS;
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_SHARDS;
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
+import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.test.TestCluster.clusterName;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoFailures;
@@ -177,6 +178,7 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
     @BeforeClass
     public static void beforeClass() throws Exception {
         initializeGlobalCluster();
+        maybeInitialize();
     }
 
     private static void initializeGlobalCluster() {
@@ -188,8 +190,7 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
         }
     }
 
-    @Before
-    public final void before() throws IOException {
+    protected final void beforeInternal() throws IOException {
         assert Thread.getDefaultUncaughtExceptionHandler() instanceof ElasticsearchUncaughtExceptionHandler;
         try {
             final Scope currentClusterScope = getCurrentClusterScope();
@@ -240,8 +241,7 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
         }
     }
 
-    @After
-    public final void after() throws IOException {
+    protected final void afterInternal() throws IOException {
         boolean success = false;
         try {
             logger.info("[{}#{}]: cleaning up after test", getTestClass().getSimpleName(), getTestName());
@@ -479,6 +479,75 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
     }
 
     /**
+     * Waits until at least a give number of document is visible for searchers
+     *
+     * @param numDocs number of documents to wait for.
+     * @return the actual number of docs seen.
+     * @throws InterruptedException
+     */
+    public long waitForDocs(final long numDocs) throws InterruptedException {
+        return waitForDocs(numDocs, null);
+    }
+
+    /**
+     * Waits until at least a give number of document is visible for searchers
+     *
+     * @param numDocs number of documents to wait for
+     * @param indexer a {@link org.elasticsearch.test.BackgroundIndexer}. If supplied it will be first checked for documents indexed.
+     *                This saves on unneeded searches.
+     * @return the actual number of docs seen.
+     * @throws InterruptedException
+     */
+    public long waitForDocs(final long numDocs, final @Nullable BackgroundIndexer indexer) throws InterruptedException {
+        // indexing threads can wait for up to ~1m before retrying when they first try to index into a shard which is not STARTED.
+        return waitForDocs(numDocs, 90, TimeUnit.SECONDS, indexer);
+    }
+
+    /**
+     * Waits until at least a give number of document is visible for searchers
+     *
+     * @param numDocs         number of documents to wait for
+     * @param maxWaitTime     if not progress have been made during this time, fail the test
+     * @param maxWaitTimeUnit the unit in which maxWaitTime is specified
+     * @param indexer         a {@link org.elasticsearch.test.BackgroundIndexer}. If supplied it will be first checked for documents indexed.
+     *                        This saves on unneeded searches.
+     * @return the actual number of docs seen.
+     * @throws InterruptedException
+     */
+    public long waitForDocs(final long numDocs, int maxWaitTime, TimeUnit maxWaitTimeUnit, final @Nullable BackgroundIndexer indexer)
+            throws InterruptedException {
+        final long[] lastKnownCount = {-1};
+        long lastStartCount = -1;
+        Predicate<Object> testDocs = new Predicate<Object>() {
+            public boolean apply(Object o) {
+                lastKnownCount[0] = indexer.totalIndexedDocs();
+                if (lastKnownCount[0] > numDocs) {
+                    long count = client().prepareCount().setQuery(matchAllQuery()).execute().actionGet().getCount();
+                    if (count == lastKnownCount[0]) {
+                        // no progress - try to refresh for the next time
+                        client().admin().indices().prepareRefresh().get();
+                    }
+                    lastKnownCount[0] = count;
+                    logger.debug("[{}] docs visible for search. waiting for [{}]", lastKnownCount[0], numDocs);
+                } else {
+                    logger.debug("[{}] docs indexed. waiting for [{}]", lastKnownCount[0], numDocs);
+                }
+                return lastKnownCount[0] > numDocs;
+            }
+        };
+
+        while (!awaitBusy(testDocs, maxWaitTime, maxWaitTimeUnit)) {
+            if (lastStartCount == lastKnownCount[0]) {
+                // we didn't make any progress
+                fail("failed to reach " + numDocs + "docs");
+            }
+            lastStartCount = lastKnownCount[0];
+        }
+        return lastKnownCount[0];
+    }
+
+
+    /**
      * Sets the cluster's minimum master node and make sure the response is acknowledge.
      * Note: this doesn't guaranty the new settings is in effect, just that it has been received bu all nodes.
      */
@@ -682,7 +751,7 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
                 assertThat(actionGet.hasFailures() ? actionGet.buildFailureMessage() : "", actionGet.hasFailures(), equalTo(false));
             }
         }
-        for (CountDownLatch operation: inFlightAsyncOperations) {
+        for (CountDownLatch operation : inFlightAsyncOperations) {
             operation.await();
         }
         final List<Throwable> actualErrors = new ArrayList<>();
@@ -706,7 +775,7 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
     }
 
     /**
-     * Maybe refresh, optimize, or flush then always make sure there aren't too many in flight async operations. 
+     * Maybe refresh, optimize, or flush then always make sure there aren't too many in flight async operations.
      */
     private void postIndexAsyncActions(String[] indices, List<CountDownLatch> inFlightAsyncOperations) throws InterruptedException {
         if (rarely()) {
@@ -725,6 +794,65 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
             int waitFor = between(0, inFlightAsyncOperations.size() - 1);
             inFlightAsyncOperations.remove(waitFor).await();
         }
+    }
+
+    /**
+     * The scope of a test cluster used together with
+     * {@link org.elasticsearch.test.ElasticsearchIntegrationTest.ClusterScope} annotations on {@link org.elasticsearch.test.ElasticsearchIntegrationTest} subclasses.
+     */
+    public static enum Scope {
+        /**
+         * A globally shared cluster. This cluster doesn't allow modification of transient or persistent
+         * cluster settings.
+         */
+        GLOBAL,
+        /**
+         * A cluster shared across all method in a single test suite
+         */
+        SUITE,
+        /**
+         * A test exclusive test cluster
+         */
+        TEST
+    }
+
+    /**
+     * Defines a cluster scope for a {@link org.elasticsearch.test.ElasticsearchIntegrationTest} subclass.
+     * By default if no {@link ClusterScope} annotation is present {@link org.elasticsearch.test.ElasticsearchIntegrationTest.Scope#GLOBAL} is used
+     * together with randomly chosen settings like number of nodes etc.
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE})
+    public @interface ClusterScope {
+        /**
+         * Returns the scope. {@link org.elasticsearch.test.ElasticsearchIntegrationTest.Scope#GLOBAL} is default.
+         */
+        Scope scope() default Scope.GLOBAL;
+
+        /**
+         * Returns the number of nodes in the cluster. Default is <tt>-1</tt> which means
+         * a random number of nodes is used, where the minimum and maximum number of nodes
+         * are either the specified ones or the default ones if not specified.
+         */
+        int numNodes() default -1;
+
+        /**
+         * Returns the minimum number of nodes in the cluster. Default is {@link org.elasticsearch.test.TestCluster#DEFAULT_MIN_NUM_NODES}.
+         * Ignored when {@link ClusterScope#numNodes()} is set.
+         */
+        int minNumNodes() default TestCluster.DEFAULT_MIN_NUM_NODES;
+
+        /**
+         * Returns the maximum number of nodes in the cluster.  Default is {@link org.elasticsearch.test.TestCluster#DEFAULT_MAX_NUM_NODES}.
+         * Ignored when {@link ClusterScope#numNodes()} is set.
+         */
+        int maxNumNodes() default TestCluster.DEFAULT_MAX_NUM_NODES;
+
+        /**
+         * Returns the transport client ratio. By default this returns <code>-1</code> which means a random
+         * ratio in the interval <code>[0..1]</code> is used.
+         */
+        double transportClientRatio() default -1;
     }
 
     private class LatchedActionListener<Response> implements ActionListener<Response> {
@@ -777,27 +905,6 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
         ClearScrollResponse clearResponse = client().prepareClearScroll()
                 .setScrollIds(Arrays.asList(scrollIds)).get();
         assertThat(clearResponse.isSucceeded(), equalTo(true));
-    }
-
-
-    /**
-     * The scope of a test cluster used together with
-     * {@link ClusterScope} annotations on {@link ElasticsearchIntegrationTest} subclasses.
-     */
-    public static enum Scope {
-        /**
-         * A globally shared cluster. This cluster doesn't allow modification of transient or persistent
-         * cluster settings.
-         */
-        GLOBAL,
-        /**
-         * A cluster shared across all method in a single test suite
-         */
-        SUITE,
-        /**
-         * A test exclusive test cluster
-         */
-        TEST
     }
 
     private ClusterScope getAnnotation(Class<?> clazz) {
@@ -874,45 +981,6 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
     }
 
     /**
-     * Defines a cluster scope for a {@link ElasticsearchIntegrationTest} subclass.
-     * By default if no {@link ClusterScope} annotation is present {@link Scope#GLOBAL} is used
-     * together with randomly chosen settings like number of nodes etc.
-     */
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target({ElementType.TYPE})
-    public @interface ClusterScope {
-        /**
-         * Returns the scope. {@link Scope#GLOBAL} is default.
-         */
-        Scope scope() default Scope.GLOBAL;
-
-        /**
-         * Returns the number of nodes in the cluster. Default is <tt>-1</tt> which means
-         * a random number of nodes is used, where the minimum and maximum number of nodes
-         * are either the specified ones or the default ones if not specified.
-         */
-        int numNodes() default -1;
-
-        /**
-         * Returns the minimum number of nodes in the cluster. Default is {@link TestCluster#DEFAULT_MIN_NUM_NODES}.
-         * Ignored when {@link ClusterScope#numNodes()} is set.
-         */
-        int minNumNodes() default TestCluster.DEFAULT_MIN_NUM_NODES;
-
-        /**
-         * Returns the maximum number of nodes in the cluster.  Default is {@link TestCluster#DEFAULT_MAX_NUM_NODES}.
-         * Ignored when {@link ClusterScope#numNodes()} is set.
-         */
-        int maxNumNodes() default TestCluster.DEFAULT_MAX_NUM_NODES;
-
-        /**
-         * Returns the transport client ratio. By default this returns <code>-1</code> which means a random
-         * ratio in the interval <code>[0..1]</code> is used.
-         */
-        double transportClientRatio() default -1;
-    }
-
-    /**
      * Returns the client ratio configured via
      */
     private static double transportClientRatio() {
@@ -978,4 +1046,78 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
             this.totalNumShards = numPrimaries * dataCopies;
         }
     }
+
+
+    @Before
+    public final void before() throws IOException {
+        if (INSTANCE == null) {
+          beforeInternal();
+        }
+    }
+
+
+    @After
+    public final void after() throws IOException {
+        if (INSTANCE == null) {
+            afterInternal();
+        }
+    }
+
+    private static ElasticsearchIntegrationTest INSTANCE = null;
+
+    @AfterClass
+    public static void afterClass() throws IOException {
+        if (INSTANCE != null) {
+            try {
+                INSTANCE.afterInternal();
+            } finally {
+                INSTANCE = null;
+            }
+        }
+
+    }
+
+    private final static void maybeInitialize() throws Exception {
+        Class<?> targetClass = getContext().getTargetClass();
+        assert INSTANCE == null;
+        if (doWipeAfterClass(targetClass)) {
+            // note we need to do this this way to make sure this is reproducible
+            INSTANCE = (ElasticsearchIntegrationTest) targetClass.newInstance();
+            boolean success = false;
+            try {
+                INSTANCE.beforeInternal();
+                INSTANCE.beforeTestStarts();
+                success = true;
+            } finally {
+                if (!success) {
+                    afterClass();
+                }
+            }
+        } else {
+            INSTANCE = null;
+        }
+    }
+
+    protected void beforeTestStarts() throws Exception {}
+
+    private static boolean doWipeAfterClass(Class<?> clazz) {
+        if (clazz == Object.class || clazz == ElasticsearchIntegrationTest.class) {
+            return false;
+        }
+        WipeAfterClass annotation = clazz.getAnnotation(WipeAfterClass.class);
+        if (annotation != null) {
+            return true;
+        }
+        return doWipeAfterClass(clazz.getSuperclass());
+    }
+
+    /**
+     * // NOCOMMIT
+     */
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target({ElementType.TYPE})
+    public @interface WipeAfterClass{
+    }
+
+
 }

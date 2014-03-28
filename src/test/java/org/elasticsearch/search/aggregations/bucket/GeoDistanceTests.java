@@ -28,7 +28,6 @@ import org.elasticsearch.search.aggregations.bucket.range.geodistance.GeoDistanc
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.hamcrest.Matchers;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -47,6 +46,7 @@ import static org.hamcrest.core.IsNull.notNullValue;
 /**
  *
  */
+@ElasticsearchIntegrationTest.WipeAfterClass
 public class GeoDistanceTests extends ElasticsearchIntegrationTest {
 
     private IndexRequestBuilder indexCity(String idx, String name, String... latLons) throws Exception {
@@ -60,8 +60,7 @@ public class GeoDistanceTests extends ElasticsearchIntegrationTest {
         return client().prepareIndex(idx, "type").setSource(source);
     }
 
-    @Before
-    public void init() throws Exception {
+    public void beforeTestStarts() throws Exception {
         prepareCreate("idx")
                 .addMapping("type", "location", "type=geo_point", "city", "type=string,index=not_analyzed")
                 .execute().actionGet();

@@ -24,12 +24,12 @@ import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.elasticsearch.test.ElasticsearchIntegrationTest.ClusterScope;
-import org.elasticsearch.test.ElasticsearchIntegrationTest.Scope;
+import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.equalTo;
 
-@ClusterScope(scope=Scope.SUITE, numNodes=2)
+@ClusterScope(scope= ElasticsearchIntegrationTest.Scope.SUITE, numNodes=2)
 public class DiscoveryTests extends ElasticsearchIntegrationTest {
 
     @Override

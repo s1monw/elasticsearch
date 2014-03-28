@@ -35,7 +35,7 @@ import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
-import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -54,6 +54,7 @@ import static org.hamcrest.core.IsNull.notNullValue;
 /**
  *
  */
+@ElasticsearchIntegrationTest.WipeAfterClass
 public class DateHistogramTests extends ElasticsearchIntegrationTest {
 
     private DateTime date(int month, int day) {
@@ -86,8 +87,8 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
                 .endObject());
     }
 
-    @Before
-    public void init() throws Exception {
+    @Override
+    public void beforeTestStarts() throws Exception {
         createIndex("idx");
         createIndex("idx_unmapped");
         // TODO: would be nice to have more random data here
@@ -98,7 +99,15 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
                 indexDoc(3, 2, 4),  // date: Mar 2, dates: Mar 2, Apr 3
                 indexDoc(3, 15, 5), // date: Mar 15, dates: Mar 15, Apr 16
                 indexDoc(3, 23, 6)); // date: Mar 23, dates: Mar 23, Apr 24
+
+
+
         ensureSearchable();
+    }
+
+    @After
+    public void afterEachTest() throws IOException {
+        cluster().wipeIndices("idx2");
     }
 
     private static DateHistogram.Bucket getBucket(DateHistogram histogram, DateTime key) {
@@ -224,14 +233,7 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
     }
 
     @Test
-    public void singleValuedField_OrderedByKeyOrCount() throws Exception {
-        singleValuedField_OrderedByKeyAsc();
-        singleValuedField_OrderedByKeyDesc();
-        singleValuedField_OrderedByCountAsc();
-        singleValuedField_OrderedByCountDesc();
-    }
-
-    private void singleValuedField_OrderedByKeyAsc() throws Exception {
+    public void singleValuedField_OrderedByKeyAsc() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo")
                         .field("date")
@@ -254,7 +256,8 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
         }
     }
 
-    private void singleValuedField_OrderedByKeyDesc() throws Exception {
+    @Test
+    public void singleValuedField_OrderedByKeyDesc() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo")
                         .field("date")
@@ -277,7 +280,8 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
         }
     }
 
-    private void singleValuedField_OrderedByCountAsc() throws Exception {
+    @Test
+    public void singleValuedField_OrderedByCountAsc() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo")
                         .field("date")
@@ -300,7 +304,8 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
         }
     }
 
-    private void singleValuedField_OrderedByCountDesc() throws Exception {
+    @Test
+    public void singleValuedField_OrderedByCountDesc() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo")
                         .field("date")
@@ -410,14 +415,7 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
     }
 
     @Test
-    public void singleValuedField_OrderedBySubAggregation() throws Exception {
-        singleValuedField_OrderedBySubAggregationAsc();
-        singleValuedField_OrderedBySubAggregationDesc();
-        singleValuedField_OrderedByMultiValuedSubAggregationAsc_Inherited();
-        singleValuedField_OrderedByMultiValuedSubAggregationDesc();
-    }
-
-    private void singleValuedField_OrderedBySubAggregationAsc() throws Exception {
+    public void singleValuedField_OrderedBySubAggregationAsc() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo")
                         .field("date")
@@ -441,7 +439,8 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
         }
     }
 
-    private void singleValuedField_OrderedBySubAggregationDesc() throws Exception {
+    @Test
+    public void singleValuedField_OrderedBySubAggregationDesc() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo")
                         .field("date")
@@ -465,7 +464,8 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
         }
     }
 
-    private void singleValuedField_OrderedByMultiValuedSubAggregationAsc_Inherited() throws Exception {
+    @Test
+    public void singleValuedField_OrderedByMultiValuedSubAggregationAsc_Inherited() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo")
                         .field("date")
@@ -488,7 +488,8 @@ public class DateHistogramTests extends ElasticsearchIntegrationTest {
         }
     }
 
-    private void singleValuedField_OrderedByMultiValuedSubAggregationDesc() throws Exception {
+    @Test
+    public void singleValuedField_OrderedByMultiValuedSubAggregationDesc() throws Exception {
         SearchResponse response = client().prepareSearch("idx")
                 .addAggregation(dateHistogram("histo")
                         .field("date")

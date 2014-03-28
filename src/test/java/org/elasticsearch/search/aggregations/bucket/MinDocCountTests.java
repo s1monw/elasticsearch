@@ -32,10 +32,8 @@ import org.elasticsearch.search.aggregations.bucket.histogram.Histogram;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.aggregations.bucket.terms.TermsBuilder;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
-import org.junit.Before;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -46,21 +44,22 @@ import static org.elasticsearch.search.aggregations.AggregationBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAllSuccessful;
 
 
-@TestLogging("_root:TRACE")
+@ElasticsearchIntegrationTest.WipeAfterClass
 public class MinDocCountTests extends ElasticsearchIntegrationTest {
 
     private static final QueryBuilder QUERY = QueryBuilders.termQuery("match", true);
 
-    private int cardinality;
+    private static int cardinality;
 
-    @Before
-    public void indexData() throws Exception {
+    @Override
+    public void beforeTestStarts() throws Exception {
         createIndex("idx");
 
         cardinality = randomIntBetween(8, 30);
         final List<IndexRequestBuilder> indexRequests = new ArrayList<>();
         final Set<String> stringTerms = new HashSet<>();
         final LongSet longTerms = new LongOpenHashSet();
+        final Set<String> dateTerms = new HashSet<>();
         for (int i = 0; i < cardinality; ++i) {
             String stringTerm;
             do {
@@ -149,40 +148,115 @@ public class MinDocCountTests extends ElasticsearchIntegrationTest {
         }
     }
 
-    public void testStrings() throws Exception {
+    public void testStringTermAsc() throws Exception {
         testMinDocCountOnTerms("s", Script.NO, Terms.Order.term(true));
+    }
+
+    public void testStringScriptTermAsc() throws Exception {
         testMinDocCountOnTerms("s", Script.YES, Terms.Order.term(true));
+    }
+
+    public void testStringTermDesc() throws Exception {
         testMinDocCountOnTerms("s", Script.NO, Terms.Order.term(false));
+    }
+
+    public void testStringScriptTermDesc() throws Exception {
         testMinDocCountOnTerms("s", Script.YES, Terms.Order.term(false));
+    }
+
+    public void testStringCountAsc() throws Exception {
         testMinDocCountOnTerms("s", Script.NO, Terms.Order.count(true));
+    }
+
+    public void testStringScriptCountAsc() throws Exception {
         testMinDocCountOnTerms("s", Script.YES, Terms.Order.count(true));
+    }
+
+    public void testStringCountDesc() throws Exception {
         testMinDocCountOnTerms("s", Script.NO, Terms.Order.count(false));
+    }
+
+    public void testStringScriptCountDesc() throws Exception {
         testMinDocCountOnTerms("s", Script.YES, Terms.Order.count(false));
+    }
+
+    public void testStringCountAscWithInclude() throws Exception {
         testMinDocCountOnTerms("s", Script.NO, Terms.Order.count(true), ".*a.*");
+    }
+
+    public void testStringScriptCountAscWithInclude() throws Exception {
         testMinDocCountOnTerms("s", Script.YES, Terms.Order.count(true), ".*a.*");
+    }
+
+    public void testStringCountDescWithInclude() throws Exception {
         testMinDocCountOnTerms("s", Script.NO, Terms.Order.count(false), ".*a.*");
+    }
+
+    public void testStringScriptCountDescWithInclude() throws Exception {
         testMinDocCountOnTerms("s", Script.YES, Terms.Order.count(false), ".*a.*");
     }
 
-    public void testLongTerms() throws Exception {
+    public void testLongTermAsc() throws Exception {
         testMinDocCountOnTerms("l", Script.NO, Terms.Order.term(true));
+    }
+
+    public void testLongScriptTermAsc() throws Exception {
         testMinDocCountOnTerms("l", Script.YES, Terms.Order.term(true));
+    }
+
+    public void testLongTermDesc() throws Exception {
         testMinDocCountOnTerms("l", Script.NO, Terms.Order.term(false));
+    }
+
+    public void testLongScriptTermDesc() throws Exception {
         testMinDocCountOnTerms("l", Script.YES, Terms.Order.term(false));
+    }
+
+    public void testLongCountAsc() throws Exception {
         testMinDocCountOnTerms("l", Script.NO, Terms.Order.count(true));
+    }
+
+    public void testLongScriptCountAsc() throws Exception {
         testMinDocCountOnTerms("l", Script.YES, Terms.Order.count(true));
+    }
+
+    public void testLongCountDesc() throws Exception {
         testMinDocCountOnTerms("l", Script.NO, Terms.Order.count(false));
+    }
+
+    public void testLongScriptCountDesc() throws Exception {
         testMinDocCountOnTerms("l", Script.YES, Terms.Order.count(false));
     }
 
-    public void testDoubleTerms() throws Exception {
+    public void testDoubleTermAsc() throws Exception {
         testMinDocCountOnTerms("d", Script.NO, Terms.Order.term(true));
+    }
+
+    public void testDoubleScriptTermAsc() throws Exception {
         testMinDocCountOnTerms("d", Script.YES, Terms.Order.term(true));
+    }
+
+    public void testDoubleTermDesc() throws Exception {
         testMinDocCountOnTerms("d", Script.NO, Terms.Order.term(false));
+    }
+
+    public void testDoubleScriptTermDesc() throws Exception {
         testMinDocCountOnTerms("d", Script.YES, Terms.Order.term(false));
+    }
+
+    public void testDoubleCountAsc() throws Exception {
         testMinDocCountOnTerms("d", Script.NO, Terms.Order.count(true));
+    }
+
+    public void testDoubleScriptCountAsc() throws Exception {
         testMinDocCountOnTerms("d", Script.YES, Terms.Order.count(true));
+    }
+
+    public void testDoubleCountDesc() throws Exception {
         testMinDocCountOnTerms("d", Script.NO, Terms.Order.count(false));
+    }
+
+    public void testDoubleScriptCountDesc() throws Exception {
         testMinDocCountOnTerms("d", Script.YES, Terms.Order.count(false));
     }
 
@@ -225,17 +299,35 @@ public class MinDocCountTests extends ElasticsearchIntegrationTest {
 
     }
 
-    public void testHistogram() throws Exception {
+    public void testHistogramCountAsc() throws Exception {
         testMinDocCountOnHistogram(Histogram.Order.COUNT_ASC);
+    }
+
+    public void testHistogramCountDesc() throws Exception {
         testMinDocCountOnHistogram(Histogram.Order.COUNT_DESC);
+    }
+
+    public void testHistogramKeyAsc() throws Exception {
         testMinDocCountOnHistogram(Histogram.Order.KEY_ASC);
+    }
+
+    public void testHistogramKeyDesc() throws Exception {
         testMinDocCountOnHistogram(Histogram.Order.KEY_DESC);
     }
 
-    public void testDateHistogram() throws Exception {
+    public void testDateHistogramCountAsc() throws Exception {
         testMinDocCountOnDateHistogram(Histogram.Order.COUNT_ASC);
+    }
+
+    public void testDateHistogramCountDesc() throws Exception {
         testMinDocCountOnDateHistogram(Histogram.Order.COUNT_DESC);
+    }
+
+    public void testDateHistogramKeyAsc() throws Exception {
         testMinDocCountOnDateHistogram(Histogram.Order.KEY_ASC);
+    }
+
+    public void testDateHistogramKeyDesc() throws Exception {
         testMinDocCountOnDateHistogram(Histogram.Order.KEY_DESC);
     }
 
@@ -261,6 +353,7 @@ public class MinDocCountTests extends ElasticsearchIntegrationTest {
     }
 
     private void testMinDocCountOnDateHistogram(Histogram.Order order) throws Exception {
+        final int interval = randomIntBetween(1, 3);
         final SearchResponse allResponse = client().prepareSearch("idx").setTypes("type")
                 .setSearchType(SearchType.COUNT)
                 .setQuery(QUERY)

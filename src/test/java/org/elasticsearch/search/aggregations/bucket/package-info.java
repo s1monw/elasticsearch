@@ -23,4 +23,3 @@
 @TestLogging("org.elasticsearch.action.search.type:TRACE")
 package org.elasticsearch.search.aggregations.bucket;
 
-import org.elasticsearch.test.junit.annotations.TestLogging;

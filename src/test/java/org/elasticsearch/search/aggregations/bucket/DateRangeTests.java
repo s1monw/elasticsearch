@@ -30,7 +30,6 @@ import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -49,6 +48,7 @@ import static org.hamcrest.core.IsNull.nullValue;
 /**
  *
  */
+@ElasticsearchIntegrationTest.WipeAfterClass
 public class DateRangeTests extends ElasticsearchIntegrationTest {
 
     private static IndexRequestBuilder indexDoc(int month, int day, int value) throws Exception {
@@ -64,10 +64,9 @@ public class DateRangeTests extends ElasticsearchIntegrationTest {
         return new DateTime(2012, month, day, 0, 0, DateTimeZone.UTC);
     }
 
-    int numDocs;
-
-    @Before
-    public void init() throws Exception {
+    private static int numDocs;
+    @Override
+    public void beforeTestStarts() throws Exception {
         createIndex("idx");
         createIndex("idx_unmapped");
 

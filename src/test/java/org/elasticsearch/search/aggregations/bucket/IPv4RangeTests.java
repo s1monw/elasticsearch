@@ -27,7 +27,6 @@ import org.elasticsearch.search.aggregations.metrics.max.Max;
 import org.elasticsearch.search.aggregations.metrics.sum.Sum;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.hamcrest.Matchers;
-import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -45,10 +44,11 @@ import static org.hamcrest.core.IsNull.nullValue;
 /**
  *
  */
+@ElasticsearchIntegrationTest.WipeAfterClass
 public class IPv4RangeTests extends ElasticsearchIntegrationTest {
 
-    @Before
-    public void init() throws Exception {
+    @Override
+    public void beforeTestStarts() throws Exception {
         prepareCreate("idx")
                 .addMapping("type", "ip", "type=ip", "ips", "type=ip")
                 .execute().actionGet();
