@@ -36,6 +36,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -438,6 +439,45 @@ public abstract class AbstractSimpleTransportTests extends ElasticsearchTestCase
         }
 
         serviceA.removeHandler("sayHelloTimeoutNoResponse");
+    }
+
+    @Test
+    public void testNotifyOnShutdown() throws Exception {
+        final CountDownLatch latch2 = new CountDownLatch(1);
+
+        serviceA.registerHandler("foobar", new BaseTransportRequestHandler<StringMessageRequest>() {
+            @Override
+            public StringMessageRequest newInstance() {
+                return new StringMessageRequest();
+            }
+
+            @Override
+            public String executor() {
+                return ThreadPool.Names.GENERIC;
+            }
+
+            @Override
+            public void messageReceived(StringMessageRequest request, TransportChannel channel) {
+
+                try {
+                    latch2.await();
+                    logger.info("Stop ServiceB now");
+                    serviceB.stop();
+                } catch (Exception e) {
+                    fail(e.getMessage());
+                }
+            }
+        });
+        TransportFuture<TransportResponse.Empty> foobar = serviceB.submitRequest(nodeA, "foobar",
+                new StringMessageRequest(""), options(), EmptyTransportResponseHandler.INSTANCE_SAME);
+        latch2.countDown();
+        try {
+            foobar.txGet();
+            fail("TransportException expected");
+        } catch (TransportException ex) {
+
+        }
+        serviceA.removeHandler("sayHelloTimeoutDelayedResponse");
     }
 
     @Test

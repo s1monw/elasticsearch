@@ -96,7 +96,23 @@ public class TransportService extends AbstractLifecycleComponent<TransportServic
 
     @Override
     protected void doStop() throws ElasticsearchException {
-        transport.stop();
+        try {
+            transport.stop();
+        } finally {
+            for (Map.Entry<Long, RequestHolder> entry : clientHandlers.entrySet()) {
+                final RequestHolder holderToNotify = clientHandlers.remove(entry.getKey());
+                if (holderToNotify != null) {
+                    // callback that an exception happened, but on a different thread since we don't
+                    // want handlers to worry about stack overflows
+                    threadPool.generic().execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            holderToNotify.handler().handleException(new TransportException("transport Service has been stopped"));
+                        }
+                    });
+                }
+            }
+        }
     }
 
     @Override
