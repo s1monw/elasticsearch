@@ -164,6 +164,8 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
 
     private SegmentInfos lastCommittedSegmentInfos;
 
+    private IndexThrottle throttle;
+
     @Inject
     public InternalEngine(ShardId shardId, @IndexSettings Settings indexSettings, ThreadPool threadPool,
                           IndexSettingsService indexSettingsService, ShardIndexingService indexingService, @Nullable IndicesWarmer warmer,
@@ -258,6 +260,10 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             }
             try {
                 this.indexWriter = createWriter();
+                mergeScheduler.removeListener(this.throttle);
+                //nocommit find a good value for this?
+                this.throttle = new IndexThrottle(ConcurrentMergeScheduler.DEFAULT_MAX_MERGE_COUNT, indexWriter);
+                mergeScheduler.addListener(throttle);
             } catch (IOException e) {
                 throw new EngineCreationFailureException(shardId, "failed to create engine", e);
             }
@@ -376,7 +382,9 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             if (writer == null) {
                 throw new EngineClosedException(shardId, failedEngine);
             }
-            innerCreate(create, writer);
+            try (Releasable r = throttle.acquireThrottle()) {
+                innerCreate(create, writer);
+            }
             dirty = true;
             possibleMergeNeeded = true;
             flushNeeded = true;
@@ -465,8 +473,9 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             if (writer == null) {
                 throw new EngineClosedException(shardId, failedEngine);
             }
-
-            innerIndex(index, writer);
+            try (Releasable r = throttle.acquireThrottle()) {
+                innerIndex(index, writer);
+            }
             dirty = true;
             possibleMergeNeeded = true;
             flushNeeded = true;
@@ -747,7 +756,10 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                         // to be allocated to a different node
                         currentIndexWriter().close(false);
                         indexWriter = createWriter();
-
+                        mergeScheduler.removeListener(this.throttle);
+                        //nocommit find a good value for this?
+                        this.throttle = new IndexThrottle(ConcurrentMergeScheduler.DEFAULT_MAX_MERGE_COUNT, indexWriter);
+                        mergeScheduler.addListener(throttle);
                         // commit on a just opened writer will commit even if there are no changes done to it
                         // we rely on that for the commit data translog id key
                         if (flushNeeded || flush.force()) {
@@ -1560,6 +1572,48 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         boolean assertLockIsHeld() {
             Boolean aBoolean = lockIsHeld.get();
             return aBoolean != null && aBoolean.booleanValue();
+        }
+    }
+
+    private static final class IndexThrottle implements MergeSchedulerProvider.Listener {
+
+        private final IndexWriter writer;
+        private volatile InternalLock lock;
+        private final InternalLock lockReference = new InternalLock(new ReentrantLock());
+        private final AtomicInteger numMergesInFlight = new AtomicInteger(0);
+        private final int maxNumMerges;
+
+        private static final Releasable DUMMY = new Releasable() {
+            @Override
+            public void close() throws ElasticsearchException {}
+        };
+
+        public IndexThrottle(int maxNumMerges, IndexWriter writer) {
+            this.maxNumMerges = maxNumMerges;
+            this.writer = writer;
+        }
+
+        public Releasable acquireThrottle() {
+           final InternalLock lock = this.lock;
+           if (lock == null) {
+               return DUMMY;
+           }
+           return lock.acquire();
+        }
+
+
+        @Override
+        public void beforeMerge(OnGoingMerge merge) {
+            if (numMergesInFlight.incrementAndGet() > maxNumMerges && writer.hasPendingMerges()) {
+               lock = lockReference;
+            }
+        }
+
+        @Override
+        public void afterMerge(OnGoingMerge merge) {
+            if (numMergesInFlight.decrementAndGet() <= maxNumMerges && !writer.hasPendingMerges()) {
+                lock = null;
+            }
         }
     }
 }
