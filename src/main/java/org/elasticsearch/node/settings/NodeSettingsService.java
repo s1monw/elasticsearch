@@ -37,16 +37,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class NodeSettingsService extends AbstractComponent implements ClusterStateListener {
 
-    private static volatile Settings globalSettings = ImmutableSettings.Builder.EMPTY_SETTINGS;
-
-    /**
-     * Returns the global (static) settings last updated by a node. Note, if you have multiple
-     * nodes on the same JVM, it will just return the latest one set...
-     */
-    public static Settings getGlobalSettings() {
-        return globalSettings;
-    }
-
     private volatile Settings lastSettingsApplied;
 
     private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
@@ -54,7 +44,6 @@ public class NodeSettingsService extends AbstractComponent implements ClusterSta
     @Inject
     public NodeSettingsService(Settings settings) {
         super(settings);
-        globalSettings = settings;
     }
 
     // inject it as a member, so we won't get into possible cyclic problems
@@ -103,7 +92,6 @@ public class NodeSettingsService extends AbstractComponent implements ClusterSta
         }
 
         lastSettingsApplied = event.state().metaData().settings();
-        globalSettings = lastSettingsApplied;
     }
 
     /**
