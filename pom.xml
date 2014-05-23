@@ -35,6 +35,7 @@
         <tests.jvms>auto</tests.jvms>
         <tests.shuffle>true</tests.shuffle>
         <tests.output>onerror</tests.output>
+        <deb.sign>false</deb.sign>
         <tests.client.ratio></tests.client.ratio>
         <tests.bwc.path>${project.basedir}/backwards</tests.bwc.path>
         <es.logger.level>INFO</es.logger.level>
@@ -805,7 +806,7 @@
                 -->
                 <artifactId>jdeb</artifactId>
                 <groupId>org.vafer</groupId>
-                <version>1.0.1</version>
+                <version>1.1.1</version>
                 <configuration>
                     <deb>${project.build.directory}/releases/${project.artifactId}-${project.version}.deb</deb>
                 </configuration>
@@ -816,6 +817,10 @@
                             <goal>jdeb</goal>
                         </goals>
                         <configuration>
+                            <signPackage>${deb.sign}</signPackage>
+                            <keyring>${gpg.keyring}</keyring>
+                            <key>${gpg.key}</key>
+                            <passphrase>${gpg.passphrase}</passphrase>
                             <dataSet>
                                 <data>
                                     <src>${project.basedir}/</src>
@@ -926,7 +931,6 @@
                                     <type>file</type>
                                 </data>
                             </dataSet>
-
                         </configuration>
                     </execution>
                 </executions>
@@ -950,6 +954,8 @@
                     <defaultDirmode>755</defaultDirmode>
                     <defaultUsername>root</defaultUsername>
                     <defaultGroupname>root</defaultGroupname>
+                    <keyname>${gpg.key}</keyname>
+                    <keyPassphrase>${gpg.passphrase}</keyPassphrase>
                     <mappings>
                         <mapping>
                             <directory>/etc/elasticsearch/</directory>
