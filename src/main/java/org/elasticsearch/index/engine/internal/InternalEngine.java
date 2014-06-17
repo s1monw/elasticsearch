@@ -32,6 +32,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchIllegalStateException;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.cluster.routing.operation.hash.djb.DjbHashFunction;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Preconditions;
@@ -92,6 +93,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class InternalEngine extends AbstractIndexShardComponent implements Engine {
 
+    private volatile boolean failEngineOnCorruption;
     private volatile ByteSizeValue indexingBufferSize;
     private volatile int indexConcurrency;
     private volatile boolean compoundOnFlush = true;
@@ -201,7 +203,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         this.optimizeAutoGenerateId = indexSettings.getAsBoolean("index.optimize_auto_generated_id", true);
 
         this.indexSettingsService.addListener(applySettings);
-
+        this.failEngineOnCorruption = indexSettings.getAsBoolean(ENGINE_FAIL_ON_CORRUPTION, true);
         this.failOnMergeFailure = indexSettings.getAsBoolean(INDEX_FAIL_ON_MERGE_FAILURE, true);
         if (failOnMergeFailure) {
             this.mergeScheduler.addFailureListener(new FailEngineOnMergeFailure());
@@ -246,7 +248,9 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
 
     @Override
     public void start() throws EngineException {
+        store.incRef();
         try (InternalLock _ = writeLock.acquire()) {
+
             if (indexWriter != null) {
                 throw new EngineAlreadyStartedException(shardId);
             }
@@ -262,6 +266,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                 this.throttle = new IndexThrottle(mergeScheduler.getMaxMerges(), logger);
                 mergeScheduler.addListener(throttle);
             } catch (IOException e) {
+                maybeFailEngine(e, "start");
                 throw new EngineCreationFailureException(shardId, "failed to create engine", e);
             }
 
@@ -287,6 +292,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                 versionMap.setManager(searcherManager);
                 readLastCommittedSegmentsInfo();
             } catch (IOException e) {
+                maybeFailEngine(e, "start");
                 try {
                     indexWriter.rollback();
                 } catch (IOException e1) {
@@ -296,6 +302,8 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                 }
                 throw new EngineCreationFailureException(shardId, "failed to open reader on writer", e);
             }
+        } finally {
+            store.decRef();
         }
     }
 
@@ -390,16 +398,11 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             possibleMergeNeeded = true;
             flushNeeded = true;
         } catch (OutOfMemoryError | IllegalStateException | IOException t) {
-            maybeFailEngine(t);
+            maybeFailEngine(t, "create");
             throw new CreateFailedEngineException(shardId, create, t);
         }
     }
 
-    private void maybeFailEngine(Throwable t) {
-        if (t instanceof OutOfMemoryError || (t instanceof IllegalStateException && t.getMessage().contains("OutOfMemoryError"))) {
-            failEngine("out of memory", t);
-        }
-    }
 
     private void innerCreate(Create create, IndexWriter writer) throws IOException {
         synchronized (dirtyLock(create.uid())) {
@@ -480,7 +483,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             possibleMergeNeeded = true;
             flushNeeded = true;
         } catch (OutOfMemoryError | IllegalStateException | IOException t) {
-            maybeFailEngine(t);
+            maybeFailEngine(t, "index");
             throw new IndexFailedEngineException(shardId, index, t);
         }
     }
@@ -550,7 +553,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             possibleMergeNeeded = true;
             flushNeeded = true;
         } catch (OutOfMemoryError | IllegalStateException | IOException t) {
-            maybeFailEngine(t);
+            maybeFailEngine(t, "delete");
             throw new DeleteFailedEngineException(shardId, delete, t);
         }
     }
@@ -626,7 +629,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             possibleMergeNeeded = true;
             flushNeeded = true;
         } catch (Throwable t) {
-            maybeFailEngine(t);
+            maybeFailEngine(t, "delete_by_query");
             throw new DeleteByQueryFailedEngineException(shardId, delete, t);
         }
         //TODO: This is heavy, since we refresh, but we really have to...
@@ -838,7 +841,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             }
 
         } catch (FlushFailedEngineException ex) {
-            maybeFailEngine(ex.getCause());
+            maybeFailEngine(ex.getCause(), "flush");
             throw ex;
         } finally {
             flushLock.unlock();
@@ -902,7 +905,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         try (InternalLock _ = readLock.acquire()) {
             currentIndexWriter().maybeMerge();
         } catch (Throwable t) {
-            maybeFailEngine(t);
+            maybeFailEngine(t, "maybe_merge");
             throw new OptimizeFailedEngineException(shardId, t);
         }
     }
@@ -943,7 +946,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                     writer.forceMerge(optimize.maxNumSegments(), false);
                 }
             } catch (Throwable t) {
-                maybeFailEngine(t);
+                maybeFailEngine(t, "optimize");
                 throw new OptimizeFailedEngineException(shardId, t);
             } finally {
                 if (elasticsearchMergePolicy != null) {
@@ -989,6 +992,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         try {
             phase1Snapshot = deletionPolicy.snapshot();
         } catch (Throwable e) {
+            maybeFailEngine(e, "recovery");
             Releasables.closeWhileHandlingException(onGoingRecoveries);
             throw new RecoveryEngineException(shardId, 1, "Snapshot failed", e);
         }
@@ -996,6 +1000,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         try {
             recoveryHandler.phase1(phase1Snapshot);
         } catch (Throwable e) {
+            maybeFailEngine(e, "recovery phase 1");
             Releasables.closeWhileHandlingException(onGoingRecoveries, phase1Snapshot);
             throw new RecoveryEngineException(shardId, 1, "Execution failed", wrapIfClosed(e));
         }
@@ -1004,13 +1009,14 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         try {
             phase2Snapshot = translog.snapshot();
         } catch (Throwable e) {
+            maybeFailEngine(e, "snapshot recovery");
             Releasables.closeWhileHandlingException(onGoingRecoveries, phase1Snapshot);
             throw new RecoveryEngineException(shardId, 2, "Snapshot failed", wrapIfClosed(e));
         }
-
         try {
             recoveryHandler.phase2(phase2Snapshot);
         } catch (Throwable e) {
+            maybeFailEngine(e, "recovery phase 2");
             Releasables.closeWhileHandlingException(onGoingRecoveries, phase1Snapshot, phase2Snapshot);
             throw new RecoveryEngineException(shardId, 2, "Execution failed", wrapIfClosed(e));
         }
@@ -1023,10 +1029,23 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             recoveryHandler.phase3(phase3Snapshot);
             success = true;
         } catch (Throwable e) {
+            maybeFailEngine(e, "recovery phase 3");
             throw new RecoveryEngineException(shardId, 3, "Execution failed", wrapIfClosed(e));
         } finally {
             Releasables.close(success, onGoingRecoveries, writeLock, phase1Snapshot,
                     phase2Snapshot, phase3Snapshot); // hmm why can't we use try-with here?
+        }
+    }
+
+    private void maybeFailEngine(Throwable t, String source) {
+        if (Lucene.isCorruptionException(t)) {
+            if (this.failEngineOnCorruption) {
+                failEngine("corrupt file detected source: [" + source + "]", t);
+            } else {
+                logger.warn("corrupt file detected source: [{}] but [{}] is set to [{}]", t, source, ENGINE_FAIL_ON_CORRUPTION, this.failEngineOnCorruption);
+            }
+        }else if (ExceptionsHelper.isOOM(t)) {
+            failEngine("out of memory", t);
         }
     }
 
@@ -1175,13 +1194,23 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
     class FailEngineOnMergeFailure implements MergeSchedulerProvider.FailureListener {
         @Override
         public void onFailedMerge(MergePolicy.MergeException e) {
-            failEngine("merge exception", e);
+            if (Lucene.isCorruptionException(e)) {
+                if (failEngineOnCorruption) {
+                    failEngine("corrupt file detected source: [merge]", e);
+                } else {
+                    logger.warn("corrupt file detected source: [merge] but [{}] is set to [{}]", e, ENGINE_FAIL_ON_CORRUPTION, failEngineOnCorruption);
+                }
+            } else {
+                failEngine("merge exception", e);
+            }
         }
     }
 
     @Override
-    public void failEngine(String reason, @Nullable Throwable failure) {
+    public void failEngine(String reason, Throwable failure) {
+        assert failure != null;
         if (failEngineLock.tryLock()) {
+
             assert !readLock.assertLockIsHeld() : "readLock is held by a thread that tries to fail the engine";
             if (failedEngine != null) {
                 logger.debug("tried to fail engine but engine is already failed. ignoring. [{}]", reason, failure);
@@ -1190,17 +1219,23 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
             try {
                 logger.warn("failed engine [{}]", reason, failure);
                 // we must set a failure exception, generate one if not supplied
-                if (failure == null) {
-                    failedEngine = new EngineException(shardId(), reason);
-                } else {
-                    failedEngine = failure;
-                }
+                failedEngine = failure;
                 for (FailedEngineListener listener : failedEngineListeners) {
                     listener.onFailedEngine(shardId, reason, failure);
                 }
             } finally {
-                // close the engine whatever happens...
-                close();
+                try {
+                    if (Lucene.isCorruptionException(failure)) {
+                        try {
+                            store.markStoreCorrupted(ExceptionsHelper.unwrap(failure, CorruptIndexException.class));
+                        } catch (IOException e) {
+                            logger.warn("Couldn't marks store corrupted", e);
+                        }
+                    }
+                } finally {
+                    // close the engine whatever happens...
+                    close();
+                }
             }
 
         } else {
@@ -1302,6 +1337,8 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
     public static final String INDEX_COMPOUND_ON_FLUSH = "index.compound_on_flush";
     public static final String INDEX_GC_DELETES = "index.gc_deletes";
     public static final String INDEX_FAIL_ON_MERGE_FAILURE = "index.fail_on_merge_failure";
+    public static final String ENGINE_FAIL_ON_CORRUPTION = "index.fail_on_corruption";
+
 
     class ApplySettings implements IndexSettingsService.Listener {
 
@@ -1320,6 +1357,7 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
                 indexWriter.getConfig().setUseCompoundFile(compoundOnFlush);
             }
 
+            InternalEngine.this.failEngineOnCorruption = indexSettings.getAsBoolean(ENGINE_FAIL_ON_CORRUPTION, InternalEngine.this.failEngineOnCorruption);
             int indexConcurrency = settings.getAsInt(INDEX_INDEX_CONCURRENCY, InternalEngine.this.indexConcurrency);
             boolean failOnMergeFailure = settings.getAsBoolean(INDEX_FAIL_ON_MERGE_FAILURE, InternalEngine.this.failOnMergeFailure);
             String codecName = settings.get(INDEX_CODEC, InternalEngine.this.codecName);
