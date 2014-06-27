@@ -36,6 +36,7 @@
         <tests.shuffle>true</tests.shuffle>
         <tests.output>onerror</tests.output>
         <deb.sign>false</deb.sign>
+        <deb.sign.method>dpkg-sig</deb.sign.method>
         <tests.client.ratio></tests.client.ratio>
         <tests.bwc.path>${project.basedir}/backwards</tests.bwc.path>
         <es.logger.level>INFO</es.logger.level>
@@ -806,7 +807,7 @@
                 -->
                 <artifactId>jdeb</artifactId>
                 <groupId>org.vafer</groupId>
-                <version>1.1.1</version>
+                <version>1.2</version>
                 <configuration>
                     <deb>${project.build.directory}/releases/${project.artifactId}-${project.version}.deb</deb>
                 </configuration>
@@ -821,6 +822,7 @@
                             <keyring>${gpg.keyring}</keyring>
                             <key>${gpg.key}</key>
                             <passphrase>${gpg.passphrase}</passphrase>
+                            <signMethod>${deb.sign.method}</signMethod>
                             <dataSet>
                                 <data>
                                     <src>${project.basedir}/</src>
