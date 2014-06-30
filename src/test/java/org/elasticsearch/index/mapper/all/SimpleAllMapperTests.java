@@ -22,6 +22,7 @@ package org.elasticsearch.index.mapper.all;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
@@ -61,7 +62,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/all/mapping.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/all/test1.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         // One field is boosted so we should see AllTokenStream used:
         assertThat(field.tokenStream(docMapper.mappers().indexAnalyzer(), null), Matchers.instanceOf(AllTokenStream.class));
@@ -80,7 +81,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/all/noboost-mapping.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/all/test1.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         AllEntries allEntries = field.getAllEntries();
         assertThat(allEntries.fields().size(), equalTo(3));
@@ -97,7 +98,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/all/mapping_omit_positions_on_all.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/all/test1.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         AllEntries allEntries = field.getAllEntries();
         assertThat(allEntries.fields().size(), equalTo(3));
@@ -116,7 +117,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/all/mapping_offsets_on_all.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/all/test1.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         // _all field indexes positions, and mapping has boosts, so we should see AllTokenStream:
         assertThat(field.tokenStream(docMapper.mappers().indexAnalyzer(), null), Matchers.instanceOf(AllTokenStream.class));
@@ -136,7 +137,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/all/mapping_boost_omit_positions_on_all.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/all/test1.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         // _all field omits positions, so we should not get AllTokenStream even though fields are boosted
         assertThat(field.tokenStream(docMapper.mappers().indexAnalyzer(), null), Matchers.not(Matchers.instanceOf(AllTokenStream.class)));
@@ -148,7 +149,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/all/noboost-mapping.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/all/test1.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         // no fields have boost, so we should not see AllTokenStream:
         assertThat(field.tokenStream(docMapper.mappers().indexAnalyzer(), null), Matchers.not(Matchers.instanceOf(AllTokenStream.class)));
@@ -163,7 +164,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
         // reparse it
         DocumentMapper builtDocMapper = MapperTestUtils.newParser().parse(builtMapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/all/test1.json");
-        Document doc = builtDocMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = builtDocMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
 
         AllField field = (AllField) doc.getField("_all");
         AllEntries allEntries = field.getAllEntries();
@@ -179,7 +180,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/all/store-mapping.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/all/test1.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         AllEntries allEntries = field.getAllEntries();
         assertThat(allEntries.fields().size(), equalTo(2));
@@ -199,7 +200,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
         // reparse it
         DocumentMapper builtDocMapper = MapperTestUtils.newParser().parse(builtMapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/all/test1.json");
-        Document doc = builtDocMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = builtDocMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
 
         AllField field = (AllField) doc.getField("_all");
         AllEntries allEntries = field.getAllEntries();
@@ -284,7 +285,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
                 .field("_id", 1)
                 .field("foobar", "foobar")
                 .endObject().bytes().toBytes();
-        Document doc = builtDocMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = builtDocMapper.parse(new BytesArray(json), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         if (enabled) {
             assertThat(field.fieldType().omitNorms(), equalTo(omitNorms));
@@ -343,7 +344,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
                     .endObject()
                 .endObject();
 
-        Document doc = docMapper.parse(builder.bytes()).rootDoc();
+        Document doc = docMapper.parse(builder.bytes(), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         AllEntries allEntries = field.getAllEntries();
         assertThat(allEntries.fields(), empty());
@@ -363,7 +364,7 @@ public class SimpleAllMapperTests extends ElasticsearchTestCase {
                 .endObject()
                 .endObject();
 
-        Document doc = docMapper.parse(builder.bytes()).rootDoc();
+        Document doc = docMapper.parse(builder.bytes(), Version.CURRENT).rootDoc();
         AllField field = (AllField) doc.getField("_all");
         AllEntries allEntries = field.getAllEntries();
         assertThat(allEntries.fields(), hasSize(1));

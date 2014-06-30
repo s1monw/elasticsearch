@@ -32,6 +32,7 @@ import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticsearchGenerationException;
+import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.compress.CompressedString;
@@ -113,11 +114,11 @@ public class MapperService extends AbstractIndexComponent implements Iterable<Do
 
     @Inject
     public MapperService(Index index, @IndexSettings Settings indexSettings, Environment environment, AnalysisService analysisService, IndexFieldDataService fieldDataService,
-                         PostingsFormatService postingsFormatService, DocValuesFormatService docValuesFormatService, SimilarityLookupService similarityLookupService) {
+                         PostingsFormatService postingsFormatService, DocValuesFormatService docValuesFormatService, SimilarityLookupService similarityLookupService, ClusterService clusterService) {
         super(index, indexSettings);
         this.analysisService = analysisService;
         this.fieldDataService = fieldDataService;
-        this.documentParser = new DocumentMapperParser(index, indexSettings, analysisService, postingsFormatService, docValuesFormatService, similarityLookupService);
+        this.documentParser = new DocumentMapperParser(index, indexSettings, analysisService, postingsFormatService, docValuesFormatService, similarityLookupService, clusterService);
         this.searchAnalyzer = new SmartIndexNameSearchAnalyzer(analysisService.defaultSearchAnalyzer());
         this.searchQuoteAnalyzer = new SmartIndexNameSearchQuoteAnalyzer(analysisService.defaultSearchQuoteAnalyzer());
 

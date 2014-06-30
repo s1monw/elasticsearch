@@ -24,6 +24,7 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.NumericRangeFilter;
 import org.elasticsearch.ElasticsearchIllegalArgumentException;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.LocaleUtils;
@@ -65,7 +66,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                 .field("wrong_date2", "2012/2")
                 .field("wrong_date3", "2012/test")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         FieldMapper<?> fieldMapper = defaultMapper.mappers().smartNameFieldMapper("date_field1");
         assertThat(fieldMapper, instanceOf(DateFieldMapper.class));
@@ -126,7 +127,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                   .field("date_field_de", "Mi, 06 Dez 2000 02:55:00 -0800")
                   .field("date_field_default", "Wed, 06 Dec 2000 02:55:00 -0800") // check default - no exception is a successs!
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
         assertNumericTokensEqual(doc, defaultMapper, "date_field_en", "date_field_de");
         assertNumericTokensEqual(doc, defaultMapper, "date_field_en", "date_field_default");
     }
@@ -177,7 +178,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("date_field", value)
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("date_field").tokenStream(defaultMapper.indexAnalyzer(), null), notNullValue());
     }
@@ -196,7 +197,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                 .field("date_field", "2010-01-01")
                 .field("date_field_x", "2010-01-01")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.rootDoc().get("date_field"), nullValue());
         assertThat(doc.rootDoc().get("date_field_x"), equalTo("2010-01-01"));
@@ -215,7 +216,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("date_field", "10:00:00")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
         assertThat(((LongFieldMapper.CustomLongNumericField) doc.rootDoc().getField("date_field")).numericAsString(), equalTo(Long.toString(new DateTime(TimeValue.timeValueHours(10).millis(), DateTimeZone.UTC).getMillis())));
 
         Filter filter = defaultMapper.mappers().smartNameFieldMapper("date_field").rangeFilter("10:00:00", "11:00:00", true, true, null);
@@ -239,7 +240,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("date_field", "Jan 02 10:00:00")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
         assertThat(((LongFieldMapper.CustomLongNumericField) doc.rootDoc().getField("date_field")).numericAsString(), equalTo(Long.toString(new DateTime(TimeValue.timeValueHours(34).millis(), DateTimeZone.UTC).getMillis())));
 
         Filter filter = defaultMapper.mappers().smartNameFieldMapper("date_field").rangeFilter("Jan 02 10:00:00", "Jan 02 11:00:00", true, true, null);
@@ -266,7 +267,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                 .field("field1", "a")
                 .field("field2", "2010-01-01")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
         assertThat(doc.rootDoc().getField("field1"), nullValue());
         assertThat(doc.rootDoc().getField("field2"), notNullValue());
 
@@ -275,7 +276,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                     .startObject()
                     .field("field2", "a")
                     .endObject()
-                    .bytes());
+                    .bytes(), Version.CURRENT);
         } catch (MapperParsingException e) {
             assertThat(e.getCause(), instanceOf(MapperParsingException.class));
         }
@@ -286,7 +287,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                     .startObject()
                     .field("field3", "a")
                     .endObject()
-                    .bytes());
+                    .bytes(), Version.CURRENT);
         } catch (MapperParsingException e) {
             assertThat(e.getCause(), instanceOf(MapperParsingException.class));
         }
@@ -298,7 +299,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field3", "a")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
         assertThat(doc.rootDoc().getField("field3"), nullValue());
 
         // This should still throw an exception, since field2 is specifically set to ignore_malformed=false
@@ -307,7 +308,7 @@ public class SimpleDateMappingTests extends ElasticsearchTestCase {
                     .startObject()
                     .field("field2", "a")
                     .endObject()
-                    .bytes());
+                    .bytes(), Version.CURRENT);
         } catch (MapperParsingException e) {
             assertThat(e.getCause(), instanceOf(MapperParsingException.class));
         }

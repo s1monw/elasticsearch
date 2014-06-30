@@ -18,6 +18,7 @@
  */
 package org.elasticsearch.index.mapper.parent;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.*;
 import org.elasticsearch.test.ElasticsearchTestCase;
@@ -42,7 +43,7 @@ public class ParentMappingTests extends ElasticsearchTestCase {
                 .field("_parent", "1122")
                 .field("x_field", "x_value")
                 .endObject()
-                .bytes()).type("type").id("1"));
+                .bytes()).type("type").id("1"), Version.CURRENT);
 
         // no _parent mapping, used as a simple field
         assertThat(doc.parent(), nullValue());
@@ -61,7 +62,7 @@ public class ParentMappingTests extends ElasticsearchTestCase {
                 .field("_parent", "1122")
                 .field("x_field", "x_value")
                 .endObject()
-                .bytes()).type("type").id("1"));
+                .bytes()).type("type").id("1"), Version.CURRENT);
 
         assertThat(doc.parent(), equalTo("1122"));
         assertThat(doc.rootDoc().get("_parent"), equalTo(Uid.createUid("p_type", "1122")));
@@ -78,7 +79,7 @@ public class ParentMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("x_field", "x_value")
                 .endObject()
-                .bytes()).type("type").id("1").parent("1122"));
+                .bytes()).type("type").id("1").parent("1122"), Version.CURRENT);
 
         assertThat(doc.rootDoc().get("_parent"), equalTo(Uid.createUid("p_type", "1122")));
     }
@@ -95,7 +96,7 @@ public class ParentMappingTests extends ElasticsearchTestCase {
                 .field("_parent", "1122")
                 .field("x_field", "x_value")
                 .endObject()
-                .bytes()).type("type").id("1").parent("1122"));
+                .bytes()).type("type").id("1").parent("1122"), Version.CURRENT);
 
         assertThat(doc.rootDoc().get("_parent"), equalTo(Uid.createUid("p_type", "1122")));
     }

@@ -49,7 +49,7 @@ public class RoutingTypeMapperTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "value")
                 .endObject()
-                .bytes()).type("type").id("1").routing("routing_value"));
+                .bytes()).type("type").id("1").routing("routing_value"), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("_routing"), equalTo("routing_value"));
         assertThat(doc.rootDoc().get("field"), equalTo("value"));

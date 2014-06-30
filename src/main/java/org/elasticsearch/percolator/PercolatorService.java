@@ -277,7 +277,7 @@ public class PercolatorService extends AbstractComponent {
 
                         MapperService mapperService = documentIndexService.mapperService();
                         DocumentMapper docMapper = mapperService.documentMapperWithAutoCreate(request.documentType());
-                        doc = docMapper.parse(source(parser).type(request.documentType()).flyweight(true));
+                        doc = docMapper.parse(source(parser).type(request.documentType()).flyweight(true), clusterService.state().routingNodes().minNodeVersion());
                         if (doc.mappingsModified()) {
                             mappingUpdatedAction.updateMappingOnMaster(
                                     docMapper, request.index(), request.documentType(), documentIndexService.indexUUID(), true
@@ -389,7 +389,7 @@ public class PercolatorService extends AbstractComponent {
             parser = XContentFactory.xContent(fetchedDoc).createParser(fetchedDoc);
             MapperService mapperService = documentIndexService.mapperService();
             DocumentMapper docMapper = mapperService.documentMapperWithAutoCreate(type);
-            doc = docMapper.parse(source(parser).type(type).flyweight(true));
+            doc = docMapper.parse(source(parser).type(type).flyweight(true), clusterService.state().routingNodes().minNodeVersion());
 
             if (context.highlight() != null) {
                 doc.setSource(fetchedDoc);

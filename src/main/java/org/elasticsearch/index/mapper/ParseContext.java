@@ -28,6 +28,7 @@ import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.ElasticsearchIllegalArgumentException;
 import org.elasticsearch.ElasticsearchIllegalStateException;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.lucene.all.AllEntries;
@@ -166,6 +167,8 @@ public class ParseContext {
 
     private float docBoost = 1.0f;
 
+    private Version minCompatibilityVersion;
+
     public ParseContext(String index, @Nullable Settings indexSettings, DocumentMapperParser docMapperParser, DocumentMapper docMapper, ContentPath path) {
         this.index = index;
         this.indexSettings = indexSettings;
@@ -174,7 +177,7 @@ public class ParseContext {
         this.path = path;
     }
 
-    public void reset(XContentParser parser, Document document, SourceToParse source, DocumentMapper.ParseListener listener) {
+    public void reset(XContentParser parser, Document document, SourceToParse source, DocumentMapper.ParseListener listener, Version minCompatibilityVersion) {
         this.parser = parser;
         this.document = document;
         if (document != null) {
@@ -183,6 +186,7 @@ public class ParseContext {
         } else {
             this.documents = null;
         }
+        this.minCompatibilityVersion = minCompatibilityVersion;
         this.analyzer = null;
         this.uid = null;
         this.version = null;
@@ -440,6 +444,10 @@ public class ParseContext {
     public StringBuilder stringBuilder() {
         stringBuilder.setLength(0);
         return this.stringBuilder;
+    }
+
+    public Version minCompatVersion() {
+        return minCompatibilityVersion;
     }
 
 }

@@ -58,7 +58,7 @@ public class MultiFieldTests extends ElasticsearchTestCase {
     private void testMultiField(String mapping) throws Exception {
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         BytesReference json = new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/mapper/multifield/test-data.json"));
-        Document doc = docMapper.parse(json).rootDoc();
+        Document doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
 
         IndexableField f = doc.getField("name");
         assertThat(f.name(), equalTo("name"));
@@ -144,7 +144,7 @@ public class MultiFieldTests extends ElasticsearchTestCase {
 
 
         BytesReference json = new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/mapper/multifield/test-data.json"));
-        Document doc = docMapper.parse(json).rootDoc();
+        Document doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
 
         IndexableField f = doc.getField("name");
         assertThat(f.name(), equalTo("name"));
@@ -171,7 +171,7 @@ public class MultiFieldTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/multifield/test-multi-field-type-no-default-field.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         BytesReference json = new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/mapper/multifield/test-data.json"));
-        Document doc = docMapper.parse(json).rootDoc();
+        Document doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
 
         assertNull(doc.getField("name"));
         IndexableField f = doc.getField("name.indexed");
@@ -257,7 +257,7 @@ public class MultiFieldTests extends ElasticsearchTestCase {
                 .field("_id", "1")
                 .field("a", "-1,-1")
                 .endObject().bytes();
-        Document doc = docMapper.parse(json).rootDoc();
+        Document doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
 
         IndexableField f = doc.getField("a");
         assertThat(f, notNullValue());
@@ -289,7 +289,7 @@ public class MultiFieldTests extends ElasticsearchTestCase {
                 .field("_id", "1")
                 .field("b", "-1,-1")
                 .endObject().bytes();
-        doc = docMapper.parse(json).rootDoc();
+        doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
 
         f = doc.getField("b");
         assertThat(f, notNullValue());
@@ -309,7 +309,7 @@ public class MultiFieldTests extends ElasticsearchTestCase {
                 .field("_id", "1")
                 .startArray("b").startArray().value(-1).value(-1).endArray().startArray().value(-2).value(-2).endArray().endArray()
                 .endObject().bytes();
-        doc = docMapper.parse(json).rootDoc();
+        doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
 
         f = doc.getFields("b")[0];
         assertThat(f, notNullValue());
@@ -357,7 +357,7 @@ public class MultiFieldTests extends ElasticsearchTestCase {
                 .field("_id", "1")
                 .field("a", "complete me")
                 .endObject().bytes();
-        Document doc = docMapper.parse(json).rootDoc();
+        Document doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
 
         IndexableField f = doc.getField("a");
         assertThat(f, notNullValue());
@@ -389,7 +389,7 @@ public class MultiFieldTests extends ElasticsearchTestCase {
                 .field("_id", "1")
                 .field("b", "complete me")
                 .endObject().bytes();
-        doc = docMapper.parse(json).rootDoc();
+        doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
 
         f = doc.getField("b");
         assertThat(f, notNullValue());

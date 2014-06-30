@@ -47,7 +47,7 @@ public class CompressSourceMappingTests extends ElasticsearchTestCase {
         ParsedDocument doc = documentMapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
         BytesRef bytes = doc.rootDoc().getBinaryValue("_source");
         assertThat(CompressorFactory.isCompressed(bytes.bytes, bytes.offset, bytes.length), equalTo(false));
     }
@@ -63,7 +63,7 @@ public class CompressSourceMappingTests extends ElasticsearchTestCase {
         ParsedDocument doc = documentMapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         BytesRef bytes = doc.rootDoc().getBinaryValue("_source");
         assertThat(CompressorFactory.isCompressed(bytes.bytes, bytes.offset, bytes.length), equalTo(true));
@@ -79,7 +79,7 @@ public class CompressSourceMappingTests extends ElasticsearchTestCase {
 
         ParsedDocument doc = documentMapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .field("field1", "value1")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         BytesRef bytes = doc.rootDoc().getBinaryValue("_source");
         assertThat(CompressorFactory.isCompressed(bytes.bytes, bytes.offset, bytes.length), equalTo(false));
@@ -90,7 +90,7 @@ public class CompressSourceMappingTests extends ElasticsearchTestCase {
                 .field("field2", "value2 xxxxxxxxxxxxxx yyyyyyyyyyyyyyyyyyy zzzzzzzzzzzzzzzzz")
                 .field("field2", "value2 xxxxxxxxxxxxxx yyyyyyyyyyyyyyyyyyy zzzzzzzzzzzzzzzzz")
                 .field("field2", "value2 xxxxxxxxxxxxxx yyyyyyyyyyyyyyyyyyy zzzzzzzzzzzzzzzzz")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         bytes = doc.rootDoc().getBinaryValue("_source");
         assertThat(CompressorFactory.isCompressed(bytes.bytes, bytes.offset, bytes.length), equalTo(true));

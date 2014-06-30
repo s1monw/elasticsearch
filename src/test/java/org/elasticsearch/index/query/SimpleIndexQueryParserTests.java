@@ -141,7 +141,7 @@ public class SimpleIndexQueryParserTests extends ElasticsearchTestCase {
         injector.getInstance(IndexFieldDataService.class).setIndexService((new StubIndexService(injector.getInstance(MapperService.class))));
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/query/mapping.json");
         injector.getInstance(MapperService.class).merge("person", new CompressedString(mapping), true);
-        injector.getInstance(MapperService.class).documentMapper("person").parse(new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/query/data.json")));
+        injector.getInstance(MapperService.class).documentMapper("person").parse(new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/query/data.json")), org.elasticsearch.Version.CURRENT);
 
         queryParser = injector.getInstance(IndexQueryParserService.class);
     }

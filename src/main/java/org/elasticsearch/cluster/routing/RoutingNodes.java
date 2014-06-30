@@ -22,7 +22,11 @@ package org.elasticsearch.cluster.routing;
 import com.carrotsearch.hppc.ObjectIntOpenHashMap;
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.google.common.base.Predicate;
-import com.google.common.collect.*;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import org.elasticsearch.Version;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.block.ClusterBlocks;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
@@ -65,6 +69,10 @@ public class RoutingNodes implements Iterable<RoutingNode> {
     private Set<ShardId> clearPostAllocationFlag;
 
     private final Map<String, ObjectIntOpenHashMap<String>> nodesPerAttributeNames = new HashMap<>();
+
+    private final Version maxVersion;
+
+    private final Version minVersion;
 
     public RoutingNodes(ClusterState clusterState) {
         this.metaData = clusterState.metaData();
@@ -122,10 +130,18 @@ public class RoutingNodes implements Iterable<RoutingNode> {
                 }
             }
         }
+        int maxVersion = 0;
+        int minVersion = Integer.MAX_VALUE;
         for (Map.Entry<String, List<MutableShardRouting>> entry : nodesToShards.entrySet()) {
             String nodeId = entry.getKey();
-            this.nodesToShards.put(nodeId, new RoutingNode(nodeId, clusterState.nodes().get(nodeId), entry.getValue()));
+            DiscoveryNode discoveryNode = clusterState.nodes().get(nodeId);
+            maxVersion = Math.max(maxVersion, discoveryNode.version().id);
+            minVersion = Math.min(minVersion, discoveryNode.version().id);
+            this.nodesToShards.put(nodeId, new RoutingNode(nodeId, discoveryNode, entry.getValue()));
         }
+
+        this.minVersion = Version.fromId(minVersion);
+        this.maxVersion = Version.fromId(maxVersion);
     }
 
     @Override
@@ -482,6 +498,14 @@ public class RoutingNodes implements Iterable<RoutingNode> {
             }
             assert false : "Illegal state";
         }
+    }
+
+    public Version minNodeVersion() {
+        return minVersion;
+    }
+
+    public Version maxNodeVersion() {
+        return maxVersion;
     }
 
     public boolean isKnown(DiscoveryNode node) {

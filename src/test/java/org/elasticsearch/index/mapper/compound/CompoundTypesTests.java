@@ -46,7 +46,7 @@ public class CompoundTypesTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("field1"), equalTo("value1"));
         assertThat((double) doc.rootDoc().getField("field1").boost(), closeTo(1.0d, 0.000001d));
@@ -56,7 +56,7 @@ public class CompoundTypesTests extends ElasticsearchTestCase {
                 .startObject()
                 .startObject("field1").field("value", "value1").field("boost", 2.0f).endObject()
                 .field("field2", "value2")
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("field1"), equalTo("value1"));
         assertThat((double) doc.rootDoc().getField("field1").boost(), closeTo(2.0d, 0.000001d));
@@ -66,7 +66,7 @@ public class CompoundTypesTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("field1"), equalTo("value1"));
         assertThat((double) doc.rootDoc().getField("field1").boost(), closeTo(1.0d, 0.000001d));

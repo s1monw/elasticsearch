@@ -50,7 +50,7 @@ public class SimpleObjectMappingTests extends ElasticsearchTestCase {
                     "        ]\n" +
                     "      },\n" +
                     "      \"value\":\"value\"\n" +
-                    "    }"));
+                    "    }"), org.elasticsearch.Version.CURRENT);
             fail();
         } catch (MapperParsingException e) {
             // all is well

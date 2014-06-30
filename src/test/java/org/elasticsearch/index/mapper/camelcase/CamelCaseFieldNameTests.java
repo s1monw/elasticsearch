@@ -44,7 +44,7 @@ public class CamelCaseFieldNameTests extends ElasticsearchTestCase {
 
         ParsedDocument doc = documentMapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .field("thisIsCamelCase", "value1")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(documentMapper.mappers().indexName("thisIsCamelCase").isEmpty(), equalTo(false));
         assertThat(documentMapper.mappers().indexName("this_is_camel_case"), nullValue());

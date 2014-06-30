@@ -44,7 +44,7 @@ public class SizeMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .endObject()
                 .bytes();
-        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1"));
+        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1"), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("_size").fieldType().stored(), equalTo(false));
         assertThat(doc.rootDoc().getField("_size").tokenStream(docMapper.indexAnalyzer(), null), notNullValue());
@@ -62,7 +62,7 @@ public class SizeMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .endObject()
                 .bytes();
-        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1"));
+        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1"), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("_size").fieldType().stored(), equalTo(true));
         assertThat(doc.rootDoc().getField("_size").tokenStream(docMapper.indexAnalyzer(), null), notNullValue());
@@ -80,7 +80,7 @@ public class SizeMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .endObject()
                 .bytes();
-        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1"));
+        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1"), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("_size"), nullValue());
     }
@@ -96,7 +96,7 @@ public class SizeMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .endObject()
                 .bytes();
-        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1"));
+        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1"), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("_size"), nullValue());
     }

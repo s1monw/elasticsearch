@@ -42,7 +42,7 @@ public class GenericStoreDynamicTemplateTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/dynamictemplate/genericstore/test-mapping.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/dynamictemplate/genericstore/test-data.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), org.elasticsearch.Version.CURRENT).rootDoc();
 
         IndexableField f = doc.getField("name");
         assertThat(f.name(), equalTo("name"));

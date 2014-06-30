@@ -45,7 +45,7 @@ public class BoostMappingTests extends ElasticsearchTestCase {
                 .field("_boost", 2.0f)
                 .field("field", "a")
                 .field("field", "b")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         // one fo the same named field will have the proper boost, the others will have 1
         IndexableField[] fields = doc.rootDoc().getFields("field");
@@ -64,13 +64,13 @@ public class BoostMappingTests extends ElasticsearchTestCase {
         ParsedDocument doc = mapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .field("field", "a")
                 .field("_boost", 2.0f)
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
         assertThat(doc.rootDoc().getField("field").boost(), equalTo(1.0f));
 
         doc = mapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .field("field", "a")
                 .field("custom_boost", 2.0f)
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
         assertThat(doc.rootDoc().getField("field").boost(), equalTo(2.0f));
     }
 

@@ -53,7 +53,7 @@ public class AnalyzerMapperTests extends ElasticsearchTestCase {
                 .field("field_analyzer", "whitespace")
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         FieldNameAnalyzer analyzer = (FieldNameAnalyzer) doc.analyzer();
         assertThat(((NamedAnalyzer) analyzer.defaultAnalyzer()).name(), equalTo("whitespace"));
@@ -68,7 +68,7 @@ public class AnalyzerMapperTests extends ElasticsearchTestCase {
                 .field("field_analyzer", "whitespace")
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         analyzer = (FieldNameAnalyzer) doc.analyzer();
         assertThat(((NamedAnalyzer) analyzer.defaultAnalyzer()).name(), equalTo("whitespace"));
@@ -94,7 +94,7 @@ public class AnalyzerMapperTests extends ElasticsearchTestCase {
                 .field("field_analyzer", "whitespace")
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         FieldNameAnalyzer analyzer = (FieldNameAnalyzer) doc.analyzer();
         assertThat(((NamedAnalyzer) analyzer.defaultAnalyzer()).name(), equalTo("whitespace"));
@@ -109,7 +109,7 @@ public class AnalyzerMapperTests extends ElasticsearchTestCase {
                 .field("field_analyzer", "whitespace")
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         analyzer = (FieldNameAnalyzer) doc.analyzer();
         assertThat(((NamedAnalyzer) analyzer.defaultAnalyzer()).name(), equalTo("whitespace"));
@@ -134,7 +134,7 @@ public class AnalyzerMapperTests extends ElasticsearchTestCase {
                 .field("field_analyzer", "whitespace")
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         FieldNameAnalyzer analyzer = (FieldNameAnalyzer) doc.analyzer();
         assertThat(((NamedAnalyzer) analyzer.defaultAnalyzer()).name(), equalTo("whitespace"));
@@ -149,7 +149,7 @@ public class AnalyzerMapperTests extends ElasticsearchTestCase {
                 .field("field_analyzer", "whitespace")
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         analyzer = (FieldNameAnalyzer) doc.analyzer();
         assertThat(((NamedAnalyzer) analyzer.defaultAnalyzer()).name(), equalTo("whitespace"));

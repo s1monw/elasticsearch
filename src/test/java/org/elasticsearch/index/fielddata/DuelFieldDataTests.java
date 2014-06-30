@@ -31,6 +31,7 @@ import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.English;
 import org.apache.lucene.util.LuceneTestCase;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.geo.GeoDistance;
 import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.settings.ImmutableSettings;
@@ -80,7 +81,7 @@ public class DuelFieldDataTests extends AbstractFieldDataTests {
 
             doc = doc.endObject();
 
-            final ParsedDocument d = mapper.parse("type", Integer.toString(i), doc.bytes());
+            final ParsedDocument d = mapper.parse("type", Integer.toString(i), doc.bytes(), Version.CURRENT);
 
             writer.addDocument(d.rootDoc());
 
@@ -171,7 +172,7 @@ public class DuelFieldDataTests extends AbstractFieldDataTests {
             }
             doc = doc.endObject();
 
-            final ParsedDocument d = mapper.parse("type", Integer.toString(i), doc.bytes());
+            final ParsedDocument d = mapper.parse("type", Integer.toString(i), doc.bytes(), Version.CURRENT);
 
             writer.addDocument(d.rootDoc());
             if (random.nextInt(10) == 0) {
@@ -250,7 +251,7 @@ public class DuelFieldDataTests extends AbstractFieldDataTests {
             }
             doc = doc.endArray().endObject();
 
-            final ParsedDocument d = mapper.parse("type", Integer.toString(i), doc.bytes());
+            final ParsedDocument d = mapper.parse("type", Integer.toString(i), doc.bytes(), Version.CURRENT);
 
             writer.addDocument(d.rootDoc());
             if (random.nextInt(10) == 0) {
@@ -434,7 +435,7 @@ public class DuelFieldDataTests extends AbstractFieldDataTests {
                 }
             }
             doc = doc.endArray().endObject();
-            final ParsedDocument d = mapper.parse("type", Integer.toString(i), doc.bytes());
+            final ParsedDocument d = mapper.parse("type", Integer.toString(i), doc.bytes(), Version.CURRENT);
 
             writer.addDocument(d.rootDoc());
             if (random.nextInt(10) == 0) {

@@ -57,7 +57,7 @@ public class DoubleIndexingDocTest {
                 .field("field4", "2010-01-01")
                 .startArray("field5").value(1).value(2).value(3).endArray()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         writer.addDocument(doc.rootDoc(), doc.analyzer());
         writer.addDocument(doc.rootDoc(), doc.analyzer());

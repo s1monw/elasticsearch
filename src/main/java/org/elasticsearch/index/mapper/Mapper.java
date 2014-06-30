@@ -100,16 +100,18 @@ public interface Mapper extends ToXContent {
             private final ImmutableMap<String, TypeParser> typeParsers;
 
             private final Version indexVersionCreated;
+            private final Version indexCompatVersion;
 
             public ParserContext(PostingsFormatService postingsFormatService, DocValuesFormatService docValuesFormatService,
                                  AnalysisService analysisService, SimilarityLookupService similarityLookupService,
-                                 ImmutableMap<String, TypeParser> typeParsers, Version indexVersionCreated) {
+                                 ImmutableMap<String, TypeParser> typeParsers, Version indexVersionCreated, Version indexCompatVersion) {
                 this.postingsFormatService = postingsFormatService;
                 this.docValuesFormatService = docValuesFormatService;
                 this.analysisService = analysisService;
                 this.similarityLookupService = similarityLookupService;
                 this.typeParsers = typeParsers;
                 this.indexVersionCreated = indexVersionCreated;
+                this.indexCompatVersion = indexCompatVersion;
             }
 
             public AnalysisService analysisService() {
@@ -134,6 +136,10 @@ public interface Mapper extends ToXContent {
 
             public Version indexVersionCreated() {
                 return indexVersionCreated;
+            }
+
+            public Version indexCompatVersion() {
+                return indexCompatVersion;
             }
         }
 

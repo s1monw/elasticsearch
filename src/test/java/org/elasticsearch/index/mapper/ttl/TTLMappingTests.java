@@ -42,7 +42,7 @@ public class TTLMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .endObject()
                 .bytes();
-        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1").ttl(Long.MAX_VALUE));
+        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1").ttl(Long.MAX_VALUE), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("_ttl"), equalTo(null));
     }
@@ -58,7 +58,7 @@ public class TTLMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .endObject()
                 .bytes();
-        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1").ttl(Long.MAX_VALUE));
+        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1").ttl(Long.MAX_VALUE), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("_ttl").fieldType().stored(), equalTo(true));
         assertThat(doc.rootDoc().getField("_ttl").fieldType().indexed(), equalTo(true));

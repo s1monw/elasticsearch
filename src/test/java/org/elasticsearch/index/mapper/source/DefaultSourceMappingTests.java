@@ -47,14 +47,14 @@ public class DefaultSourceMappingTests extends ElasticsearchTestCase {
         DocumentMapper documentMapper = MapperTestUtils.newParser().parse(mapping);
         ParsedDocument doc = documentMapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .field("field", "value")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(XContentFactory.xContentType(doc.source()), equalTo(XContentType.JSON));
 
         documentMapper = MapperTestUtils.newParser().parse(mapping);
         doc = documentMapper.parse("type", "1", XContentFactory.smileBuilder().startObject()
                 .field("field", "value")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(XContentFactory.xContentType(doc.source()), equalTo(XContentType.SMILE));
     }
@@ -68,14 +68,14 @@ public class DefaultSourceMappingTests extends ElasticsearchTestCase {
         DocumentMapper documentMapper = MapperTestUtils.newParser().parse(mapping);
         ParsedDocument doc = documentMapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .field("field", "value")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(XContentFactory.xContentType(doc.source()), equalTo(XContentType.JSON));
 
         documentMapper = MapperTestUtils.newParser().parse(mapping);
         doc = documentMapper.parse("type", "1", XContentFactory.smileBuilder().startObject()
                 .field("field", "value")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(XContentFactory.xContentType(doc.source()), equalTo(XContentType.JSON));
     }
@@ -89,7 +89,7 @@ public class DefaultSourceMappingTests extends ElasticsearchTestCase {
         DocumentMapper documentMapper = MapperTestUtils.newParser().parse(mapping);
         ParsedDocument doc = documentMapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .field("field", "value")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(CompressorFactory.isCompressed(doc.source()), equalTo(true));
         byte[] uncompressed = CompressorFactory.uncompressIfNeeded(doc.source()).toBytes();
@@ -98,7 +98,7 @@ public class DefaultSourceMappingTests extends ElasticsearchTestCase {
         documentMapper = MapperTestUtils.newParser().parse(mapping);
         doc = documentMapper.parse("type", "1", XContentFactory.smileBuilder().startObject()
                 .field("field", "value")
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(CompressorFactory.isCompressed(doc.source()), equalTo(true));
         uncompressed = CompressorFactory.uncompressIfNeeded(doc.source()).toBytes();
@@ -116,7 +116,7 @@ public class DefaultSourceMappingTests extends ElasticsearchTestCase {
         ParsedDocument doc = documentMapper.parse("type", "1", XContentFactory.jsonBuilder().startObject()
                 .startObject("path1").field("field1", "value1").endObject()
                 .startObject("path2").field("field2", "value2").endObject()
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         IndexableField sourceField = doc.rootDoc().getField("_source");
         Map<String, Object> sourceAsMap = XContentFactory.xContent(XContentType.JSON).createParser(new BytesArray(sourceField.binaryValue())).mapAndClose();

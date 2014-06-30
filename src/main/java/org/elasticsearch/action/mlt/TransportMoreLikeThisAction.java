@@ -276,7 +276,7 @@ public class TransportMoreLikeThisAction extends TransportAction<MoreLikeThisReq
         if (getResponse.isSourceEmpty()) {
             return;
         }
-        docMapper.parse(SourceToParse.source(getResponse.getSourceAsBytesRef()).type(request.type()).id(request.id()), new DocumentMapper.ParseListenerAdapter() {
+        docMapper.parse(SourceToParse.source(getResponse.getSourceAsBytesRef()).type(request.type()).id(request.id()), clusterService.state().routingNodes().minNodeVersion(), new DocumentMapper.ParseListenerAdapter() {
             @Override
             public boolean beforeFieldAdded(FieldMapper fieldMapper, Field field, Object parseContext) {
                 if (!field.fieldType().indexed()) {

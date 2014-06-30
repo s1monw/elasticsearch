@@ -24,6 +24,7 @@ import org.apache.lucene.index.FieldInfo;
 import org.apache.lucene.index.FieldInfo.DocValuesType;
 import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.IndexableFieldType;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.ToXContent;
@@ -60,7 +61,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("field"), notNullValue());
 
@@ -68,7 +69,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "12345")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("field"), notNullValue());
 
@@ -76,7 +77,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "123456")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("field"), nullValue());
     }
@@ -106,7 +107,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "2345")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
         assertEquals(expected, doc.rootDoc().getField("field").fieldType());
     }
 
@@ -122,7 +123,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         IndexableFieldType fieldType = doc.rootDoc().getField("field").fieldType();
         assertDefaultAnalyzedFieldType(fieldType);
@@ -141,7 +142,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         IndexableFieldType fieldType = doc.rootDoc().getField("field").fieldType();
         assertThat(fieldType.omitNorms(), equalTo(true));
@@ -164,7 +165,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         fieldType = doc.rootDoc().getField("field").fieldType();
         assertThat(fieldType.omitNorms(), equalTo(false));
@@ -187,7 +188,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         fieldType = doc.rootDoc().getField("field").fieldType();
         assertThat(fieldType.omitNorms(), equalTo(false));
@@ -236,7 +237,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .field("field5", "1234")
                 .field("field6", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("field1").fieldType().storeTermVectors(), equalTo(false));
         assertThat(doc.rootDoc().getField("field1").fieldType().storeTermVectorOffsets(), equalTo(false));
@@ -308,7 +309,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .field("str1", "1234")
                 .field("str2", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
         final Document doc = parsedDoc.rootDoc();
         assertEquals(null, docValuesType(doc, "str1"));
         assertEquals(DocValuesType.SORTED_SET, docValuesType(doc, "str2"));
@@ -335,7 +336,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         IndexableFieldType fieldType = doc.rootDoc().getField("field").fieldType();
         assertEquals(false, fieldType.omitNorms());
@@ -350,7 +351,7 @@ public class SimpleStringMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         fieldType = doc.rootDoc().getField("field").fieldType();
         assertEquals(true, fieldType.omitNorms());

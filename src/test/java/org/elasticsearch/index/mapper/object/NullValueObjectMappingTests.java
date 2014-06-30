@@ -49,7 +49,7 @@ public class NullValueObjectMappingTests extends ElasticsearchTestCase {
                 .startObject("obj1").endObject()
                 .field("value1", "test1")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("value1"), equalTo("test1"));
 
@@ -58,7 +58,7 @@ public class NullValueObjectMappingTests extends ElasticsearchTestCase {
                 .nullField("obj1")
                 .field("value1", "test1")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("value1"), equalTo("test1"));
 
@@ -67,7 +67,7 @@ public class NullValueObjectMappingTests extends ElasticsearchTestCase {
                 .startObject("obj1").field("field", "value").endObject()
                 .field("value1", "test1")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("obj1.field"), equalTo("value"));
         assertThat(doc.rootDoc().get("value1"), equalTo("test1"));

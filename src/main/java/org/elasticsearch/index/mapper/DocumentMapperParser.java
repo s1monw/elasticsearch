@@ -22,6 +22,7 @@ package org.elasticsearch.index.mapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.elasticsearch.Version;
+import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.MapBuilder;
@@ -66,14 +67,16 @@ public class DocumentMapperParser extends AbstractIndexComponent {
 
     private final Object typeParsersMutex = new Object();
     private final Version indexVersionCreated;
+    private final ClusterService clusterService;
 
     private volatile ImmutableMap<String, Mapper.TypeParser> typeParsers;
     private volatile ImmutableMap<String, Mapper.TypeParser> rootTypeParsers;
 
     public DocumentMapperParser(Index index, @IndexSettings Settings indexSettings, AnalysisService analysisService,
                                 PostingsFormatService postingsFormatService, DocValuesFormatService docValuesFormatService,
-                                SimilarityLookupService similarityLookupService) {
+                                SimilarityLookupService similarityLookupService, ClusterService clusterService) {
         super(index, indexSettings);
+        this.clusterService = clusterService;
         this.analysisService = analysisService;
         this.postingsFormatService = postingsFormatService;
         this.docValuesFormatService = docValuesFormatService;
@@ -141,7 +144,7 @@ public class DocumentMapperParser extends AbstractIndexComponent {
     }
 
     public Mapper.TypeParser.ParserContext parserContext() {
-        return new Mapper.TypeParser.ParserContext(postingsFormatService, docValuesFormatService, analysisService, similarityLookupService, typeParsers, indexVersionCreated);
+        return new Mapper.TypeParser.ParserContext(postingsFormatService, docValuesFormatService, analysisService, similarityLookupService, typeParsers, indexVersionCreated, clusterService == null ? Version.CURRENT : clusterService.state().routingNodes().minNodeVersion());
     }
 
     public DocumentMapper parse(String source) throws MapperParsingException {

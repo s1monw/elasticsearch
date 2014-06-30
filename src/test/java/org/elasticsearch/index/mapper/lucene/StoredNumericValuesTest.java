@@ -68,7 +68,7 @@ public class StoredNumericValuesTest {
                     .field("field2", 1.1)
                     .startArray("field3").value(1).value(2).value(3).endArray()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         writer.addDocument(doc.rootDoc(), doc.analyzer());
 

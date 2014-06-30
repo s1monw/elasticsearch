@@ -19,6 +19,7 @@
 
 package org.elasticsearch.index.mapper.nested;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.MapperTestUtils;
@@ -46,7 +47,7 @@ public class NestedMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .nullField("nested1")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.docs().size(), equalTo(1));
 
@@ -55,7 +56,7 @@ public class NestedMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .startArray("nested").endArray()
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.docs().size(), equalTo(1));
     }
@@ -77,7 +78,7 @@ public class NestedMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .startObject("nested1").field("field1", "1").field("field2", "2").endObject()
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.docs().size(), equalTo(2));
         assertThat(doc.docs().get(0).get(TypeFieldMapper.NAME), equalTo(nested1Mapper.nestedTypePathAsString()));
@@ -95,7 +96,7 @@ public class NestedMappingTests extends ElasticsearchTestCase {
                 .startObject().field("field1", "3").field("field2", "4").endObject()
                 .endArray()
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.docs().size(), equalTo(3));
         assertThat(doc.docs().get(0).get(TypeFieldMapper.NAME), equalTo(nested1Mapper.nestedTypePathAsString()));
@@ -136,7 +137,7 @@ public class NestedMappingTests extends ElasticsearchTestCase {
                 .startObject().field("field1", "4").startArray("nested2").startObject().field("field2", "5").endObject().startObject().field("field2", "6").endObject().endArray().endObject()
                 .endArray()
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.docs().size(), equalTo(7));
         assertThat(doc.docs().get(0).get("nested1.nested2.field2"), equalTo("6"));
@@ -188,7 +189,7 @@ public class NestedMappingTests extends ElasticsearchTestCase {
                 .startObject().field("field1", "4").startArray("nested2").startObject().field("field2", "5").endObject().startObject().field("field2", "6").endObject().endArray().endObject()
                 .endArray()
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.docs().size(), equalTo(7));
         assertThat(doc.docs().get(0).get("nested1.nested2.field2"), equalTo("6"));
@@ -240,7 +241,7 @@ public class NestedMappingTests extends ElasticsearchTestCase {
                 .startObject().field("field1", "4").startArray("nested2").startObject().field("field2", "5").endObject().startObject().field("field2", "6").endObject().endArray().endObject()
                 .endArray()
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.docs().size(), equalTo(7));
         assertThat(doc.docs().get(0).get("nested1.nested2.field2"), equalTo("6"));
@@ -292,7 +293,7 @@ public class NestedMappingTests extends ElasticsearchTestCase {
                 .startObject().field("field1", "4").startArray("nested2").startObject().field("field2", "5").endObject().startObject().field("field2", "6").endObject().endArray().endObject()
                 .endArray()
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.docs().size(), equalTo(7));
         assertThat(doc.docs().get(0).get("nested1.nested2.field2"), equalTo("6"));

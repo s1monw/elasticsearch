@@ -18,6 +18,7 @@
  */
 package org.elasticsearch.index.mapper.dynamic;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.MapperTestUtils;
@@ -49,7 +50,7 @@ public class DynamicMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.rootDoc().get("field1"), equalTo("value1"));
         assertThat(doc.rootDoc().get("field2"), equalTo("value2"));
@@ -70,7 +71,7 @@ public class DynamicMappingTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field1", "value1")
                 .field("field2", "value2")
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.rootDoc().get("field1"), equalTo("value1"));
         assertThat(doc.rootDoc().get("field2"), nullValue());
@@ -93,7 +94,7 @@ public class DynamicMappingTests extends ElasticsearchTestCase {
                     .startObject()
                     .field("field1", "value1")
                     .field("field2", "value2")
-                    .bytes());
+                    .bytes(), Version.CURRENT);
             fail();
         } catch (StrictDynamicMappingException e) {
             // all is well
@@ -118,7 +119,7 @@ public class DynamicMappingTests extends ElasticsearchTestCase {
                 .field("field1", "value1")
                 .field("field2", "value2")
                 .endObject()
-                .bytes());
+                .bytes(), Version.CURRENT);
 
         assertThat(doc.rootDoc().get("obj1.field1"), equalTo("value1"));
         assertThat(doc.rootDoc().get("obj1.field2"), nullValue());
@@ -143,7 +144,7 @@ public class DynamicMappingTests extends ElasticsearchTestCase {
                     .field("field1", "value1")
                     .field("field2", "value2")
                     .endObject()
-                    .bytes());
+                    .bytes(), Version.CURRENT);
             fail();
         } catch (StrictDynamicMappingException e) {
             // all is well

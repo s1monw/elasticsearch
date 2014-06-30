@@ -50,7 +50,7 @@ public class TimestampMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .endObject()
                 .bytes();
-        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1").timestamp(1));
+        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1").timestamp(1), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("_timestamp"), equalTo(null));
     }
@@ -66,7 +66,7 @@ public class TimestampMappingTests extends ElasticsearchTestCase {
                 .field("field", "value")
                 .endObject()
                 .bytes();
-        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1").timestamp(1));
+        ParsedDocument doc = docMapper.parse(SourceToParse.source(source).type("type").id("1").timestamp(1), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("_timestamp").fieldType().stored(), equalTo(true));
         assertThat(doc.rootDoc().getField("_timestamp").fieldType().indexed(), equalTo(true));

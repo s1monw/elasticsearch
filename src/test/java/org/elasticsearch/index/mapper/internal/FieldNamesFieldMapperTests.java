@@ -61,7 +61,7 @@ public class FieldNamesFieldMapperTests extends ElasticsearchTestCase {
                         .field("c", 42)
                     .endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         final Set<String> fieldNames = new HashSet<>();
         for (IndexableField field : doc.rootDoc().getFields()) {

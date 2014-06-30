@@ -54,7 +54,7 @@ public class CustomBoostMappingTests extends ElasticsearchTestCase {
                 .startObject("d_field").field("value", 1).field("boost", 7.0f).endObject()
                 .startObject("f_field").field("value", 1).field("boost", 8.0f).endObject()
                 .startObject("date_field").field("value", "20100101").field("boost", 9.0f).endObject()
-                .endObject().bytes());
+                .endObject().bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("s_field").boost(), equalTo(2.0f));
         assertThat(doc.rootDoc().getField("l_field").boost(), equalTo(3.0f));

@@ -48,7 +48,7 @@ public class LatLonAndGeohashMappingGeoPointTests extends ElasticsearchTestCase 
                 .startObject()
                 .startObject("point").field("lat", 1.2).field("lon", 1.3).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lon"), notNullValue());
@@ -67,7 +67,7 @@ public class LatLonAndGeohashMappingGeoPointTests extends ElasticsearchTestCase 
                 .startObject()
                 .field("point", "1.2,1.3")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lon"), notNullValue());
@@ -86,7 +86,7 @@ public class LatLonAndGeohashMappingGeoPointTests extends ElasticsearchTestCase 
                 .startObject()
                 .field("point", GeoHashUtils.encode(1.2, 1.3))
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lon"), notNullValue());

@@ -59,7 +59,7 @@ public class FieldLevelBoostTests extends ElasticsearchTestCase {
                 .startObject("long_field").field("boost", 8.0).field("value", 50).endObject()
                 .startObject("short_field").field("boost", 9.0).field("value", 60).endObject()
                 .bytes();
-        Document doc = docMapper.parse(json).rootDoc();
+        Document doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
 
         IndexableField f = doc.getField("str_field");
         assertThat((double) f.boost(), closeTo(2.0, 0.001));
@@ -103,7 +103,7 @@ public class FieldLevelBoostTests extends ElasticsearchTestCase {
         try {
             docMapper.parse(XContentFactory.jsonBuilder().startObject()
                     .field("_id", "1").startObject("str_field").field("foo", "bar")
-                    .endObject().bytes()).rootDoc();
+                    .endObject().bytes(), org.elasticsearch.Version.CURRENT).rootDoc();
             fail();
         } catch (MapperParsingException ex) {
             // Expected
@@ -112,7 +112,7 @@ public class FieldLevelBoostTests extends ElasticsearchTestCase {
         try {
             docMapper.parse(XContentFactory.jsonBuilder().startObject()
                     .field("_id", "1").startObject("int_field").field("foo", "bar")
-                    .endObject().bytes()).rootDoc();
+                    .endObject().bytes(), org.elasticsearch.Version.CURRENT).rootDoc();
             fail();
         } catch (MapperParsingException ex) {
             // Expected
@@ -121,7 +121,7 @@ public class FieldLevelBoostTests extends ElasticsearchTestCase {
         try {
             docMapper.parse(XContentFactory.jsonBuilder().startObject()
                     .field("_id", "1").startObject("byte_field").field("foo", "bar")
-                    .endObject().bytes()).rootDoc();
+                    .endObject().bytes(), org.elasticsearch.Version.CURRENT).rootDoc();
             fail();
         } catch (MapperParsingException ex) {
             // Expected
@@ -130,7 +130,7 @@ public class FieldLevelBoostTests extends ElasticsearchTestCase {
         try {
             docMapper.parse(XContentFactory.jsonBuilder().startObject()
                     .field("_id", "1").startObject("date_field").field("foo", "bar")
-                    .endObject().bytes()).rootDoc();
+                    .endObject().bytes(), org.elasticsearch.Version.CURRENT).rootDoc();
             fail();
         } catch (MapperParsingException ex) {
             // Expected
@@ -139,7 +139,7 @@ public class FieldLevelBoostTests extends ElasticsearchTestCase {
         try {
             docMapper.parse(XContentFactory.jsonBuilder().startObject()
                     .field("_id", "1").startObject("double_field").field("foo", "bar")
-                    .endObject().bytes()).rootDoc();
+                    .endObject().bytes(), org.elasticsearch.Version.CURRENT).rootDoc();
             fail();
         } catch (MapperParsingException ex) {
             // Expected
@@ -148,7 +148,7 @@ public class FieldLevelBoostTests extends ElasticsearchTestCase {
         try {
             docMapper.parse(XContentFactory.jsonBuilder().startObject()
                     .field("_id", "1").startObject("float_field").field("foo", "bar")
-                    .endObject().bytes()).rootDoc();
+                    .endObject().bytes(), org.elasticsearch.Version.CURRENT).rootDoc();
             fail();
         } catch (MapperParsingException ex) {
             // Expected
@@ -157,7 +157,7 @@ public class FieldLevelBoostTests extends ElasticsearchTestCase {
         try {
             docMapper.parse(XContentFactory.jsonBuilder().startObject()
                     .field("_id", "1").startObject("long_field").field("foo", "bar")
-                    .endObject().bytes()).rootDoc();
+                    .endObject().bytes(), org.elasticsearch.Version.CURRENT).rootDoc();
             fail();
         } catch (MapperParsingException ex) {
             // Expected
@@ -166,7 +166,7 @@ public class FieldLevelBoostTests extends ElasticsearchTestCase {
         try {
             docMapper.parse(XContentFactory.jsonBuilder().startObject()
                     .field("_id", "1").startObject("short_field").field("foo", "bar")
-                    .endObject().bytes()).rootDoc();
+                    .endObject().bytes(), org.elasticsearch.Version.CURRENT).rootDoc();
             fail();
         } catch (MapperParsingException ex) {
             // Expected

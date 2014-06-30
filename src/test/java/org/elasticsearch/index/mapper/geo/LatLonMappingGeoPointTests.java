@@ -49,7 +49,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .startObject("point").field("lat", 91).field("lon", 181).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("point"), equalTo("89.0,1.0"));
 
@@ -57,7 +57,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .startObject("point").field("lat", -91).field("lon", -181).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("point"), equalTo("-89.0,-1.0"));
 
@@ -65,7 +65,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .startObject("point").field("lat", 181).field("lon", 361).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("point"), equalTo("-1.0,-179.0"));
     }
@@ -83,14 +83,14 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .startObject("point").field("lat", 90).field("lon", 1.3).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         try {
             defaultMapper.parse("type", "1", XContentFactory.jsonBuilder()
                     .startObject()
                     .startObject("point").field("lat", -91).field("lon", 1.3).endObject()
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
             fail();
         } catch (MapperParsingException e) {
 
@@ -101,7 +101,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                     .startObject()
                     .startObject("point").field("lat", 91).field("lon", 1.3).endObject()
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
             fail();
         } catch (MapperParsingException e) {
 
@@ -112,7 +112,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                     .startObject()
                     .startObject("point").field("lat", 1.2).field("lon", -181).endObject()
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
             fail();
         } catch (MapperParsingException e) {
 
@@ -123,7 +123,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                     .startObject()
                     .startObject("point").field("lat", 1.2).field("lon", 181).endObject()
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
             fail();
         } catch (MapperParsingException e) {
 
@@ -144,31 +144,31 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .startObject("point").field("lat", 90).field("lon", 1.3).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         defaultMapper.parse("type", "1", XContentFactory.jsonBuilder()
                 .startObject()
                 .startObject("point").field("lat", -91).field("lon", 1.3).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         defaultMapper.parse("type", "1", XContentFactory.jsonBuilder()
                 .startObject()
                 .startObject("point").field("lat", 91).field("lon", 1.3).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         defaultMapper.parse("type", "1", XContentFactory.jsonBuilder()
                 .startObject()
                 .startObject("point").field("lat", 1.2).field("lon", -181).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         defaultMapper.parse("type", "1", XContentFactory.jsonBuilder()
                 .startObject()
                 .startObject("point").field("lat", 1.2).field("lon", 181).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
     }
 
     @Test
@@ -183,7 +183,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .startObject("point").field("lat", 1.2).field("lon", 1.3).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lat").fieldType().stored(), is(false));
@@ -205,7 +205,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .startObject("point").field("lat", 1.2).field("lon", 1.3).endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lat").numericValue().doubleValue(), equalTo(1.2));
@@ -230,7 +230,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject().field("lat", 1.4).field("lon", 1.5).endObject()
                 .endArray()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getFields("point.lat").length, equalTo(2));
         assertThat(doc.rootDoc().getFields("point.lon").length, equalTo(2));
@@ -254,7 +254,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("point", "1.2,1.3")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lon"), notNullValue());
@@ -273,7 +273,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("point", "1.2,1.3")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lat").numericValue().doubleValue(), equalTo(1.2));
@@ -297,7 +297,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .value("1.4,1.5")
                 .endArray()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getFields("point.lat").length, equalTo(2));
         assertThat(doc.rootDoc().getFields("point.lon").length, equalTo(2));
@@ -321,7 +321,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("point", GeoHashUtils.encode(1.2, 1.3))
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lon"), notNullValue());
@@ -340,7 +340,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .startArray("point").value(1.3).value(1.2).endArray()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lon"), notNullValue());
@@ -359,7 +359,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startObject()
                 .startArray("point").value(1.3).value(1.2).endArray()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getField("point.lat"), notNullValue());
         assertThat(doc.rootDoc().getField("point.lat").numericValue().doubleValue(), equalTo(1.2));
@@ -383,7 +383,7 @@ public class LatLonMappingGeoPointTests extends ElasticsearchTestCase {
                 .startArray().value(1.5).value(1.4).endArray()
                 .endArray()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().getFields("point.lat").length, equalTo(2));
         assertThat(doc.rootDoc().getFields("point.lon").length, equalTo(2));

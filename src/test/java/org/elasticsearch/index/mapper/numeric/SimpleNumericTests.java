@@ -58,7 +58,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                 .field("s_long", "100")
                 .field("s_double", "100.0")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         FieldMapper mapper = defaultMapper.mappers().smartNameFieldMapper("s_long");
         assertThat(mapper, instanceOf(LongFieldMapper.class));
@@ -79,7 +79,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                 .field("s_long", "100")
                 .field("s_double", "100.0")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         FieldMapper mapper = defaultMapper.mappers().smartNameFieldMapper("s_long");
         assertThat(mapper, instanceOf(StringFieldMapper.class));
@@ -105,7 +105,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                 .field("field1", "a")
                 .field("field2", "1")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
         assertThat(doc.rootDoc().getField("field1"), nullValue());
         assertThat(doc.rootDoc().getField("field2"), notNullValue());
 
@@ -114,7 +114,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                     .startObject()
                     .field("field2", "a")
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
         } catch (MapperParsingException e) {
             assertThat(e.getCause(), instanceOf(NumberFormatException.class));
         }
@@ -125,7 +125,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                     .startObject()
                     .field("field3", "a")
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
         } catch (MapperParsingException e) {
             assertThat(e.getCause(), instanceOf(NumberFormatException.class));
         }
@@ -137,7 +137,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field3", "a")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
         assertThat(doc.rootDoc().getField("field3"), nullValue());
 
         // This should still throw an exception, since field2 is specifically set to ignore_malformed=false
@@ -146,7 +146,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                     .startObject()
                     .field("field2", "a")
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
         } catch (MapperParsingException e) {
             assertThat(e.getCause(), instanceOf(NumberFormatException.class));
         }
@@ -179,7 +179,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                     .field("noErrorCoerceField", invalidJsonNumberAsString)
                     .field("errorDefaultCoerce", invalidJsonNumberAsString)
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
             assertThat(doc.rootDoc().getField("noErrorNoCoerceField"), nullValue());
             assertThat(doc.rootDoc().getField("noErrorCoerceField"), notNullValue());
             //Default is ignore_malformed=true and coerce=true
@@ -193,7 +193,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                     .field("noErrorCoerceField", validNumber)
                     .field("errorDefaultCoerce", validNumber)
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
             assertEquals(validNumber,doc.rootDoc().getField("noErrorNoCoerceField").numericValue().intValue());
             assertEquals(validNumber,doc.rootDoc().getField("noErrorCoerceField").numericValue().intValue());
             assertEquals(validNumber,doc.rootDoc().getField("errorDefaultCoerce").numericValue().intValue());
@@ -206,7 +206,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                     .field("noErrorCoerceField", validNegativeNumber)
                     .field("errorDefaultCoerce", validNegativeNumber)
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
             assertEquals(validNegativeNumber,doc.rootDoc().getField("noErrorNoCoerceField").numericValue().intValue());
             assertEquals(validNegativeNumber,doc.rootDoc().getField("noErrorCoerceField").numericValue().intValue());
             assertEquals(validNegativeNumber,doc.rootDoc().getField("errorDefaultCoerce").numericValue().intValue());
@@ -217,7 +217,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                         .startObject()
                         .field("errorNoCoerce", invalidJsonNumberAsString)
                         .endObject()
-                        .bytes());
+                        .bytes(), org.elasticsearch.Version.CURRENT);
             } catch (MapperParsingException e) {
                 assertThat(e.getCause(), instanceOf(IllegalArgumentException.class));
             }
@@ -232,7 +232,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                     .field("noErrorCoerceField", invalidJsonForInteger)
                     .field("errorDefaultCoerce", invalidJsonForInteger)
                     .endObject()
-                    .bytes());
+                    .bytes(), org.elasticsearch.Version.CURRENT);
             assertThat(doc.rootDoc().getField("noErrorNoCoerceField"), nullValue());
             assertEquals(coercedFloatValue,doc.rootDoc().getField("noErrorCoerceField").numericValue().intValue());
             //Default is ignore_malformed=true and coerce=true
@@ -243,7 +243,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                         .startObject()
                         .field("errorNoCoerce", invalidJsonForInteger)
                         .endObject()
-                        .bytes());
+                        .bytes(), org.elasticsearch.Version.CURRENT);
             } catch (MapperParsingException e) {
                 assertThat(e.getCause(), instanceOf(IllegalArgumentException.class));
             }
@@ -276,7 +276,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                 .field("int", "1234")
                 .field("double", "1234")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
         final Document doc = parsedDoc.rootDoc();
         assertEquals(DocValuesType.BINARY, SimpleStringMappingTests.docValuesType(doc, "int"));
         assertEquals(DocValuesType.BINARY, SimpleStringMappingTests.docValuesType(doc, "double"));
@@ -320,7 +320,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                         .endObject()
                     .endArray()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
         for (Document doc : parsedDoc.docs()) {
             if (doc == parsedDoc.rootDoc()) {
                 continue;
@@ -346,7 +346,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                 .field("double", "100.0")
                 .field("date",   "2010-01-01")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
         
         assertEquals(1, doc.docs().size());
         Document luceneDoc = doc.docs().get(0);
@@ -402,7 +402,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                 .field("date",   "2010-01-01")
                 .field("ip",     "255.255.255.255")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
         
         assertEquals(1, doc.docs().size());
         Document luceneDoc = doc.docs().get(0);
@@ -473,7 +473,7 @@ public class SimpleNumericTests extends ElasticsearchTestCase {
                 .field("date",   "2010-01-01")
                 .field("ip",     "255.255.255.255")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
         
         assertEquals(1, doc.docs().size());
         Document luceneDoc = doc.docs().get(0);

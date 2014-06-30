@@ -25,7 +25,6 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.mapper.*;
-import org.elasticsearch.index.mapper.core.AbstractFieldMapper;
 import org.elasticsearch.index.mapper.core.LongFieldMapper;
 import org.elasticsearch.index.mapper.core.StringFieldMapper;
 import org.elasticsearch.test.ElasticsearchTestCase;
@@ -92,7 +91,7 @@ public class CopyToMapperTests extends ElasticsearchTestCase {
                 .field("int_to_str_test", 42)
                 .endObject().bytes();
 
-        ParseContext.Document doc = docMapper.parse("type1", "1", json).rootDoc();
+        ParseContext.Document doc = docMapper.parse("type1", "1", json, org.elasticsearch.Version.CURRENT).rootDoc();
         assertThat(doc.getFields("copy_test").length, equalTo(2));
         assertThat(doc.getFields("copy_test")[0].stringValue(), equalTo("foo"));
         assertThat(doc.getFields("copy_test")[1].stringValue(), equalTo("bar"));
@@ -143,7 +142,7 @@ public class CopyToMapperTests extends ElasticsearchTestCase {
                 .startObject("foo").startObject("bar").field("baz", "zoo").endObject().endObject()
                 .endObject().bytes();
 
-        ParseContext.Document doc = docMapper.parse("type1", "1", json).rootDoc();
+        ParseContext.Document doc = docMapper.parse("type1", "1", json, org.elasticsearch.Version.CURRENT).rootDoc();
         assertThat(doc.getFields("copy_test").length, equalTo(1));
         assertThat(doc.getFields("copy_test")[0].stringValue(), equalTo("foo"));
 
@@ -171,7 +170,7 @@ public class CopyToMapperTests extends ElasticsearchTestCase {
                 .endObject().bytes();
 
         try {
-            docMapper.parse("type1", "1", json).rootDoc();
+            docMapper.parse("type1", "1", json, org.elasticsearch.Version.CURRENT).rootDoc();
             fail();
         } catch (MapperParsingException ex) {
             assertThat(ex.getMessage(), startsWith("attempt to copy value to non-existing object"));

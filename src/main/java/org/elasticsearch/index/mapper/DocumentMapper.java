@@ -29,6 +29,7 @@ import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.Filter;
 import org.apache.lucene.util.CloseableThreadLocal;
 import org.elasticsearch.ElasticsearchGenerationException;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.Booleans;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.Preconditions;
@@ -456,19 +457,19 @@ public class DocumentMapper implements ToXContent {
         return this.objectMappers;
     }
 
-    public ParsedDocument parse(BytesReference source) throws MapperParsingException {
-        return parse(SourceToParse.source(source));
+    public ParsedDocument parse(BytesReference source, Version minCompatVersion) throws MapperParsingException {
+        return parse(SourceToParse.source(source), minCompatVersion);
     }
 
-    public ParsedDocument parse(String type, String id, BytesReference source) throws MapperParsingException {
-        return parse(SourceToParse.source(source).type(type).id(id));
+    public ParsedDocument parse(String type, String id, BytesReference source, Version minCompatVersion) throws MapperParsingException {
+        return parse(SourceToParse.source(source).type(type).id(id), minCompatVersion);
     }
 
-    public ParsedDocument parse(SourceToParse source) throws MapperParsingException {
-        return parse(source, null);
+    public ParsedDocument parse(SourceToParse source, Version minCompatVersion) throws MapperParsingException {
+        return parse(source, minCompatVersion, null);
     }
 
-    public ParsedDocument parse(SourceToParse source, @Nullable ParseListener listener) throws MapperParsingException {
+    public ParsedDocument parse(SourceToParse source, Version minCompatVersion, @Nullable ParseListener listener) throws MapperParsingException {
         ParseContext context = cache.get();
 
         if (source.type() != null && !source.type().equals(this.type)) {
@@ -481,7 +482,7 @@ public class DocumentMapper implements ToXContent {
             if (parser == null) {
                 parser = XContentHelper.createParser(source.source());
             }
-            context.reset(parser, new ParseContext.Document(), source, listener);
+            context.reset(parser, new ParseContext.Document(), source, listener, minCompatVersion);
             // on a newly created instance of document mapper, we always consider it as new mappers that have been added
             if (initMappersAdded) {
                 context.setMappingsModified();
@@ -569,7 +570,7 @@ public class DocumentMapper implements ToXContent {
         ParsedDocument doc = new ParsedDocument(context.uid(), context.version(), context.id(), context.type(), source.routing(), source.timestamp(), source.ttl(), context.docs(), context.analyzer(),
                 context.source(), context.mappingsModified()).parent(source.parent());
         // reset the context to free up memory
-        context.reset(null, null, null, null);
+        context.reset(null, null, null, null, null);
         return doc;
     }
 

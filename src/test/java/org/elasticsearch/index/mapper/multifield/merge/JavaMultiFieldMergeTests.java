@@ -52,7 +52,7 @@ public class JavaMultiFieldMergeTests extends ElasticsearchTestCase {
         assertThat(docMapper.mappers().fullName("name.indexed"), nullValue());
 
         BytesReference json = new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/mapper/multifield/merge/test-data.json"));
-        Document doc = docMapper.parse(json).rootDoc();
+        Document doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
         IndexableField f = doc.getField("name");
         assertThat(f, notNullValue());
         f = doc.getField("name.indexed");
@@ -76,7 +76,7 @@ public class JavaMultiFieldMergeTests extends ElasticsearchTestCase {
         assertThat(docMapper.mappers().fullName("name.not_indexed3"), nullValue());
 
         json = new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/mapper/multifield/merge/test-data.json"));
-        doc = docMapper.parse(json).rootDoc();
+        doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
         f = doc.getField("name");
         assertThat(f, notNullValue());
         f = doc.getField("name.indexed");
@@ -128,7 +128,7 @@ public class JavaMultiFieldMergeTests extends ElasticsearchTestCase {
         assertThat(docMapper.mappers().fullName("name.indexed"), nullValue());
 
         BytesReference json = new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/mapper/multifield/merge/test-data.json"));
-        Document doc = docMapper.parse(json).rootDoc();
+        Document doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
         IndexableField f = doc.getField("name");
         assertThat(f, notNullValue());
         f = doc.getField("name.indexed");
@@ -152,7 +152,7 @@ public class JavaMultiFieldMergeTests extends ElasticsearchTestCase {
         assertThat(docMapper.mappers().fullName("name.not_indexed3"), nullValue());
 
         json = new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/mapper/multifield/merge/test-data.json"));
-        doc = docMapper.parse(json).rootDoc();
+        doc = docMapper.parse(json, org.elasticsearch.Version.CURRENT).rootDoc();
         f = doc.getField("name");
         assertThat(f, notNullValue());
         f = doc.getField("name.indexed");

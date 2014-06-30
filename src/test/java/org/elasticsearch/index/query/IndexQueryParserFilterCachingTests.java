@@ -120,7 +120,7 @@ public class IndexQueryParserFilterCachingTests extends ElasticsearchTestCase {
         injector.getInstance(MapperService.class).merge("person", new CompressedString(mapping), true);
         String childMapping = copyToStringFromClasspath("/org/elasticsearch/index/query/child-mapping.json");
         injector.getInstance(MapperService.class).merge("child", new CompressedString(childMapping), true);
-        injector.getInstance(MapperService.class).documentMapper("person").parse(new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/query/data.json")));
+        injector.getInstance(MapperService.class).documentMapper("person").parse(new BytesArray(copyToBytesFromClasspath("/org/elasticsearch/index/query/data.json")), org.elasticsearch.Version.CURRENT);
         queryParser = injector.getInstance(IndexQueryParserService.class);
     }
 

@@ -45,7 +45,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("test2", "value2")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("test1"), equalTo("value1"));
         assertThat(doc.rootDoc().get("test2"), equalTo("value2"));
@@ -64,7 +64,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("test2", "value2")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject().endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("type.test1"), equalTo("value1"));
         assertThat(doc.rootDoc().get("type.test2"), equalTo("value2"));
@@ -84,7 +84,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("test2", "value2")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("type"), equalTo("value_type"));
         assertThat(doc.rootDoc().get("test1"), equalTo("value1"));
@@ -105,7 +105,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("test2", "value2")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject().endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("type.type"), equalTo("value_type"));
         assertThat(doc.rootDoc().get("type.test1"), equalTo("value1"));
@@ -126,7 +126,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("test2", "value2")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         // in this case, we analyze the type object as the actual document, and ignore the other same level fields
         assertThat(doc.rootDoc().get("type.type_field"), equalTo("type_value"));
@@ -147,7 +147,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("test2", "value2")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject().endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("type.type.type_field"), equalTo("type_value"));
         assertThat(doc.rootDoc().get("type.test1"), equalTo("value1"));
@@ -168,7 +168,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("type", "value_type")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject().endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("type.type"), equalTo("value_type"));
         assertThat(doc.rootDoc().get("type.test1"), equalTo("value1"));
@@ -189,7 +189,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("test2", "value2")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject().endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("type.type"), equalTo("value_type"));
         assertThat(doc.rootDoc().get("type.test1"), equalTo("value1"));
@@ -210,7 +210,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("test2", "value2")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         // when the type is not the first one, we don't confuse it...
         assertThat(doc.rootDoc().get("type.type_field"), equalTo("type_value"));
@@ -232,7 +232,7 @@ public class ParseDocumentTypeLevelsTests extends ElasticsearchTestCase {
                 .field("test2", "value2")
                 .startObject("inner").field("inner_field", "inner_value").endObject()
                 .endObject().endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("type.type.type_field"), equalTo("type_value"));
         assertThat(doc.rootDoc().get("type.test1"), equalTo("value1"));

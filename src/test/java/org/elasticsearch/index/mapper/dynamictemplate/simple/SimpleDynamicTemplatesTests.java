@@ -48,7 +48,7 @@ public class SimpleDynamicTemplatesTests extends ElasticsearchTestCase {
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(builder.string());
         builder = JsonXContent.contentBuilder();
         builder.startObject().field("_id", "1").field("s", "hello").field("l", 1).endObject();
-        docMapper.parse(builder.bytes());
+        docMapper.parse(builder.bytes(), org.elasticsearch.Version.CURRENT);
 
         DocumentFieldMappers mappers = docMapper.mappers();
 
@@ -67,7 +67,7 @@ public class SimpleDynamicTemplatesTests extends ElasticsearchTestCase {
         String mapping = copyToStringFromClasspath("/org/elasticsearch/index/mapper/dynamictemplate/simple/test-mapping.json");
         DocumentMapper docMapper = MapperTestUtils.newParser().parse(mapping);
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/dynamictemplate/simple/test-data.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), org.elasticsearch.Version.CURRENT).rootDoc();
 
         IndexableField f = doc.getField("name");
         assertThat(f.name(), equalTo("name"));
@@ -123,7 +123,7 @@ public class SimpleDynamicTemplatesTests extends ElasticsearchTestCase {
         docMapper = MapperTestUtils.newParser().parse(docMapper.mappingSource().string());
 
         byte[] json = copyToBytesFromClasspath("/org/elasticsearch/index/mapper/dynamictemplate/simple/test-data.json");
-        Document doc = docMapper.parse(new BytesArray(json)).rootDoc();
+        Document doc = docMapper.parse(new BytesArray(json), org.elasticsearch.Version.CURRENT).rootDoc();
 
         IndexableField f = doc.getField("name");
         assertThat(f.name(), equalTo("name"));

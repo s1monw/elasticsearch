@@ -50,7 +50,7 @@ public class IndexTypeMapperTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "value")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("_index"), equalTo("test"));
         assertThat(doc.rootDoc().get("field"), equalTo("value"));
@@ -70,7 +70,7 @@ public class IndexTypeMapperTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "value")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("_index"), nullValue());
         assertThat(doc.rootDoc().get("field"), equalTo("value"));
@@ -89,7 +89,7 @@ public class IndexTypeMapperTests extends ElasticsearchTestCase {
                 .startObject()
                 .field("field", "value")
                 .endObject()
-                .bytes());
+                .bytes(), org.elasticsearch.Version.CURRENT);
 
         assertThat(doc.rootDoc().get("_index"), nullValue());
         assertThat(doc.rootDoc().get("field"), equalTo("value"));
