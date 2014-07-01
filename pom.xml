@@ -957,7 +957,11 @@
                     <defaultUsername>root</defaultUsername>
                     <defaultGroupname>root</defaultGroupname>
                     <keyname>${gpg.key}</keyname>
-                    <keyPassphrase>${gpg.passphrase}</keyPassphrase>
+                    <keyPassphrase>
+                        <passphrase>
+                            ${gpg.passphrase}
+                        </passphrase>
+                    </keyPassphrase>
                     <mappings>
                         <mapping>
                             <directory>/etc/elasticsearch/</directory>
