@@ -38,11 +38,16 @@ import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.rescore.RescoreBuilder.QueryRescorer;
+import org.elasticsearch.search.sort.ScoreSortBuilder;
+import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import static org.elasticsearch.cluster.metadata.IndexMetaData.SETTING_NUMBER_OF_SHARDS;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
@@ -84,6 +89,49 @@ public class QueryRescorerTests extends ElasticsearchIntegrationTest {
             }
         }
 
+    }
+
+    public void testRescoreWithSort() throws ExecutionException, InterruptedException {
+        assertAcked(prepareCreate("test").addMapping("type",  "sort_field", "type=long", "score_field", "type=long"));
+        final int numdocs = scaledRandomIntBetween(10, 100);
+        IndexRequestBuilder[] builders = new IndexRequestBuilder[numdocs];
+        int[] sort = new int[numdocs];
+        int[] score = new int[numdocs];
+        Set<Integer> sortValues = new HashSet<>();
+        Set<Integer> scoreValues = new HashSet<>();
+        for (int i = 0; i < builders.length; i++) {
+            sort[i] = uniqueInt(sortValues);
+            score[i] = uniqueInt(scoreValues);
+            builders[i] = client().prepareIndex("test", "type", Integer.toString(i)).setSource("sort_field", sort[i], "score_field", score[i]);
+        }
+        indexRandom(true, builders);
+
+        int windonw = randomIntBetween(1, 20);
+        SearchResponse searchResponse = client().prepareSearch("test").setQuery(QueryBuilders.matchAllQuery())
+                .addSort("sort_field", SortOrder.ASC)
+                .setTrackScores(true)
+                .setRescorer(RescoreBuilder.queryRescorer((QueryBuilders.functionScoreQuery().add(ScoreFunctionBuilders.fieldValueFactorFunction("score_field")))))
+                .setRescoreWindow(windonw)
+                .execute().actionGet();
+        SearchHits hits = searchResponse.getHits();
+        SearchHit[] hitsArray = hits.hits();
+        for (int i = 0; i < hitsArray.length; i++) {
+            if (i < windonw && i > 0) {
+                assertThat("i: " + i + " window: " + windonw, hitsArray[i-1].score(), greaterThan(hitsArray[i].score()));
+            } else if (i > windonw && i > 0) {
+                assertThat("i: " + i + " window: " + windonw, sort[Integer.parseInt(hitsArray[i-1].getId())], greaterThan(sort[Integer.parseInt(hitsArray[i].getId())]));
+            }
+        }
+    }
+
+    private int uniqueInt(Set<Integer> alreadySeen) {
+        while(true) {
+            int i = randomIntBetween(1, 1000);
+            if (alreadySeen.contains(i) == false) {
+                alreadySeen.add(i);
+                return i;
+            }
+        }
     }
 
     @Test

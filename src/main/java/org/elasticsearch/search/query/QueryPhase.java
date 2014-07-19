@@ -145,14 +145,16 @@ public class QueryPhase implements SearchPhase {
                         }
                     }
                 } else {
+                    rescore = !searchContext.rescore().isEmpty() && (searchContext.sort() == null || searchContext.trackScores());
+                    if (rescore) {
+                        for (RescoreSearchContext rescoreContext : searchContext.rescore()) {
+                            numDocs = Math.max(rescoreContext.window(), numDocs);
+                        }
+                    }
                     if (searchContext.sort() != null) {
                         topDocs = searchContext.searcher().search(query, null, numDocs, searchContext.sort(),
                                 searchContext.trackScores(), searchContext.trackScores());
                     } else {
-                        rescore = !searchContext.rescore().isEmpty();
-                        for (RescoreSearchContext rescoreContext : searchContext.rescore()) {
-                            numDocs = Math.max(rescoreContext.window(), numDocs);
-                        }
                         topDocs = searchContext.searcher().search(query, numDocs);
                     }
                 }
@@ -170,4 +172,5 @@ public class QueryPhase implements SearchPhase {
         facetPhase.execute(searchContext);
         aggregationPhase.execute(searchContext);
     }
+
 }

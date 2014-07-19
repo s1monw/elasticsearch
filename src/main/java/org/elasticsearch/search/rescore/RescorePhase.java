@@ -20,6 +20,9 @@
 package org.elasticsearch.search.rescore;
 
 import com.google.common.collect.ImmutableMap;
+import org.apache.lucene.search.SortField;
+import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.TopFieldDocs;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
@@ -27,6 +30,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.search.SearchParseElement;
 import org.elasticsearch.search.SearchPhase;
 import org.elasticsearch.search.internal.SearchContext;
+import org.elasticsearch.search.sort.SortParseElement;
 
 import java.io.IOException;
 import java.util.Map;
@@ -56,6 +60,10 @@ public class RescorePhase extends AbstractComponent implements SearchPhase {
         try {
             for (RescoreSearchContext ctx : context.rescore()) {
                 ctx.rescorer().rescore(context.queryResult().topDocs(), context, ctx);
+            }
+            if (context.sort() != null) {
+                final TopFieldDocs topDocs = (TopFieldDocs) context.queryResult().topDocs();
+                topDocs.fields = new SortField[0];
             }
         } catch (IOException e) {
             throw new ElasticsearchException("Rescore Phase Failed", e);
