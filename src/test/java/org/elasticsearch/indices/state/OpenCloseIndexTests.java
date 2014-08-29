@@ -19,19 +19,31 @@
 
 package org.elasticsearch.indices.state;
 
+import com.carrotsearch.randomizedtesting.annotations.Repeat;
 import org.elasticsearch.action.ActionRequestValidationException;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
+import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.IndexMissingException;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
+import org.elasticsearch.test.store.MockDirectoryHelper;
+import org.elasticsearch.test.store.MockFSDirectoryService;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+
+import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
@@ -51,6 +63,44 @@ public class OpenCloseIndexTests extends ElasticsearchIntegrationTest {
         OpenIndexResponse openIndexResponse = client.admin().indices().prepareOpen("test1").execute().actionGet();
         assertThat(openIndexResponse.isAcknowledged(), equalTo(true));
         assertIndexIsOpened("test1");
+    }
+
+    @Test
+    @Repeat(iterations = 100)
+    public void testOpenCloseWithDocs() throws IOException, ExecutionException, InterruptedException {
+        String mapping = XContentFactory.jsonBuilder().
+                startObject().
+                startObject("type").
+                startObject("properties").
+                startObject("test")
+                .field("type", "string")
+                .field("index", "not_analyzed")
+                .endObject().
+                        endObject().
+                        endObject()
+                .endObject().string();
+
+        ImmutableSettings.Builder settings = settingsBuilder()
+                .put("index.number_of_replicas", randomIntBetween(0, 1))
+                .put(MockFSDirectoryService.CHECK_INDEX_ON_CLOSE, true)
+                .put("gateway.type", "local");
+        logger.info("creating index: [test] using settings: [{}]", settings.build().getAsMap());
+        client().admin().indices().prepareCreate("test")
+                .setSettings(settings)
+                .addMapping("type", mapping).execute().actionGet();
+        int docs = between(10, 100);
+        for (int i = 0; i < docs ; i++) {
+            client().prepareIndex("test", "initial", "" + i).setSource("test", "init").get();
+        }
+        client().admin().indices().prepareRefresh("test").execute().get();
+        client().admin().indices().prepareFlush("test").setWaitIfOngoing(true).execute().get();
+        client().admin().indices().prepareClose("test").execute().get();
+
+        // check the index still contains the records that we indexed
+        client().admin().indices().prepareOpen("test").execute().get();
+        ensureGreen();
+        SearchResponse searchResponse = client().prepareSearch().setTypes("initial").setQuery(QueryBuilders.matchQuery("test", "init")).get();
+        assertHitCount(searchResponse, docs);
     }
 
     @Test(expected = IndexMissingException.class)
