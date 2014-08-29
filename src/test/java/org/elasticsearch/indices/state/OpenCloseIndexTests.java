@@ -25,7 +25,9 @@ import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
+import org.elasticsearch.action.admin.indices.flush.FlushResponse;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
+import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.client.Client;
@@ -44,6 +46,7 @@ import java.util.concurrent.ExecutionException;
 
 import static org.elasticsearch.common.settings.ImmutableSettings.settingsBuilder;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoFailures;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 
@@ -89,17 +92,21 @@ public class OpenCloseIndexTests extends ElasticsearchIntegrationTest {
                 .setSettings(settings)
                 .addMapping("type", mapping).execute().actionGet();
         int docs = between(10, 100);
+        IndexRequestBuilder[] builder = new IndexRequestBuilder[docs];
         for (int i = 0; i < docs ; i++) {
-            client().prepareIndex("test", "initial", "" + i).setSource("test", "init").get();
+            builder[i] = client().prepareIndex("test", "initial", "" + i).setSource("test", "init");
         }
-        client().admin().indices().prepareRefresh("test").execute().get();
-        client().admin().indices().prepareFlush("test").setWaitIfOngoing(true).execute().get();
+        indexRandom(true, builder);
+        if (randomBoolean()) {
+            client().admin().indices().prepareFlush("test").setWaitIfOngoing(true).setForce(true).execute().get();
+        }
         client().admin().indices().prepareClose("test").execute().get();
 
         // check the index still contains the records that we indexed
         client().admin().indices().prepareOpen("test").execute().get();
         ensureGreen();
         SearchResponse searchResponse = client().prepareSearch().setTypes("initial").setQuery(QueryBuilders.matchQuery("test", "init")).get();
+        assertNoFailures(searchResponse);
         assertHitCount(searchResponse, docs);
     }
 

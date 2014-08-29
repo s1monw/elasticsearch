@@ -1254,6 +1254,9 @@ public class InternalEngine extends AbstractIndexShardComponent implements Engin
         try (InternalLock _ = writeLock.acquire()) {
             if (!closed) {
                 try {
+                    if (indexWriter != null) { // we m
+                        flush(new Flush().type(Flush.Type.COMMIT));
+                    }
                     closed = true;
                     indexSettingsService.removeListener(applySettings);
                     this.versionMap.clear();
