@@ -85,6 +85,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportModule;
 import org.elasticsearch.transport.TransportService;
+import org.elasticsearch.transport.local.LocalTransport;
 import org.elasticsearch.transport.netty.NettyTransport;
 import org.junit.Assert;
 
@@ -259,8 +260,20 @@ public final class InternalTestCluster extends TestCluster {
                 builder.put("path.data", dataPath.toString());
             }
         }
-        final int basePort = 9300 + (100 * (jvmOrdinal+1));
-        builder.put("transport.tcp.port", basePort + "-" + (basePort+199));
+
+        if (isNetworkTransportConfigured()) {
+            final int basePort = 9300 + (100 * (jvmOrdinal+1));
+            builder.put("transport.tcp.port", basePort + "-" + (basePort+199));
+            if (randomBoolean()) {
+                builder.put("discovery.zen.ping.multicast.enabled", false);
+                builder.put("transport.host", "localhost");
+                String[] unicastHosts = new String[sharedNodesSeeds.length + 20];
+                for (int i = 0; i < unicastHosts.length ; i++) {
+                    unicastHosts[i] = "localhost:" + (basePort + i);
+                }
+                builder.putArray("discovery.zen.ping.unicast.hosts", unicastHosts);
+            }
+        }
         builder.put("config.ignore_system_properties", true);
         builder.put("node.mode", NODE_MODE);
         builder.put("script.disable_dynamic", false);
@@ -309,6 +322,11 @@ public final class InternalTestCluster extends TestCluster {
         }
         return Boolean.parseBoolean(System.getProperty("es.node.local", "false"));
     }
+
+    private static boolean isNetworkTransportConfigured() {
+       return isLocalTransportConfigured() == false;
+    }
+
 
     private Settings getSettings(int nodeOrdinal, long nodeSeed, Settings others) {
         Builder builder = ImmutableSettings.settingsBuilder().put(defaultSettings)
