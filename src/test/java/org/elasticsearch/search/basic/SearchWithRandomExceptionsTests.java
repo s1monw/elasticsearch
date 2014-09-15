@@ -143,7 +143,7 @@ public class SearchWithRandomExceptionsTests extends ElasticsearchIntegrationTes
         for (int i = 0; i < numDocs ; i++) {
             added[i] = false;
             try {
-                IndexResponse indexResponse = client().prepareIndex("test", "type", Integer.toString(i)).setTimeout(TimeValue.timeValueSeconds(1)).setSource("test", English.intToEnglish(i)).get();
+                IndexResponse indexResponse = client().prepareIndex("test", "type", Integer.toString(i)).setTimeout(TimeValue.timeValueSeconds(1)).setSource("test", English.intToEnglish(i)).get(TimeValue.timeValueSeconds(2));
                 if (indexResponse.isCreated()) {
                     numCreated++;
                     added[i] = true;
@@ -248,7 +248,7 @@ public class SearchWithRandomExceptionsTests extends ElasticsearchIntegrationTes
         boolean[] added = new boolean[numDocs];
         for (int i = 0; i < numDocs ; i++) {
             try {
-                IndexResponse indexResponse = client().prepareIndex("test", "type", "" + i).setTimeout(TimeValue.timeValueSeconds(1)).setSource("test", English.intToEnglish(i)).get();
+                IndexResponse indexResponse = client().prepareIndex("test", "type", "" + i).setTimeout(TimeValue.timeValueSeconds(1)).setSource("test", English.intToEnglish(i)).get(TimeValue.timeValueSeconds(2));
                 if (indexResponse.isCreated()) {
                     numCreated++;
                     added[i] = true;

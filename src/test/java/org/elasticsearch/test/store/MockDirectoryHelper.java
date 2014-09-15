@@ -44,6 +44,8 @@ public class MockDirectoryHelper {
     public static final String RANDOM_THROTTLE = "index.store.mock.random.throttle";
     public static final String RANDOM_PREVENT_DOUBLE_WRITE = "index.store.mock.random.prevent_double_write";
     public static final String RANDOM_NO_DELETE_OPEN_FILE = "index.store.mock.random.no_delete_open_file";
+    public static final String RANDOM_FILE_NOT_FOUND_EXCEPTIONS = "index.store.mock.random.allow_file_not_found_exceptions";
+
     public static final String CRASH_INDEX = "index.store.mock.random.crash_index";
 
     public static final Set<ElasticsearchMockDirectoryWrapper> wrappers = ConcurrentCollections.newConcurrentSet();
@@ -58,6 +60,7 @@ public class MockDirectoryHelper {
     private final boolean noDeleteOpenFile;
     private final ESLogger logger;
     private final boolean crashIndex;
+    private final boolean allowRandomFileNotFoundException;
 
     public MockDirectoryHelper(ShardId shardId, Settings indexSettings, ESLogger logger, Random random, long seed) {
         this.random = random;
@@ -68,6 +71,7 @@ public class MockDirectoryHelper {
         random.nextInt(shardId.getId() + 1); // some randomness per shard
         throttle = Throttling.valueOf(indexSettings.get(RANDOM_THROTTLE, random.nextDouble() < 0.1 ? "SOMETIMES" : "NEVER"));
         crashIndex = indexSettings.getAsBoolean(CRASH_INDEX, true);
+        allowRandomFileNotFoundException = indexSettings.getAsBoolean(RANDOM_FILE_NOT_FOUND_EXCEPTIONS, random.nextBoolean());
 
         if (logger.isDebugEnabled()) {
             logger.debug("Using MockDirWrapper with seed [{}] throttle: [{}] crashIndex: [{}]", SeedUtils.formatSeed(seed),
@@ -86,6 +90,7 @@ public class MockDirectoryHelper {
         w.setCheckIndexOnClose(false); // we do this on the index level
         w.setPreventDoubleWrite(preventDoubleWrite);
         w.setNoDeleteOpenFile(noDeleteOpenFile);
+        w.setAllowRandomFileNotFoundException(allowRandomFileNotFoundException);
         wrappers.add(w);
         return w;
     }

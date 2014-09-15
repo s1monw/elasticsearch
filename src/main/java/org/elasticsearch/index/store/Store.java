@@ -488,7 +488,7 @@ public class Store extends AbstractIndexShardComponent implements CloseableIndex
                     segmentCommitInfos = Store.readSegmentsInfo(commit, directory);
                 } catch (FileNotFoundException | NoSuchFileException ex) {
                     // no segments file -- can't read metadata
-                    logger.trace("Can't read segment infos", ex);
+                    logger.debug("Can't read segment infos", ex);
                     return ImmutableMap.of();
                 }
                 Version maxVersion = Version.LUCENE_3_0; // we don't know which version was used to write so we take the max version.
