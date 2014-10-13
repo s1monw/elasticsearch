@@ -32,7 +32,6 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.elasticsearch.test.rest.client.http.HttpRequestBuilder;
-import org.junit.Ignore;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,7 +61,6 @@ public class UpgradeReallyOldIndexTest extends ElasticsearchIntegrationTest {
         return dataDir;
     }
 
-    @Ignore
     public void testUpgrade_0_20() throws Exception {
         File dataDir = prepareBackwardsDataDir(new File(getClass().getResource("index-0.20.zip").toURI()));
         internalCluster().startNode(ImmutableSettings.builder()
