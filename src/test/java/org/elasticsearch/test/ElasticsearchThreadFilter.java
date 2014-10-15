@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
  */
 public final class ElasticsearchThreadFilter implements ThreadFilter {
 
-    private final Pattern nodePrefix = Pattern.compile("\\[(" +
+    private static final Pattern nodePrefix = Pattern.compile("\\[(" +
             "(" + Pattern.quote(InternalTestCluster.TRANSPORT_CLIENT_PREFIX) + ")?(" +
             Pattern.quote(ElasticsearchIntegrationTest.GLOBAL_CLUSTER_NODE_PREFIX) + "|" +
             Pattern.quote(ElasticsearchIntegrationTest.SUITE_CLUSTER_NODE_PREFIX) + "|" +
@@ -45,13 +45,19 @@ public final class ElasticsearchThreadFilter implements ThreadFilter {
 
     @Override
     public boolean reject(Thread t) {
-        String threadName = t.getName();
+        return rejectName(t.getName());
+    }
 
+    public static boolean rejectName(String threadName) {
         if (threadName.contains("[" + MulticastChannel.SHARED_CHANNEL_NAME + "]")
                 || threadName.contains("[" + ElasticsearchSingleNodeTest.nodeName() + "]")
                 || threadName.contains("Keep-Alive-Timer")) {
             return true;
         }
-        return nodePrefix.matcher(t.getName()).find();
+        return nodePrefix.matcher(threadName).find();
+    }
+
+    public static void main(String[] f) {
+        System.out.println(rejectName("elasticsearch[Flex][management][T#2]"));
     }
 }
