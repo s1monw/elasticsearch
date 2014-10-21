@@ -28,6 +28,9 @@ import org.elasticsearch.action.admin.indices.segments.IndexShardSegments;
 import org.elasticsearch.action.admin.indices.segments.IndicesSegmentResponse;
 import org.elasticsearch.action.admin.indices.segments.ShardSegments;
 import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.cluster.routing.allocation.allocator.BalancedShardsAllocator;
+import org.elasticsearch.cluster.routing.allocation.decider.ConcurrentRebalanceAllocationDecider;
+import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.ImmutableSettings;
@@ -38,10 +41,10 @@ import org.elasticsearch.common.xcontent.json.JsonXContent;
 import org.elasticsearch.index.engine.Segment;
 import org.elasticsearch.node.internal.InternalNode;
 import org.elasticsearch.test.ElasticsearchBackwardsCompatIntegrationTest;
+import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.elasticsearch.test.rest.client.http.HttpRequestBuilder;
 import org.elasticsearch.test.rest.client.http.HttpResponse;
 import org.elasticsearch.test.rest.json.JsonPath;
-import org.junit.After;
 import org.junit.BeforeClass;
 
 import java.net.InetSocketAddress;
@@ -51,6 +54,7 @@ import java.util.Map;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 
+@ElasticsearchIntegrationTest.ClusterScope(scope = ElasticsearchIntegrationTest.Scope.TEST)   // test scope since we set cluster wide settings
 public class UpgradeTest extends ElasticsearchBackwardsCompatIntegrationTest {
 
     @BeforeClass
@@ -66,6 +70,9 @@ public class UpgradeTest extends ElasticsearchBackwardsCompatIntegrationTest {
 
     public void testUpgrade() throws Exception {
 
+        // allow the cluster to rebalance quickly - 2 concurrent rebalance are default we can do higher
+        client().admin().cluster().prepareUpdateSettings()
+                .setPersistentSettings(ImmutableSettings.builder().put(ConcurrentRebalanceAllocationDecider.CLUSTER_ROUTING_ALLOCATION_CLUSTER_CONCURRENT_REBALANCE, 100)).get();
         int numIndexes = randomIntBetween(2, 4);
         String[] indexNames = new String[numIndexes];
         for (int i = 0; i < numIndexes; ++i) {
@@ -119,7 +126,22 @@ public class UpgradeTest extends ElasticsearchBackwardsCompatIntegrationTest {
         logClusterState();
         logSegmentsState(null);
         backwardsCluster().allowOnAllNodes(indexNames);
+        ensureGreen();
+        // set the balancing threshold to something very highish such that no rebalancing happens after the upgrade
+        client().admin().cluster().prepareUpdateSettings()
+                .setPersistentSettings(ImmutableSettings.builder().put(BalancedShardsAllocator.SETTING_THRESHOLD, 100.0f)).get();
+        // disable allocation entirely until all nodes are upgraded
+        client().admin().cluster().prepareUpdateSettings()
+                .setTransientSettings(ImmutableSettings.builder()
+                        .put(EnableAllocationDecider.CLUSTER_ROUTING_ALLOCATION_ENABLE, EnableAllocationDecider.Allocation.NONE))
+                .get();
         backwardsCluster().upgradeAllNodes();
+        // we are done - enable allocation again
+        client().admin().cluster().prepareUpdateSettings()
+                .setTransientSettings(ImmutableSettings.builder()
+                        .put(EnableAllocationDecider.CLUSTER_ROUTING_ALLOCATION_ENABLE, EnableAllocationDecider.Allocation.ALL))
+                .get();
+
         ensureGreen();
         logger.debug("--> Nodes upgrade complete");
         logClusterState();
