@@ -52,7 +52,7 @@
         </repository>
         <repository>
             <id>RC-REPO</id>
-            <url>http://people.apache.org/~mikemccand/staging_area/lucene-solr-4.10.2-RC0-rev1634084/lucene/maven/</url>
+            <url> http://people.apache.org/~mikemccand/staging_area/lucene-solr-4.10.2-RC1-rev1634293/lucene/maven/</url>
         </repository>
     </repositories>
 
