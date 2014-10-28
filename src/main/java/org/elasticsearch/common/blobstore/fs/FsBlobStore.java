@@ -19,6 +19,7 @@
 
 package org.elasticsearch.common.blobstore.fs;
 
+import org.elasticsearch.ElasticsearchIllegalArgumentException;
 import org.elasticsearch.common.blobstore.BlobContainer;
 import org.elasticsearch.common.blobstore.BlobPath;
 import org.elasticsearch.common.blobstore.BlobStore;
@@ -30,6 +31,8 @@ import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 /**
  *
@@ -40,14 +43,11 @@ public class FsBlobStore extends AbstractComponent implements BlobStore {
 
     private final int bufferSizeInBytes;
 
-    public FsBlobStore(Settings settings, File path) {
+    public FsBlobStore(Settings settings, File path) throws IOException {
         super(settings);
         this.path = path;
         if (!path.exists()) {
-            boolean b = FileSystemUtils.mkdirs(path);
-            if (!b) {
-                throw new BlobStoreException("Failed to create directory at [" + path + "]");
-            }
+            Files.createDirectories(path.toPath());
         }
         if (!path.isDirectory()) {
             throw new BlobStoreException("Path is not a directory at [" + path + "]");
@@ -85,7 +85,11 @@ public class FsBlobStore extends AbstractComponent implements BlobStore {
 
     private synchronized File buildAndCreate(BlobPath path) {
         File f = buildPath(path);
-        FileSystemUtils.mkdirs(f);
+        try {
+            Files.createDirectories(f.toPath());
+        } catch (IOException e) {
+            throw new ElasticsearchIllegalArgumentException(e.getMessage(), e);
+        }
         return f;
     }
 

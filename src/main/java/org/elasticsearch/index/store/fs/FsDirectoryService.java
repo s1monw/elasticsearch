@@ -35,6 +35,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 /**
  */
@@ -125,7 +127,7 @@ public abstract class FsDirectoryService extends AbstractIndexShardComponent imp
         File[] locations = indexStore.shardIndexLocations(shardId);
         Directory[] dirs = new Directory[locations.length];
         for (int i = 0; i < dirs.length; i++) {
-            FileSystemUtils.mkdirs(locations[i]);
+            Files.createDirectories(locations[i].toPath());
             Directory wrapped = newFSDirectory(locations[i], buildLockFactory());
             dirs[i] = new RateLimitedFSDirectory(wrapped, this, this) ;
         }

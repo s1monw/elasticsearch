@@ -182,11 +182,11 @@ public class InternalEngineTests extends ElasticsearchTestCase {
         return new Store(shardId, EMPTY_SETTINGS, null, directoryService, new LeastUsedDistributor(directoryService));
     }
 
-    protected Translog createTranslog() {
+    protected Translog createTranslog() throws IOException {
         return new FsTranslog(shardId, EMPTY_SETTINGS, new File("work/fs-translog/primary"));
     }
 
-    protected Translog createTranslogReplica() {
+    protected Translog createTranslogReplica() throws IOException {
         return new FsTranslog(shardId, EMPTY_SETTINGS, new File("work/fs-translog/replica"));
     }
 
@@ -325,7 +325,7 @@ public class InternalEngineTests extends ElasticsearchTestCase {
         assertThat(segments.get(2).isCompound(), equalTo(true));
     }
 
-    public void testStartAndAcquireConcurrently() {
+    public void testStartAndAcquireConcurrently() throws IOException {
         ConcurrentMergeSchedulerProvider mergeSchedulerProvider = new ConcurrentMergeSchedulerProvider(shardId, EMPTY_SETTINGS, threadPool, new IndexSettingsService(shardId.index(), EMPTY_SETTINGS));
         final Engine engine = createEngine(engineSettingsService, store, createTranslog(), mergeSchedulerProvider);
         final AtomicBoolean startPending = new AtomicBoolean(true);

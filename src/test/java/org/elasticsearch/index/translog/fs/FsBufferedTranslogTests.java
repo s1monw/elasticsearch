@@ -26,6 +26,7 @@ import org.elasticsearch.index.translog.Translog;
 import org.junit.AfterClass;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  *
@@ -33,7 +34,7 @@ import java.io.File;
 public class FsBufferedTranslogTests extends AbstractSimpleTranslogTests {
 
     @Override
-    protected Translog create() {
+    protected Translog create() throws IOException {
         return new FsTranslog(shardId,
                 ImmutableSettings.settingsBuilder()
                         .put("index.translog.fs.type", FsTranslogFile.Type.BUFFERED.name())

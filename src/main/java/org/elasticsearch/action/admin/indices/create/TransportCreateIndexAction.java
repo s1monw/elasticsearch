@@ -35,6 +35,8 @@ import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import java.text.Normalizer;
+
 /**
  * Create index action.
  */
@@ -67,7 +69,11 @@ public class TransportCreateIndexAction extends TransportMasterNodeOperationActi
 
     @Override
     protected ClusterBlockException checkBlock(CreateIndexRequest request, ClusterState state) {
-        return state.blocks().indexBlockedException(ClusterBlockLevel.METADATA, request.index());
+        return state.blocks().indexBlockedException(ClusterBlockLevel.METADATA, normalizeIndexName(request.index()));
+    }
+
+    private String normalizeIndexName(String index) {
+        return Normalizer.normalize(index, Normalizer.Form.NFC);
     }
 
     @Override
@@ -77,7 +83,7 @@ public class TransportCreateIndexAction extends TransportMasterNodeOperationActi
             cause = "api";
         }
 
-        final CreateIndexClusterStateUpdateRequest updateRequest = new CreateIndexClusterStateUpdateRequest(request, cause, request.index())
+        final CreateIndexClusterStateUpdateRequest updateRequest = new CreateIndexClusterStateUpdateRequest(request, cause, normalizeIndexName(request.index()))
                 .ackTimeout(request.timeout()).masterNodeTimeout(request.masterNodeTimeout())
                 .settings(request.settings()).mappings(request.mappings())
                 .aliases(request.aliases()).customs(request.customs());

@@ -23,6 +23,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Test;
 
+import java.text.Normalizer;
+
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 
 /**
@@ -39,9 +41,14 @@ public class IndexTest extends ElasticsearchIntegrationTest {
 
     @Test
     public void testCreateBogusIndex() {
-        createIndex("test-weird-index-中文");
-        ensureGreen();
-        client().prepareIndex("test-weird-index-中文", "weird.type", "1").setSource("{}").get();
-        assertAcked(client().admin().indices().prepareDelete("test-weird-index-中文"));
+        for (int i = 0; i < 5; i++) {
+            ensureGreen();
+            String indexName = Normalizer.normalize("test-weird-index-中文\u0065\u0301", Normalizer.Form.NFC);
+           indexName = "test-weird-index-中文\u0065\u0301";
+            createIndex(indexName);
+            ensureGreen();
+            client().prepareIndex(indexName, "weird.type", "1").setSource("{}").get();
+            assertAcked(client().admin().indices().prepareDelete(indexName));
+        }
     }
 }

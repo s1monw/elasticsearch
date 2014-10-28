@@ -24,6 +24,7 @@ import com.google.common.primitives.Ints;
 import org.apache.lucene.store.Lock;
 import org.apache.lucene.store.NativeFSLockFactory;
 import org.apache.lucene.util.IOUtils;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchIllegalStateException;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.component.AbstractComponent;
@@ -79,7 +80,11 @@ public class NodeEnvironment extends AbstractComponent {
             for (int dirIndex = 0; dirIndex < environment.dataWithClusterFiles().length; dirIndex++) {
                 File dir = new File(new File(environment.dataWithClusterFiles()[dirIndex], "nodes"), Integer.toString(possibleLockId));
                 if (!dir.exists()) {
-                    FileSystemUtils.mkdirs(dir);
+                    try {
+                        Files.createDirectories(dir.toPath());
+                    } catch (IOException ex) {
+                        throw new ElasticsearchException(ex.getMessage(), ex);
+                    }
                 }
                 logger.trace("obtaining node lock on {} ...", dir.getAbsolutePath());
                 try {

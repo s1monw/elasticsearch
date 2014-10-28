@@ -68,7 +68,7 @@ public abstract class AbstractSimpleTranslogTests extends ElasticsearchTestCase 
         super.tearDown();
     }
 
-    protected abstract Translog create();
+    protected abstract Translog create() throws IOException;
 
     protected abstract String translogFileDirectory();
 

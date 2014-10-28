@@ -40,6 +40,10 @@ import org.elasticsearch.node.internal.InternalSettingsPreparer;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -149,15 +153,16 @@ public class Bootstrap {
 
         if (pidFile != null) {
             try {
-                File fPidFile = new File(pidFile);
-                if (fPidFile.getParentFile() != null) {
-                    FileSystemUtils.mkdirs(fPidFile.getParentFile());
+                Path fPidFile = Paths.get(pidFile);
+                if (fPidFile.getParent() != null) {
+                    Files.createDirectories(fPidFile.getParent());
+
                 }
-                FileOutputStream outputStream = new FileOutputStream(fPidFile);
+                OutputStream outputStream = Files.newOutputStream(fPidFile);
                 outputStream.write(Long.toString(JvmInfo.jvmInfo().pid()).getBytes(Charsets.UTF_8));
                 outputStream.close();
 
-                fPidFile.deleteOnExit();
+                fPidFile.toFile().deleteOnExit();
             } catch (Exception e) {
                 String errorMessage = buildErrorMessage("pid", e);
                 System.err.println(errorMessage);

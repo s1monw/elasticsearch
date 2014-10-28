@@ -40,6 +40,8 @@ import org.elasticsearch.index.translog.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -81,7 +83,7 @@ public class FsTranslog extends AbstractIndexShardComponent implements Translog 
     private final ApplySettings applySettings = new ApplySettings();
 
     @Inject
-    public FsTranslog(ShardId shardId, @IndexSettings Settings indexSettings, IndexSettingsService indexSettingsService, NodeEnvironment nodeEnv, BigArrays bigArrays) {
+    public FsTranslog(ShardId shardId, @IndexSettings Settings indexSettings, IndexSettingsService indexSettingsService, NodeEnvironment nodeEnv, BigArrays bigArrays) throws IOException {
         super(shardId, indexSettings);
         this.indexSettingsService = indexSettingsService;
         this.bigArrays = bigArrays;
@@ -89,7 +91,7 @@ public class FsTranslog extends AbstractIndexShardComponent implements Translog 
         this.locations = new File[shardLocations.length];
         for (int i = 0; i < shardLocations.length; i++) {
             locations[i] = new File(shardLocations[i], "translog");
-            FileSystemUtils.mkdirs(locations[i]);
+            Files.createDirectories(Paths.get(shardLocations[i].getPath(), "translog"));
         }
 
         this.type = FsTranslogFile.Type.fromString(componentSettings.get("type", FsTranslogFile.Type.BUFFERED.name()));
@@ -99,11 +101,11 @@ public class FsTranslog extends AbstractIndexShardComponent implements Translog 
         indexSettingsService.addListener(applySettings);
     }
 
-    public FsTranslog(ShardId shardId, @IndexSettings Settings indexSettings, File location) {
+    public FsTranslog(ShardId shardId, @IndexSettings Settings indexSettings, File location) throws IOException {
         super(shardId, indexSettings);
         this.indexSettingsService = null;
         this.locations = new File[]{location};
-        FileSystemUtils.mkdirs(location);
+        Files.createDirectories(location.toPath());
         this.bigArrays = BigArrays.NON_RECYCLING_INSTANCE;
 
         this.type = FsTranslogFile.Type.fromString(componentSettings.get("type", FsTranslogFile.Type.BUFFERED.name()));
