@@ -41,7 +41,7 @@ public class IndexTest extends ElasticsearchIntegrationTest {
     public void testCreateBogusIndex() {
         createIndex("test-weird-index-中文");
         ensureGreen();
-        client().prepareIndex("test-weird-index-中文", "foo", "1").setSource("{}").get();
+        client().prepareIndex("test-weird-index-中文", "weird.type", "1").setSource("{}").get();
         assertAcked(client().admin().indices().prepareDelete("test-weird-index-中文"));
     }
 }
