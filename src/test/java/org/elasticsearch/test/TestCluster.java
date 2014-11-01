@@ -22,6 +22,7 @@ package org.elasticsearch.test;
 import com.carrotsearch.hppc.ObjectArrayList;
 import org.elasticsearch.ElasticsearchIllegalArgumentException;
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.logging.ESLogger;
@@ -135,7 +136,14 @@ public abstract class TestCluster implements Iterable<Client>, Closeable {
         assert indices != null && indices.length > 0;
         if (size() > 0) {
             try {
-                assertAcked(client().admin().indices().prepareDelete(indices));
+                DeleteIndexResponse deleteIndexResponse = client().admin().indices().prepareDelete(indices).get();
+                if (deleteIndexResponse.isAcknowledged() == false) {
+                    logger.info("now dump all thread stacks on failure");
+                    ElasticsearchTestCase.printStackDump(logger);
+                    logger.info("done dump all thread stacks on failure");
+                }
+                assertAcked(deleteIndexResponse);
+
             } catch (IndexMissingException e) {
                 // ignore
             } catch (ElasticsearchIllegalArgumentException e) {
