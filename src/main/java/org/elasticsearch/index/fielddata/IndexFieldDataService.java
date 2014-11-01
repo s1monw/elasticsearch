@@ -155,6 +155,7 @@ public class IndexFieldDataService extends AbstractIndexComponent {
 
     public void clear() {
         fieldLoadingLock.globalLock().lock();
+        logger.info("#### clear");
         try {
             List<Throwable> exceptions = new ArrayList<>(0);
             final Collection<IndexFieldData<?>> fieldDataValues = loadedFieldData.values();
@@ -178,6 +179,7 @@ public class IndexFieldDataService extends AbstractIndexComponent {
             ExceptionsHelper.maybeThrowRuntimeAndSuppress(exceptions);
         } finally {
             fieldLoadingLock.globalLock().unlock();
+            logger.info("#### after clear");
         }
     }
 
