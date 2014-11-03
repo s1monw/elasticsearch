@@ -343,7 +343,7 @@ public class InternalIndicesService extends AbstractLifecycleComponent<IndicesSe
         logger.debug("[{}] closing index cache", index, reason);
         indexInjector.getInstance(IndexCache.class).close();
         logger.debug("[{}] clearing index field data", index, reason);
-      //  indexInjector.getInstance(IndexFieldDataService.class).clear();
+        indexInjector.getInstance(IndexFieldDataService.class).clear();
         logger.debug("[{}] closing analysis service", index, reason);
         indexInjector.getInstance(AnalysisService.class).close();
         logger.debug("[{}] closing index engine", index, reason);
