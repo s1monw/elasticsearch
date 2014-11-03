@@ -253,7 +253,7 @@ public class IndicesFieldDataCache extends AbstractComponent implements RemovalL
             // Note this is intended by the Guava developers, see:
             // https://code.google.com/p/guava-libraries/wiki/CachesExplained#Eviction
             // (the "When Does Cleanup Happen" section)
-//            cache.cleanUp();
+            cache.cleanUp();
         }
 
         @Override
