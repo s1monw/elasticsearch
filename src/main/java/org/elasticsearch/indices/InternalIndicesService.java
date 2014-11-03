@@ -70,6 +70,7 @@ import org.elasticsearch.indices.recovery.RecoverySettings;
 import org.elasticsearch.indices.store.IndicesStore;
 import org.elasticsearch.plugins.IndexPluginsModule;
 import org.elasticsearch.plugins.PluginsService;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.util.HashMap;
 import java.util.List;
@@ -101,20 +102,21 @@ public class InternalIndicesService extends AbstractLifecycleComponent<IndicesSe
     private final PluginsService pluginsService;
 
     private final Map<String, Injector> indicesInjectors = new HashMap<>();
+    private final ThreadPool pool;
 
     private volatile ImmutableMap<String, IndexService> indices = ImmutableMap.of();
 
     private final OldShardsStats oldShardsStats = new OldShardsStats();
 
     @Inject
-    public InternalIndicesService(Settings settings, IndicesLifecycle indicesLifecycle, IndicesAnalysisService indicesAnalysisService, IndicesStore indicesStore, Injector injector) {
+    public InternalIndicesService(Settings settings, IndicesLifecycle indicesLifecycle, IndicesAnalysisService indicesAnalysisService, IndicesStore indicesStore, Injector injector, ThreadPool pool) {
         super(settings);
         this.indicesLifecycle = (InternalIndicesLifecycle) indicesLifecycle;
         this.indicesAnalysisService = indicesAnalysisService;
         this.indicesStore = indicesStore;
         this.injector = injector;
-
         this.pluginsService = injector.getInstance(PluginsService.class);
+        this.pool = pool;
 
         this.indicesLifecycle.addListener(oldShardsStats);
     }
@@ -316,12 +318,12 @@ public class InternalIndicesService extends AbstractLifecycleComponent<IndicesSe
 
     @Override
     public void removeIndex(String index, String reason) throws ElasticsearchException {
-        removeIndex(index, reason, null);
+        removeIndex(index, reason, pool.executor(ThreadPool.Names.GENERIC));
     }
 
-    private synchronized void removeIndex(String index, String reason, @Nullable Executor executor) throws ElasticsearchException {
+    private synchronized void removeIndex(final String index, final String reason, Executor executor) throws ElasticsearchException {
         IndexService indexService;
-        Injector indexInjector = indicesInjectors.remove(index);
+        final Injector indexInjector = indicesInjectors.remove(index);
         if (indexInjector == null) {
             return;
         }
@@ -342,8 +344,15 @@ public class InternalIndicesService extends AbstractLifecycleComponent<IndicesSe
 
         logger.debug("[{}] closing index cache", index, reason);
         indexInjector.getInstance(IndexCache.class).close();
-        logger.debug("[{}] clearing index field data", index, reason);
-        indexInjector.getInstance(IndexFieldDataService.class).clear(false);
+        final IndexFieldDataService fieldDataService = indexInjector.getInstance(IndexFieldDataService.class);
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                logger.debug("[{}] clearing index field data", index, reason);
+                fieldDataService.clear(true);
+            }
+        });
+
         logger.debug("[{}] closing analysis service", index, reason);
         indexInjector.getInstance(AnalysisService.class).close();
         logger.debug("[{}] closing index engine", index, reason);
