@@ -36,7 +36,7 @@ public interface IndexFieldDataCache {
     /**
      * Clears all the field data stored cached in on this index.
      */
-    void clear();
+    void clear(boolean immediately);
 
     /**
      * Clears all the field data stored cached in on this index for the specified field name.
@@ -66,7 +66,7 @@ public interface IndexFieldDataCache {
         }
 
         @Override
-        public void clear() {
+        public void clear(boolean immediately) {
         }
 
         @Override

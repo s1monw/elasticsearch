@@ -154,6 +154,10 @@ public class IndexFieldDataService extends AbstractIndexComponent {
     }
 
     public void clear() {
+        clear(true);
+    }
+
+    public void clear(boolean immediately) {
         fieldLoadingLock.globalLock().lock();
         logger.info("#### clear");
         try {
@@ -170,7 +174,7 @@ public class IndexFieldDataService extends AbstractIndexComponent {
             final Collection<IndexFieldDataCache> fieldDataCacheValues = fieldDataCaches.values();
             for (IndexFieldDataCache cache : fieldDataCacheValues) {
                 try {
-                    cache.clear();
+                    cache.clear(immediately);
                 } catch (Throwable t) {
                     exceptions.add(t);
                 }
@@ -198,7 +202,7 @@ public class IndexFieldDataService extends AbstractIndexComponent {
             final IndexFieldDataCache cache = fieldDataCaches.remove(fieldName);
             if (cache != null) {
                 try {
-                    cache.clear();
+                    cache.clear(true);
                 } catch (Throwable t) {
                     exceptions.add(t);
                 }

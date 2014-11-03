@@ -235,7 +235,7 @@ public class IndicesFieldDataCache extends AbstractComponent implements RemovalL
         }
 
         @Override
-        public void clear() {
+        public void clear(boolean immediately) {
             // TODO: determine whether there is ever anything in this cache that doesn't share the index and consider .invalidateAll() instead
             for (Key key : cache.asMap().keySet()) {
                 if (key.indexCache.index.equals(index)) {
@@ -253,7 +253,9 @@ public class IndicesFieldDataCache extends AbstractComponent implements RemovalL
             // Note this is intended by the Guava developers, see:
             // https://code.google.com/p/guava-libraries/wiki/CachesExplained#Eviction
             // (the "When Does Cleanup Happen" section)
-            cache.cleanUp();
+            if (immediately) {
+                cache.cleanUp();
+            }
         }
 
         @Override
