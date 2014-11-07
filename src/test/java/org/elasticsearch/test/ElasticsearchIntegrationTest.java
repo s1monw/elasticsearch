@@ -1098,7 +1098,7 @@ public abstract class ElasticsearchIntegrationTest extends ElasticsearchTestCase
      */
     protected ClusterHealthStatus ensureSearchable(String... indices) {
         // this is just a temporary thing but it's easier to change if it is encapsulated.
-        return ensureGreen(indices);
+        return ensureYellow(indices);
     }
 
     /**
