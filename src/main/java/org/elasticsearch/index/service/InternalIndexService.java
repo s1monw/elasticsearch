@@ -345,7 +345,7 @@ public class InternalIndexService extends AbstractIndexComponent implements Inde
         ShardLock lock = null;
         boolean success = false;
         try {
-            lock = nodeEnv.shardLock(shardId, TimeUnit.SECONDS.toMillis(5));
+            lock = nodeEnv.shardLock(shardId, TimeUnit.SECONDS.toMillis(0));
             if (shardsInjectors.containsKey(shardId.id())) {
                 throw new IndexShardAlreadyExistsException(shardId + " already exists");
             }
