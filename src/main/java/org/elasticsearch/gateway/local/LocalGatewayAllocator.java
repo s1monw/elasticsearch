@@ -264,7 +264,16 @@ public class LocalGatewayAllocator extends AbstractComponent implements GatewayA
         // Now, handle replicas, try to assign them to nodes that are similar to the one the primary was allocated on
         unassignedIterator = routingNodes.unassigned().iterator();
         while (unassignedIterator.hasNext()) {
+
             MutableShardRouting shard = unassignedIterator.next();
+            if (shard.primary()) {
+                continue;
+            }
+
+            // this is an API allocation, ignore since we know there is no data...
+            if (!routingNodes.routingTable().index(shard.index()).shard(shard.id()).primaryAllocatedPostApi()) {
+                continue;
+            }
 
             // pre-check if it can be allocated to any node that currently exists, so we won't list the store for it for nothing
             boolean canBeAllocatedToAtLeastOneNode = false;
