@@ -257,7 +257,7 @@ public class LocalGatewayAllocator extends AbstractComponent implements GatewayA
             }
         }
 
-        if (!routingNodes.hasUnassigned()) {
+        if (!routingNodes.hasUnassigned() || true) {
             return changed;
         }
 
@@ -271,7 +271,7 @@ public class LocalGatewayAllocator extends AbstractComponent implements GatewayA
             }
 
             // this is an API allocation, ignore since we know there is no data...
-            if (!routingNodes.routingTable().index(shard.index()).shard(shard.id()).primaryAllocatedPostApi()) {
+            if (routingNodes.routingTable().index(shard.index()).shard(shard.id()).primaryShard().unassigned()) {
                 continue;
             }
 
