@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 
 /**
  * Process ID file abstraction that writes the current pid into a file and optionally
@@ -59,6 +60,10 @@ public final class PidFile {
     static PidFile create(Path path, boolean deleteOnExit, long pid) throws IOException {
         Path parent = path.getParent();
         if (parent != null) {
+            BasicFileAttributes basicFileAttributes = Files.readAttributes(parent, BasicFileAttributes.class);
+            System.out.println(basicFileAttributes);
+            System.out.println("exists: " + Files.exists(parent));
+            System.out.println("dir: " + Files.isDirectory(parent));
             if (Files.exists(parent) && Files.isDirectory(parent) == false) {
                 throw new ElasticsearchIllegalArgumentException(parent + " exists but is not a directory");
             }

@@ -19,6 +19,7 @@
 
 package org.elasticsearch.common;
 
+import com.carrotsearch.randomizedtesting.annotations.Repeat;
 import com.google.common.base.Charsets;
 import org.elasticsearch.ElasticsearchIllegalArgumentException;
 import org.elasticsearch.test.ElasticsearchTestCase;
@@ -47,6 +48,7 @@ public class PidFileTests extends ElasticsearchTestCase {
     }
 
     @Test
+    @Repeat(iterations = 100)
     public void testPidFile() throws IOException {
         Path dir = newTempDir().toPath();
         Path parent = dir.resolve("foo");
