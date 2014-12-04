@@ -48,7 +48,6 @@ public class PidFileTests extends ElasticsearchTestCase {
     }
 
     @Test
-    @Repeat(iterations = 100)
     public void testPidFile() throws IOException {
         Path dir = newTempDir().toPath();
         Path parent = dir.resolve("foo");
