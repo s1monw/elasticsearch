@@ -1002,6 +1002,15 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
         public boolean contains(String existingFile) {
             return metadata.containsKey(existingFile);
         }
+
+        public StoreFileMetaData getSegmentsFile() {
+            for (StoreFileMetaData file : this) {
+                if (file.name().startsWith(IndexFileNames.SEGMENTS)) {
+                    return file;
+                }
+            }
+            return null;
+        }
     }
 
     /**

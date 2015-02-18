@@ -64,10 +64,7 @@ import org.elasticsearch.index.fielddata.IndexFieldData;
 
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 import static org.elasticsearch.common.lucene.search.NoopCollector.NOOP_COLLECTOR;
 
@@ -134,6 +131,23 @@ public class Lucene {
      */
     public static SegmentInfos readSegmentInfos(IndexCommit commit, Directory directory) throws IOException {
         return SegmentInfos.readCommit(directory, commit.getSegmentsFileName());
+    }
+
+    /**
+     * Reads the segments infos from the given segments file name, failing if it fails to load
+     */
+    public static SegmentInfos readSegmentInfos(String segmentsFileName, Directory directory) throws IOException {
+        return SegmentInfos.readCommit(directory, segmentsFileName);
+    }
+
+    public static Set<String> findAllSegmentFiles(Directory dir) throws IOException {
+        final Set<String> set = new HashSet<>();
+        for (String file : dir.listAll()) {
+            if (file.startsWith(IndexFileNames.SEGMENTS)) {
+               set.add(file);
+            }
+        }
+        return set;
     }
 
     public static void checkSegmentInfoIntegrity(final Directory directory) throws IOException {
