@@ -23,9 +23,12 @@ import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.routing.GroupShardsIterator;
 import org.elasticsearch.cluster.routing.RoutingNode;
 import org.elasticsearch.cluster.routing.RoutingNodes;
+import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.search.SearchHit;
@@ -35,6 +38,7 @@ import org.elasticsearch.test.InternalTestCluster;
 import org.junit.Test;
 
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 
 import static com.google.common.collect.Lists.newArrayList;
@@ -369,5 +373,93 @@ public class IndexWithShadowReplicasTests extends ElasticsearchIntegrationTest {
         assertThat(hits[1].field("foo").getValue().toString(), equalTo("baz"));
         assertThat(hits[2].field("foo").getValue().toString(), equalTo("eggplant"));
         assertThat(hits[3].field("foo").getValue().toString(), equalTo("foo"));
+    }
+
+    @Test
+    public void testSimpleNonSharedFS() throws Exception {
+        internalCluster().startNodesAsync(3).get();
+        final String IDX = "test";
+        final Path dataPath = newTempDirPath();
+
+        Settings idxSettings = ImmutableSettings.builder()
+                .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
+                .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, randomIntBetween(1, 2))
+                .put(IndexMetaData.SETTING_DATA_PATH, dataPath.toAbsolutePath().toString())
+                .put(IndexMetaData.SETTING_SHADOW_REPLICAS, true)
+                .put(IndexMetaData.SETTING_SHARED_FILESYSTEM, false)
+                .build();
+
+        prepareCreate(IDX).setSettings(idxSettings).addMapping("doc", "foo", "type=string").get();
+        ensureGreen(IDX);
+
+        IndexRequestBuilder[] builders = new IndexRequestBuilder[between(10, 20)];
+        for (int i = 0; i < builders.length; i++) {
+            builders[i] = client().prepareIndex(IDX, "doc", Integer.toString(i)).setSource("foo", "bar");
+        }
+        indexRandom(false, builders);
+        flush(IDX);
+        logger.info("--> performing query");
+        for (int i = 0; i < 10; i++) {
+            SearchResponse resp = client().prepareSearch(IDX).setQuery(matchAllQuery()).get();
+            assertHitCount(resp, builders.length);
+        }
+
+        logger.info("--> restarting all nodes");
+        if (randomBoolean()) {
+            logger.info("--> rolling restart");
+            internalCluster().rollingRestart();
+        } else {
+            logger.info("--> full restart");
+            internalCluster().fullRestart();
+        }
+
+        client().admin().cluster().prepareHealth().setWaitForNodes("3").get();
+        ensureGreen(IDX);
+
+        logger.info("--> performing query");
+        for (int i = 0; i < 10; i++) {
+            SearchResponse resp = client().prepareSearch(IDX).setQuery(matchAllQuery()).get();
+            assertHitCount(resp, builders.length);
+            for (SearchHit hit : resp.getHits().getHits()) {
+                assertEquals(hit.sourceAsMap().get("foo"), "bar");
+            }
+        }
+
+        // we reindex and check if the new updated docs are all available on the primary
+        for (int i = 0; i < builders.length; i++) {
+            builders[i] = client().prepareIndex(IDX, "doc", Integer.toString(i)).setSource("foo", "foobar");
+        }
+        indexRandom(false, true, false, Arrays.asList(builders)); // don't flush here
+        // only refresh no flush
+        refresh();
+        ClusterState state = client().admin().cluster().prepareState().get().getState();
+        GroupShardsIterator shardIterators = state.getRoutingNodes().getRoutingTable().activePrimaryShardsGrouped(new String[]{IDX}, false);
+        ShardRouting primary = shardIterators.iterator().next().nextOrNull();
+        for (int i = 0; i < 10; i++) {
+            SearchResponse resp = client().prepareSearch(IDX).setExplain(true).setQuery(matchAllQuery()).get();
+            assertHitCount(resp, builders.length);
+            for (SearchHit hit : resp.getHits().getHits()) {
+                if (hit.shard().getNodeId().equals(primary.currentNodeId())) {
+                    // this comes from the primary so we have the latest
+                    assertEquals(hit.sourceAsMap().get("foo"), "foobar");
+                } else {
+                    // this comes from the replica not caught up yet
+                    assertEquals(hit.sourceAsMap().get("foo"), "bar");
+                }
+            }
+        }
+
+        flush(IDX);
+        logger.info("--> performing query");
+        for (int i = 0; i < 10; i++) {
+            SearchResponse resp = client().prepareSearch(IDX).setQuery(matchAllQuery()).get();
+            assertHitCount(resp, builders.length);
+            for (SearchHit hit : resp.getHits().getHits()) {
+                assertEquals(hit.sourceAsMap().get("foo"), "foobar");
+            }
+        }
+
+        logger.info("--> deleting index");
+        assertAcked(client().admin().indices().prepareDelete(IDX));
     }
 }
