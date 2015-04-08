@@ -24,6 +24,7 @@ import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotR
 import org.elasticsearch.action.admin.cluster.state.ClusterStateResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.routing.RoutingNode;
@@ -42,11 +43,15 @@ import org.junit.Test;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
+import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
 import static org.hamcrest.Matchers.*;
 
 /**
@@ -308,6 +313,62 @@ public class IndexWithShadowReplicasTests extends ElasticsearchIntegrationTest {
         assertThat(gResp1.getField("foo").getValue().toString(), equalTo("bar"));
         assertThat(gResp2.getField("foo").getValue().toString(), equalTo("bar"));
     }
+
+    @Test
+    public void testPrimaryRelocationWithConcurrentIndexing() throws Exception {
+        Settings nodeSettings = ImmutableSettings.builder()
+                .put("node.add_id_to_custom_path", false)
+                .put("node.enable_custom_paths", true)
+                .build();
+
+        String node1 = internalCluster().startNode(nodeSettings);
+        Path dataPath = newTempDirPath();
+        final String IDX = "test";
+
+        Settings idxSettings = ImmutableSettings.builder()
+                .put(IndexMetaData.SETTING_NUMBER_OF_SHARDS, 1)
+                .put(IndexMetaData.SETTING_NUMBER_OF_REPLICAS, 1)
+                .put(IndexMetaData.SETTING_DATA_PATH, dataPath.toAbsolutePath().toString())
+                .put(IndexMetaData.SETTING_SHADOW_REPLICAS, true)
+                .put(IndexMetaData.SETTING_SHARED_FILESYSTEM, true)
+                .build();
+
+        prepareCreate(IDX).setSettings(idxSettings).addMapping("doc", "foo", "type=string").get();
+        ensureYellow(IDX);
+        // Node1 has the primary, now node2 has the replica
+        String node2 = internalCluster().startNode(nodeSettings);
+        ensureGreen(IDX);
+        client().admin().cluster().prepareHealth().setWaitForNodes("2").get();
+        flushAndRefresh(IDX);
+        // now prevent primary from being allocated on node 1 move to node_3
+        String node3 = internalCluster().startNode(nodeSettings);
+        final AtomicBoolean stop = new AtomicBoolean(false);
+        final AtomicInteger counter = new AtomicInteger(0);
+        final CountDownLatch started = new CountDownLatch(1);
+        Thread thread = new Thread() {
+            @Override
+            public void run() {
+                started.countDown();
+                while (stop.get() == false) {
+                    final IndexResponse indexResponse = client().prepareIndex(IDX, "doc", Integer.toString(counter.incrementAndGet())).setSource("foo", "bar").get();
+                }
+            }
+        };
+        thread.start();
+        started.await();
+        Settings build = ImmutableSettings.builder().put("index.routing.allocation.exclude._name", node1).build();
+        client().admin().indices().prepareUpdateSettings(IDX).setSettings(build).execute().actionGet();
+        ensureGreen(IDX);
+        stop.compareAndSet(false, true);
+        thread.join();
+        logger.info("--> performing query");
+        flushAndRefresh();
+
+        SearchResponse resp = client().prepareSearch(IDX).setQuery(matchAllQuery()).get();
+        assertHitCount(resp, counter.get());
+
+    }
+
 
     @Test
     public void testIndexWithShadowReplicasCleansUp() throws Exception {
