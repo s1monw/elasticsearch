@@ -1246,7 +1246,6 @@ public class IndexShard extends AbstractIndexShardComponent {
         return engineFactory.newReadWriteEngine(config);
     }
 
-
     /**
      * Returns <code>true</code> iff this shard allows primary promotion, otherwise <code>false</code>
      */

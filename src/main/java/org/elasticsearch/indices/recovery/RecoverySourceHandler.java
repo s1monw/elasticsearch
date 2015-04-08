@@ -76,7 +76,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * everything relating to copying the segment files as well as sending translog
  * operations across the wire once the segments have been copied.
  */
-public class RecoverySourceHandler implements Engine.RecoveryHandler {
+public class RecoverySourceHandler extends Engine.RecoveryHandler {
 
     protected final ESLogger logger;
     // Shard that is going to be recovered (the "source")

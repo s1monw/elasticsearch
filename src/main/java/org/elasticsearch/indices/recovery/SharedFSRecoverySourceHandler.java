@@ -30,6 +30,8 @@ import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.transport.TransportService;
 
+import java.io.IOException;
+
 /**
  * A recovery handler that skips phase 1 as well as sending the snapshot. During phase 3 the shard is marked
  * as relocated an closed to ensure that the engine is closed and the target can acquire the IW write lock.
@@ -47,22 +49,36 @@ public class SharedFSRecoverySourceHandler extends RecoverySourceHandler {
 
     @Override
     public void phase1(SnapshotIndexCommit snapshot) throws ElasticsearchException {
-        if (request.recoveryType() == RecoveryState.Type.RELOCATION && shard.routingEntry().primary()) {
-            // here we simply fail the primary shard since we can't move them (have 2 writers open at the same time)
-            // by failing the shard we play safe and just go through the entire reallocation procedure of the primary
-            // it would be ideal to make sure we flushed the translog here but that is not possible in the current design.
-            ElasticsearchIllegalStateException exception = new ElasticsearchIllegalStateException("Can't relocate primary - failing");
-            shard.failShard("primary_relocation", exception);
-            throw exception;
+        logger.trace("{} recovery [phase1] to {}: skipping phase 1 for shared filesystem", request.shardId(), request.targetNode());
+        if (isPrimaryRelocation()) {
+            // if we relocate we close the engine in order to open a new index writer on the other end of the relocation
+            // yet what would happen here if the relocation fails? then the primary is closed and can't be used anymore... that's a problem
+            // how should we fix it?
+
+            try {
+                shard.engine().close();
+            } catch (IOException e) {
+                logger.warn("close engine failed", e);
+            }
         }
-        logger.trace("{} recovery [phase2] to {}: skipping phase 1 for shared filesystem", request.shardId(), request.targetNode());
     }
 
 
     @Override
     protected int sendSnapshot(Translog.Snapshot snapshot) throws ElasticsearchException {
-        logger.trace("{} recovery [phase3] to {}: skipping transaction log operations for file sync", shard.shardId(), request.targetNode());
+        logger.trace("{} recovery to {}: skipping transaction log operations for file sync", shard.shardId(), request.targetNode());
+        if (isPrimaryRelocation()) {
+            return super.sendSnapshot(snapshot);
+        }
         return 0;
+    }
+
+    public boolean failOnClosedEngine() {
+        return isPrimaryRelocation() == false;
+    }
+
+    private boolean isPrimaryRelocation() {
+        return request.recoveryType() == RecoveryState.Type.RELOCATION && shard.routingEntry().primary();
     }
 
 }

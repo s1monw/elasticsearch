@@ -825,7 +825,9 @@ public class InternalEngine extends Engine {
         Translog.Snapshot phase3Snapshot = null;
         boolean success = false;
         try {
-            ensureOpen();
+            if (recoveryHandler.failOnClosedEngine()) {
+                ensureOpen();
+            }
             phase3Snapshot = translog.snapshot(phase2Snapshot);
             recoveryHandler.phase3(phase3Snapshot);
             success = true;

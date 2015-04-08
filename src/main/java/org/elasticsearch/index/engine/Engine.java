@@ -525,13 +525,22 @@ public abstract class Engine implements Closeable {
      * <p>The last phase returns the remaining transaction log. During this phase, no dirty
      * operations are allowed on the index.
      */
-    public static interface RecoveryHandler {
+    public static abstract class RecoveryHandler {
 
-        void phase1(SnapshotIndexCommit snapshot) throws ElasticsearchException;
+        public abstract void phase1(SnapshotIndexCommit snapshot) throws ElasticsearchException;
 
-        void phase2(Translog.Snapshot snapshot) throws ElasticsearchException;
+        public abstract void phase2(Translog.Snapshot snapshot) throws ElasticsearchException;
 
-        void phase3(Translog.Snapshot snapshot) throws ElasticsearchException;
+        public abstract void phase3(Translog.Snapshot snapshot) throws ElasticsearchException;
+
+        /**
+         * Returns <code>true</code> iff the recovery should be failed if the engine is closed before phase3
+         * was successfully finished. Default is <code>true</code>
+         */
+        public boolean failOnClosedEngine() {
+            return true;
+        }
+
     }
 
     public static class Searcher implements Releasable {
