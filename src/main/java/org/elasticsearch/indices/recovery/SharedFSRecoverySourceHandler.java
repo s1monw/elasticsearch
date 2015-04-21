@@ -30,6 +30,9 @@ import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.transport.TransportService;
 
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * A recovery handler that skips phase 1 as well as sending the snapshot. During phase 3 the shard is marked
  * as relocated an closed to ensure that the engine is closed and the target can acquire the IW write lock.
@@ -38,6 +41,7 @@ public class SharedFSRecoverySourceHandler extends RecoverySourceHandler {
 
     private final IndexShard shard;
     private final StartRecoveryRequest request;
+    private final AtomicBoolean engineClosed = new AtomicBoolean(false);
 
     public SharedFSRecoverySourceHandler(IndexShard shard, StartRecoveryRequest request, RecoverySettings recoverySettings, TransportService transportService, ClusterService clusterService, IndicesService indicesService, MappingUpdatedAction mappingUpdatedAction, ESLogger logger) {
         super(shard, request, recoverySettings, transportService, clusterService, indicesService, mappingUpdatedAction, logger);
@@ -47,15 +51,18 @@ public class SharedFSRecoverySourceHandler extends RecoverySourceHandler {
 
     @Override
     public void phase1(SnapshotIndexCommit snapshot) throws ElasticsearchException {
-        if (request.recoveryType() == RecoveryState.Type.RELOCATION && shard.routingEntry().primary()) {
-            // here we simply fail the primary shard since we can't move them (have 2 writers open at the same time)
-            // by failing the shard we play safe and just go through the entire reallocation procedure of the primary
-            // it would be ideal to make sure we flushed the translog here but that is not possible in the current design.
-            ElasticsearchIllegalStateException exception = new ElasticsearchIllegalStateException("Can't relocate primary - failing");
-            shard.failShard("primary_relocation", exception);
-            throw exception;
+        if (isPrimaryRelocation()) {
+            logger.debug("[phase1] closing engine on primary for shared filesystem recovery");
+            shard.engine().flush(true, true);
+            try {
+                shard.engine().close();
+                engineClosed.set(true);
+            } catch (IOException e) {
+                logger.warn("close engine failed", e);
+                shard.failShard("failed to close engine (phase1)", e);
+            }
         }
-        logger.trace("{} recovery [phase2] to {}: skipping phase 1 for shared filesystem", request.shardId(), request.targetNode());
+        logger.trace("{} recovery [phase1] to {}: skipping phase 1 for shared filesystem", request.shardId(), request.targetNode());
     }
 
 
@@ -63,6 +70,43 @@ public class SharedFSRecoverySourceHandler extends RecoverySourceHandler {
     protected int sendSnapshot(Translog.Snapshot snapshot) throws ElasticsearchException {
         logger.trace("{} recovery [phase3] to {}: skipping transaction log operations for file sync", shard.shardId(), request.targetNode());
         return 0;
+    }
+
+    @Override
+    public void phase2(Translog.Snapshot snapshot) throws ElasticsearchException {
+        try {
+            super.phase2(snapshot);
+        } catch (Throwable t) {
+            onRecoveryFailure(t);
+            throw t;
+        }
+    }
+
+    @Override
+    public void phase3(Translog.Snapshot snapshot) throws ElasticsearchException {
+        try {
+            super.phase3(snapshot);
+        } catch (Throwable t) {
+            onRecoveryFailure(t);
+            throw t;
+        }
+    }
+
+    private boolean isPrimaryRelocation() {
+        return request.recoveryType() == RecoveryState.Type.RELOCATION && shard.routingEntry().primary();
+    }
+
+    private void onRecoveryFailure(Throwable t) {
+        if (isPrimaryRelocation() && engineClosed.get()) {
+            // If the relocation fails then the primary is closed and can't be
+            // used anymore... (because it's closed) that's a problem, so in
+            // that case, fail the shard to reallocate a new IndexShard and
+            // create a new IndexWriter
+            logger.info("recovery failed for primary shadow shard, failing shard");
+            shard.failShard("primary relocation failed on shared filesystem", t);
+        } else {
+            logger.info("recovery failed on shared filesystem", t);
+        }
     }
 
 }

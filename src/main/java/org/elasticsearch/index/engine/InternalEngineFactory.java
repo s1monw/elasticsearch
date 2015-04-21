@@ -18,9 +18,49 @@
  */
 package org.elasticsearch.index.engine;
 
+import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.common.lease.Releasables;
+import org.elasticsearch.common.util.concurrent.ReleasableLock;
+import org.elasticsearch.index.deletionpolicy.SnapshotIndexCommit;
+import org.elasticsearch.index.translog.Translog;
+
 public class InternalEngineFactory implements EngineFactory {
     @Override
     public Engine newReadWriteEngine(EngineConfig config, boolean skipTranslogRecovery) {
+        if (IndexMetaData.isOnSharedFilesystem(config.getIndexSettings())) {
+          return new InternalEngine(config, skipTranslogRecovery) {
+              @Override
+              public void recover(RecoveryHandler recoveryHandler) throws EngineException {
+                  store.incRef();
+                  try  {
+                      try (ReleasableLock lock = writeLock.acquire()) {
+                          // phase1 under lock
+                          ensureOpen();
+                          try {
+                              recoveryHandler.phase1(null);
+                          } catch (Throwable e) {
+                              maybeFailEngine("recovery phase 1", e);
+                              throw new RecoveryEngineException(shardId, 1, "Execution failed", wrapIfClosed(e));
+                          }
+                      }
+                      try {
+                          recoveryHandler.phase2(null);
+                      } catch (Throwable e) {
+                          maybeFailEngine("recovery phase 2", e);
+                          throw new RecoveryEngineException(shardId, 2, "Execution failed", wrapIfClosed(e));
+                      }
+                      try {
+                          recoveryHandler.phase3(null);
+                      } catch (Throwable e) {
+                          maybeFailEngine("recovery phase 3", e);
+                          throw new RecoveryEngineException(shardId, 3, "Execution failed", wrapIfClosed(e));
+                      }
+                  } finally {
+                      store.decRef();
+                  }
+              }
+          };
+        }
         return new InternalEngine(config, skipTranslogRecovery);
     }
 
