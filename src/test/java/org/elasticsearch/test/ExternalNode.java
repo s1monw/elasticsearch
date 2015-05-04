@@ -112,7 +112,6 @@ final class ExternalNode implements Closeable {
                 case "node.name":
                 case "path.home":
                 case "node.mode":
-                case "node.local":
                 case TransportModule.TRANSPORT_TYPE_KEY:
                 case DiscoveryModule.DISCOVERY_TYPE_KEY:
                 case TransportModule.TRANSPORT_SERVICE_TYPE_KEY:

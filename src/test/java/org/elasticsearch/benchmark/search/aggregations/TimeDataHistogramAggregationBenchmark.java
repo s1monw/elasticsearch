@@ -74,7 +74,7 @@ public class TimeDataHistogramAggregationBenchmark {
 
         Settings settings = settingsBuilder()
                 .put("index.refresh_interval", "-1")
-                .put("node.local", true)
+                .put("node.mode", "local")
                 .put(SETTING_NUMBER_OF_SHARDS, 1)
                 .put(SETTING_NUMBER_OF_REPLICAS, 0)
                 .build();

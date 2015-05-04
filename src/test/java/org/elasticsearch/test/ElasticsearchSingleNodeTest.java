@@ -132,7 +132,7 @@ public abstract class ElasticsearchSingleNodeTest extends ElasticsearchTestCase 
             .put("config.ignore_system_properties", true) // make sure we get what we set :)
         ).build();
         build.start();
-        assertThat(DiscoveryNode.localNode(build.settings()), is(true));
+        assertTrue(DiscoveryNode.localNode(build.settings()));
         return build;
     }
 

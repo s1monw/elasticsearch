@@ -136,7 +136,7 @@ public class NodeBuilder {
      * @param local Should the node be local or not
      */
     public NodeBuilder local(boolean local) {
-        settings.put("node.local", local);
+        settings.put("node.mode", local ? "local" : "network");
         return this;
     }
 

@@ -48,9 +48,6 @@ public class DiscoveryNode implements Streamable, Serializable {
     public static final Version MINIMUM_DISCOVERY_NODE_VERSION = Version.CURRENT.minimumCompatibilityVersion();
 
     public static boolean localNode(Settings settings) {
-        if (settings.get("node.local") != null) {
-            return settings.getAsBoolean("node.local", false);
-        }
         if (settings.get("node.mode") != null) {
             String nodeMode = settings.get("node.mode");
             if ("local".equals(nodeMode)) {

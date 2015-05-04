@@ -306,14 +306,11 @@ public final class InternalTestCluster extends TestCluster {
 
     public static String nodeMode() {
         Builder builder = ImmutableSettings.builder();
-        if (Strings.isEmpty(System.getProperty("es.node.mode")) && Strings.isEmpty(System.getProperty("es.node.local"))) {
+        if (Strings.isEmpty(System.getProperty("es.node.mode"))) {
             return "local"; // default if nothing is specified
         }
         if (Strings.hasLength(System.getProperty("es.node.mode"))) {
             builder.put("node.mode", System.getProperty("es.node.mode"));
-        }
-        if (Strings.hasLength(System.getProperty("es.node.local"))) {
-            builder.put("node.local", System.getProperty("es.node.local"));
         }
         if (DiscoveryNode.localNode(builder.build())) {
             return "local";
@@ -332,10 +329,7 @@ public final class InternalTestCluster extends TestCluster {
     }
 
     private static boolean isLocalTransportConfigured() {
-        if ("local".equals(System.getProperty("es.node.mode", "network"))) {
-            return true;
-        }
-        return Boolean.parseBoolean(System.getProperty("es.node.local", "false"));
+        return "local".equals(System.getProperty("es.node.mode", "network"));
     }
 
     private Settings getSettings(int nodeOrdinal, long nodeSeed, Settings others) {
@@ -858,7 +852,6 @@ public final class InternalTestCluster extends TestCluster {
                     .put("plugins." + PluginsService.LOAD_PLUGIN_FROM_CLASSPATH, false)
                     .put(ClusterName.SETTING, clusterName).put("client.transport.sniff", sniff)
                     .put("node.mode", nodeSettings.get("node.mode", NODE_MODE))
-                    .put("node.local", nodeSettings.get("node.local", ""))
                     .put("logger.prefix", nodeSettings.get("logger.prefix", ""))
                     .put("logger.level", nodeSettings.get("logger.level", "INFO"))
                     .put("config.ignore_system_properties", true)
