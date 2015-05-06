@@ -145,7 +145,8 @@ public class ChecksummedTranslogStream implements TranslogStream {
                 case VERSION_CHECKPOINTS:
                     return ChannelReference.findCheckPoint(reference.file());
                 case VERSION_CHECKSUMS:
-                    return new Checkpoint(reference.channel().size(), -1, 0);
+                    // legacy - we still have to support it somehow
+                    return new Checkpoint(reference.channel().size(), ChannelReader.UNKNOWN_OP_COUNT, 0);
                 default:
                     throw new IllegalStateException("Unknown version: " + version);
             }

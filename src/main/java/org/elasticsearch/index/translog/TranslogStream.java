@@ -36,29 +36,32 @@ public interface TranslogStream {
     /**
      * Read the next translog operation from the input stream
      */
-    public Translog.Operation read(StreamInput in) throws IOException;
+    Translog.Operation read(StreamInput in) throws IOException;
 
     /**
      * Write the given translog operation to the output stream
      */
-    public void write(StreamOutput out, Translog.Operation op) throws IOException;
+    void write(StreamOutput out, Translog.Operation op) throws IOException;
 
     /**
      * Optionally write a header identifying the translog version to the
      * file channel
      */
-    public int writeHeader(FileChannel channel) throws IOException;
+    int writeHeader(FileChannel channel) throws IOException;
 
     /**
      * returns the site of the header in bytes
      */
-    public int headerLength();
+    int headerLength();
 
     /**
      * Seek past the header, if any header is present
      */
-    public StreamInput openInput(Path translogFile) throws IOException;
+    StreamInput openInput(Path translogFile) throws IOException;
 
-    public Checkpoint getLatestCheckpoint(ChannelReference reference) throws IOException;
+    /**
+     * Reads the latest checkpoint from the {@link ChannelReference}
+     */
+    Checkpoint getLatestCheckpoint(ChannelReference reference) throws IOException;
 
 }
