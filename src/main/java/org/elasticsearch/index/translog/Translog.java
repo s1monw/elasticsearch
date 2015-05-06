@@ -193,9 +193,19 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
                         throw new TranslogException(shardId, "failed to parse id from file name matching pattern " + file);
                     }
                     idGenerator = Math.max(idGenerator, id + 1);
+
                     final ChannelReference raf = new InternalChannelReference(id, location.resolve(getFilename(id)), true);
-                    final Checkpoint checkPoint = raf.checkpointFromStream();
-                    assert checkPoint.syncedPosition <= raf.channel().size() : "checkpoint is inconsistent with channel length:"  + raf.channel().size() + " " + checkPoint;
+                    final Checkpoint checkPoint;
+                    boolean checkpointSuccess = false;
+                    try {
+                        checkPoint = raf.checkpointFromStream();
+                        checkpointSuccess = true;
+                    } finally {
+                        if (checkpointSuccess == false) {
+                            raf.decRef(); // we might hit exceptions here like EOF - we have to let the refernece go
+                        }
+                    }
+                    assert checkPoint.syncedPosition <= raf.channel().size() : "checkpoint is inconsistent with channel length:" + raf.channel().size() + " " + checkPoint;
                     foundTranslogs.add(new ChannelImmutableReader(id, raf, checkPoint.syncedPosition, checkPoint.numWrittenOperations));
                     logger.debug("found local translog with id [{}]", id);
                 }

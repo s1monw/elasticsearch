@@ -138,6 +138,9 @@ public class ChecksummedTranslogStream implements TranslogStream {
 
     @Override
     public Checkpoint getLatestCheckpoint(ChannelReference reference) throws IOException {
+        if (reference.channel().size() == 0) { // nocommit - old files can have no header.... bummer!
+            return new Checkpoint(reference.channel().size(), ChannelReader.UNKNOWN_OP_COUNT, 0);
+        }
         try (final InputStream fileInputStream = Files.newInputStream(reference.file())) {
             final InputStreamStreamInput in = new InputStreamStreamInput(fileInputStream);
             final int version = CodecUtil.checkHeader(new InputStreamDataInput(in), TranslogStreams.TRANSLOG_CODEC, VERSION_CHECKSUMS, VERSION);

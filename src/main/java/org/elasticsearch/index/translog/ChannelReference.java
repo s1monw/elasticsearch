@@ -23,11 +23,14 @@ import org.apache.lucene.store.ByteArrayDataOutput;
 import org.apache.lucene.store.InputStreamDataInput;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.elasticsearch.common.io.Channels;
 import org.elasticsearch.common.util.concurrent.AbstractRefCounted;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.*;
 
@@ -101,13 +104,12 @@ class ChannelReference extends AbstractRefCounted {
 
     private long writeCheckpoint(long syncPosition, int numOperations) throws IOException {
         generation++;
-        try(final OutputStream outputStream = Files.newOutputStream(file.resolveSibling(generationFile(generation)), StandardOpenOption.DSYNC, StandardOpenOption.CREATE_NEW)) {
-            final byte[] buffer = new byte[RamUsageEstimator.NUM_BYTES_INT + RamUsageEstimator.NUM_BYTES_INT + RamUsageEstimator.NUM_BYTES_LONG];
+        try (FileChannel channel = FileChannel.open(file.resolveSibling(generationFile(generation)), StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW)) {
             Checkpoint pos = new Checkpoint(syncPosition, numOperations, generation);
-            ByteArrayDataOutput out = new ByteArrayDataOutput(buffer);
-            pos.write(out);
-            outputStream.write(buffer);
-
+            ByteBuffer buffer = ByteBuffer.allocate(RamUsageEstimator.NUM_BYTES_INT + RamUsageEstimator.NUM_BYTES_INT + RamUsageEstimator.NUM_BYTES_LONG);
+            pos.write(buffer);
+            Channels.writeToChannel(buffer, channel);
+            channel.force(false);
         }
         Files.deleteIfExists(file.resolveSibling(generationFile(generation - 1)));
         IOUtils.fsync(file.getParent(), true); //nocommit do we have to do that?

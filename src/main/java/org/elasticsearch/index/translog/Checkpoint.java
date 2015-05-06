@@ -22,6 +22,8 @@ import org.apache.lucene.store.DataInput;
 import org.apache.lucene.store.DataOutput;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 
 /**
  */
@@ -47,10 +49,10 @@ class Checkpoint implements Comparable<Checkpoint> {
         return Long.compare(syncedPosition, o.syncedPosition);
     }
 
-    void write(DataOutput out) throws IOException {
-        out.writeLong(syncedPosition);
-        out.writeInt(numWrittenOperations);
-        out.writeInt(generation);
+    void write(ByteBuffer out) throws IOException {
+        out.putLong(syncedPosition);
+        out.putInt(numWrittenOperations);
+        out.putInt(generation);
     }
 
     @Override
