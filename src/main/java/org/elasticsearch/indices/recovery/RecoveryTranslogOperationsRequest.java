@@ -74,7 +74,7 @@ class RecoveryTranslogOperationsRequest extends TransportRequest {
         int size = in.readVInt();
         operations = Lists.newArrayListWithExpectedSize(size);
         for (int i = 0; i < size; i++) {
-            operations.add(TranslogStreams.CHECKSUMMED_TRANSLOG_STREAM.read(in));
+            operations.add(TranslogStreams.LATEST.read(in));
         }
         totalTranslogOps = in.readVInt();
     }
@@ -86,7 +86,7 @@ class RecoveryTranslogOperationsRequest extends TransportRequest {
         shardId.writeTo(out);
         out.writeVInt(operations.size());
         for (Translog.Operation operation : operations) {
-            TranslogStreams.CHECKSUMMED_TRANSLOG_STREAM.write(out, operation);
+            TranslogStreams.LATEST.write(out, operation);
         }
         out.writeVInt(totalTranslogOps);
     }

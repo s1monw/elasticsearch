@@ -30,17 +30,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * an implementation of {@link org.elasticsearch.index.translog.Translog.Snapshot}, wrapping
  * a {@link ChannelReader}. This class is NOT thread-safe.
  */
-public class ChannelSnapshot implements Closeable {
+public final class ChannelSnapshot implements Closeable {
 
-    protected final ChannelReader reader;
-    protected final AtomicBoolean closed = new AtomicBoolean(false);
+    private final ChannelReader reader;
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final int totalOperations;
+    private int readOperations = 0;
 
-    // we use an atomic long to allow passing it by reference :(
     protected long position;
 
     public ChannelSnapshot(ChannelReader reader) {
         this.reader = reader;
         this.position = reader.firstPosition();
+        totalOperations = this.reader.totalOperations();
     }
 
     public long translogId() {
@@ -52,12 +54,18 @@ public class ChannelSnapshot implements Closeable {
     }
 
     public Translog.Operation next(ByteBuffer reusableBuffer) throws IOException {
-        if (position >= reader.sizeInBytes()) {
+        if (totalOperations != -1) {
+            if (readOperations == totalOperations) {
+                return null;
+            }
+            assert readOperations < totalOperations : "readOpeartions must be less than totalOperations";
+        } else if (position >= reader.sizeInBytes()) {
             return null;
         }
         final int opSize = reader.readSize(reusableBuffer, position);
         Translog.Operation op = reader.read(reusableBuffer, position, opSize);
         position += opSize;
+        readOperations++;
         return op;
     }
 

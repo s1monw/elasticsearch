@@ -103,11 +103,15 @@ public final class BufferingTranslogFile extends TranslogFile {
         if (!syncNeeded()) {
             return;
         }
-        try (ReleasableLock lock = writeLock.acquire()) {
-            flush();
-            lastSyncedOffset = totalOffset;
+        synchronized (this) {
+            try (ReleasableLock lock = writeLock.acquire()) {
+                flush();
+                lastSyncedOffset = totalOffset;
+            }
+            // we can do this outside of the write lock but we have to protect from
+            // concurrent syncs
+            channelReference.checkpoint(lastSyncedOffset, operationCounter);
         }
-        channelReference.channel().force(false);
     }
 
     @Override
@@ -115,6 +119,7 @@ public final class BufferingTranslogFile extends TranslogFile {
         if (!(other instanceof BufferingTranslogFile)) {
             return;
         }
+
         try (ReleasableLock lock = writeLock.acquire()) {
             try {
                 flush();

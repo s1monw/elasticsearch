@@ -19,6 +19,7 @@
 
 package org.elasticsearch.index.translog;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 
@@ -57,5 +58,7 @@ public interface TranslogStream {
      * Seek past the header, if any header is present
      */
     public StreamInput openInput(Path translogFile) throws IOException;
+
+    public Checkpoint getLatestCheckpoint(ChannelReference reference) throws IOException;
 
 }

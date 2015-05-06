@@ -42,7 +42,9 @@ import java.nio.file.Path;
  */
 public class ChecksummedTranslogStream implements TranslogStream {
 
-    public static final int VERSION = 1;
+    public static final int VERSION_CHECKSUMS = 1;
+    public static final int VERSION_CHECKPOINTS = 2; // since 2.0 we have checkpoints?
+    public static final int VERSION = VERSION_CHECKPOINTS;
 
     ChecksummedTranslogStream() {
     }
@@ -122,11 +124,9 @@ public class ChecksummedTranslogStream implements TranslogStream {
         boolean success = false;
         try {
             final InputStreamStreamInput in = new InputStreamStreamInput(fileInputStream);
-            CodecUtil.checkHeader(new InputStreamDataInput(in), TranslogStreams.TRANSLOG_CODEC, VERSION, VERSION);
+            CodecUtil.checkHeader(new InputStreamDataInput(in), TranslogStreams.TRANSLOG_CODEC, VERSION_CHECKSUMS, VERSION);
             success = true;
             return in;
-        } catch (EOFException e) {
-            throw new TruncatedTranslogException("translog header truncated", e);
         } catch (IOException e) {
             throw new TranslogCorruptedException("translog header corrupted", e);
         } finally {
@@ -135,4 +135,21 @@ public class ChecksummedTranslogStream implements TranslogStream {
             }
         }
     }
+
+    @Override
+    public Checkpoint getLatestCheckpoint(ChannelReference reference) throws IOException {
+        try (final InputStream fileInputStream = Files.newInputStream(reference.file())) {
+            final InputStreamStreamInput in = new InputStreamStreamInput(fileInputStream);
+            final int version = CodecUtil.checkHeader(new InputStreamDataInput(in), TranslogStreams.TRANSLOG_CODEC, VERSION_CHECKSUMS, VERSION);
+            switch (version) {
+                case VERSION_CHECKPOINTS:
+                    return ChannelReference.findCheckPoint(reference.file());
+                case VERSION_CHECKSUMS:
+                    return new Checkpoint(reference.channel().size(), -1, 0);
+                default:
+                    throw new IllegalStateException("Unknown version: " + version);
+            }
+        }
+    }
+
 }

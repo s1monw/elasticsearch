@@ -39,9 +39,9 @@ import java.nio.file.Path;
 public class TranslogStreams {
 
     /** V0, no header, no checksums */
-    public static TranslogStream LEGACY_TRANSLOG_STREAM = new LegacyTranslogStream();
+    private static TranslogStream LEGACY_TRANSLOG_STREAM = new LegacyTranslogStream();
     /** V1, header, with per-op checksums */
-    public static TranslogStream CHECKSUMMED_TRANSLOG_STREAM = new ChecksummedTranslogStream();
+    private static TranslogStream CHECKSUMMED_TRANSLOG_STREAM = new ChecksummedTranslogStream();
 
     public static TranslogStream LATEST = CHECKSUMMED_TRANSLOG_STREAM;
 
@@ -98,7 +98,7 @@ public class TranslogStreams {
             if (Files.exists(translogFile) == false || Files.size(translogFile) == 0) {
                 // if it doesn't exist or has no data, use the latest version,
                 // there aren't any backwards compatibility issues
-                return CHECKSUMMED_TRANSLOG_STREAM;
+                return LATEST;
             }
             // Lucene's CodecUtil writes a magic number of 0x3FD76C17 with the
             // header, in binary this looks like:
@@ -132,7 +132,8 @@ public class TranslogStreams {
                 // the translog version
                 int version = CodecUtil.checkHeaderNoMagic(new InputStreamDataInput(headerStream), TRANSLOG_CODEC, 1, Integer.MAX_VALUE);
                 switch (version) {
-                    case ChecksummedTranslogStream.VERSION:
+                    case ChecksummedTranslogStream.VERSION_CHECKPOINTS:
+                    case ChecksummedTranslogStream.VERSION_CHECKSUMS:
                         return CHECKSUMMED_TRANSLOG_STREAM;
                     default:
                         throw new TranslogCorruptedException("No known translog stream version: " + version);
@@ -146,4 +147,7 @@ public class TranslogStreams {
             throw new TranslogCorruptedException("Translog header corrupted", e);
         }
     }
+
+
+
 }

@@ -75,8 +75,13 @@ public class TranslogSnapshot implements Translog.Snapshot {
             try {
                 op = current.next(cacheBuffer);
             } catch (TruncatedTranslogException e) {
-                // file is empty or header has been half-written and should be ignored
-                logger.trace("ignoring truncation exception, the translog [{}] is either empty or half-written", e, current.translogId());
+                if (estimatedTotalOperations == ChannelReader.UNKNOWN_OP_COUNT) {
+                    // legacy translog file - can have UNKNOWN_OP_COUNT nocommit we need to make sure this only applies to old files
+                    // file is empty or header has been half-written and should be ignored
+                    logger.trace("ignoring truncation exception, the translog [{}] is either empty or half-written", e, current.translogId());
+                } else {
+                    throw e;
+                }
             }
             if (op != null) {
                 return op;

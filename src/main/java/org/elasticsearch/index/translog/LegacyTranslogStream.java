@@ -19,6 +19,7 @@
 
 package org.elasticsearch.index.translog;
 
+import org.elasticsearch.Version;
 import org.elasticsearch.common.io.stream.InputStreamStreamInput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
@@ -68,6 +69,11 @@ public class LegacyTranslogStream implements TranslogStream {
     public StreamInput openInput(Path translogFile) throws IOException {
         // nothing to do, legacy translogs have no header
         return new InputStreamStreamInput(Files.newInputStream(translogFile));
+    }
+
+    @Override
+    public Checkpoint getLatestCheckpoint(ChannelReference reference) throws IOException {
+        return new Checkpoint(reference.channel().size(), -1, 0);
     }
 
 }

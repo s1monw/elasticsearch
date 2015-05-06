@@ -193,8 +193,10 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
                         throw new TranslogException(shardId, "failed to parse id from file name matching pattern " + file);
                     }
                     idGenerator = Math.max(idGenerator, id + 1);
-                    final ChannelReference raf = new InternalChannelReference(id, location.resolve(getFilename(id)), StandardOpenOption.READ);
-                    foundTranslogs.add(new ChannelImmutableReader(id, raf, raf.channel().size(), ChannelReader.UNKNOWN_OP_COUNT));
+                    final ChannelReference raf = new InternalChannelReference(id, location.resolve(getFilename(id)), true);
+                    final Checkpoint checkPoint = raf.checkpointFromStream();
+                    assert checkPoint.syncedPosition <= raf.channel().size() : "checkpoint is inconsistent with channel length:"  + raf.channel().size() + " " + checkPoint;
+                    foundTranslogs.add(new ChannelImmutableReader(id, raf, checkPoint.syncedPosition, checkPoint.numWrittenOperations));
                     logger.debug("found local translog with id [{}]", id);
                 }
             }
@@ -383,7 +385,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
         long size = Long.MAX_VALUE;
         try {
             long id = idGenerator++;
-            newFile = type.create(shardId, id, new InternalChannelReference(id, location.resolve(getFilename(id)), StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW), bufferSize);
+            newFile = type.create(shardId, id, new InternalChannelReference(id, location.resolve(getFilename(id)), false), bufferSize);
         } catch (IOException e) {
             throw new TranslogException(shardId, "failed to create new translog file", e);
         }
@@ -551,8 +553,8 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
     private final class InternalChannelReference extends ChannelReference {
         final long translogId;
 
-        public InternalChannelReference(long translogId, Path file, OpenOption... openOptions) throws IOException {
-            super(file, openOptions);
+        public InternalChannelReference(long translogId, Path file, boolean readOnly) throws IOException {
+            super(file, readOnly);
             this.translogId = translogId;
         }
 

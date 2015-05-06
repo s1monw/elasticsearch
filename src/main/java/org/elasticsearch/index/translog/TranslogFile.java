@@ -48,10 +48,9 @@ public class TranslogFile extends ChannelReader {
         ReadWriteLock rwl = new ReentrantReadWriteLock();
         readLock = new ReleasableLock(rwl.readLock());
         writeLock = new ReleasableLock(rwl.writeLock());
-        final TranslogStream stream = this.channelReference.stream();
-        int headerSize = stream.writeHeader(channelReference.channel());
-        this.writtenOffset += headerSize;
-        this.lastSyncedOffset += headerSize;
+        this.writtenOffset = channelReference.channel().position();
+        this.lastSyncedOffset = channelReference.channel().position();
+        channelReference.checkpoint(lastSyncedOffset, operationCounter);
     }
 
 
@@ -106,7 +105,7 @@ public class TranslogFile extends ChannelReader {
         if (syncNeeded()) {
             try (ReleasableLock lock = writeLock.acquire()) {
                 lastSyncedOffset = writtenOffset;
-                channelReference.channel().force(false);
+                channelReference.checkpoint(lastSyncedOffset, operationCounter);
             }
         }
     }
