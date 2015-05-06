@@ -23,11 +23,13 @@ import org.apache.lucene.store.ByteArrayDataOutput;
 import org.apache.lucene.store.InputStreamDataInput;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.RamUsageEstimator;
+import org.elasticsearch.common.SuppressForbidden;
 import org.elasticsearch.common.io.Channels;
 import org.elasticsearch.common.util.concurrent.AbstractRefCounted;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.*;
 
@@ -95,6 +97,7 @@ class ChannelReference extends AbstractRefCounted {
         writeCheckpoint(lastSyncPosition, operationCounter);
     }
 
+//    @SuppressForbidden(reason = "We need control over if the channel write succeeded")
     private void writeCheckpoint(long syncPosition, int numOperations) throws IOException {
         final Path checkpointFile = checkpointFile(file);
         try (FileChannel channel = FileChannel.open(checkpointFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
@@ -103,6 +106,13 @@ class ChannelReference extends AbstractRefCounted {
 
             pos.write(new ByteArrayDataOutput(buffer));
             Channels.writeToChannel(buffer, channel);
+            /* //nocommit should we rather do our own writing here?
+            ByteBuffer bb = ByteBuffer.wrap(buffer, 0, buffer.length);
+            final int write = channel.write(bb);
+            if (write != buffer.length) { // hmm should we retry here?
+                throw new IllegalStateException("write checkpoint failed only wrote: " + write + " bytes");
+            }
+            */
             channel.force(false);
         }
     }
