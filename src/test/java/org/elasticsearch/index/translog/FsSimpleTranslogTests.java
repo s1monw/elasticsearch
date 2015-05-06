@@ -32,7 +32,7 @@ public class FsSimpleTranslogTests extends TranslogTests {
     @Override
     protected Translog create() throws IOException {
         return new Translog(shardId,
-                ImmutableSettings.settingsBuilder().put("index.translog.fs.type", TranslogFile.Type.SIMPLE.name()).build(),
+                ImmutableSettings.settingsBuilder().put("index.translog.fs.type", TranslogWriter.Type.SIMPLE.name()).build(),
                 BigArrays.NON_RECYCLING_INSTANCE, translogDir);
     }
 }

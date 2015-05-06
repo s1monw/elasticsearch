@@ -24,7 +24,6 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.translog.Translog;
-import org.elasticsearch.index.translog.TranslogStreams;
 import org.elasticsearch.transport.TransportRequest;
 
 import java.io.IOException;
@@ -74,7 +73,7 @@ class RecoveryTranslogOperationsRequest extends TransportRequest {
         int size = in.readVInt();
         operations = Lists.newArrayListWithExpectedSize(size);
         for (int i = 0; i < size; i++) {
-            operations.add(TranslogStreams.CHECKSUMMED_TRANSLOG_STREAM.read(in));
+            operations.add(Translog.readOperation(in));
         }
         totalTranslogOps = in.readVInt();
     }
@@ -86,7 +85,7 @@ class RecoveryTranslogOperationsRequest extends TransportRequest {
         shardId.writeTo(out);
         out.writeVInt(operations.size());
         for (Translog.Operation operation : operations) {
-            TranslogStreams.CHECKSUMMED_TRANSLOG_STREAM.write(out, operation);
+            Translog.writeOperation(out, operation);
         }
         out.writeVInt(totalTranslogOps);
     }

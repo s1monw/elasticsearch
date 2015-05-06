@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class TranslogSnapshot implements Translog.Snapshot {
 
     private final List<ChannelSnapshot> orderedTranslogs;
-    private final ESLogger logger;
     private final ByteBuffer cacheBuffer;
     private AtomicBoolean closed = new AtomicBoolean(false);
     private final int estimatedTotalOperations;
@@ -42,15 +41,14 @@ public class TranslogSnapshot implements Translog.Snapshot {
      * Create a snapshot of translog file channel. The length parameter should be consistent with totalOperations and point
      * at the end of the last operation in this snapshot.
      */
-    public TranslogSnapshot(List<ChannelSnapshot> orderedTranslogs, ESLogger logger) {
+    public TranslogSnapshot(List<ChannelSnapshot> orderedTranslogs) {
         this.orderedTranslogs = orderedTranslogs;
-        this.logger = logger;
         int ops = 0;
         for (ChannelSnapshot translog : orderedTranslogs) {
 
             final int tops = translog.estimatedTotalOperations();
             if (tops < 0) {
-                ops = ChannelReader.UNKNOWN_OP_COUNT;
+                ops = TranslogReader.UNKNOWN_OP_COUNT;
                 break;
             }
             ops += tops;
@@ -75,8 +73,12 @@ public class TranslogSnapshot implements Translog.Snapshot {
             try {
                 op = current.next(cacheBuffer);
             } catch (TruncatedTranslogException e) {
-                // file is empty or header has been half-written and should be ignored
-                logger.trace("ignoring truncation exception, the translog [{}] is either empty or half-written", e, current.translogId());
+                if (estimatedTotalOperations == TranslogReader.UNKNOWN_OP_COUNT) {
+                    // legacy translog file - can have UNKNOWN_OP_COUNT nocommit we need to make sure this only applies to old files
+                    // file is empty or header has been half-written and should be ignored
+                } else {
+                    throw e;
+                }
             }
             if (op != null) {
                 return op;
@@ -98,8 +100,6 @@ public class TranslogSnapshot implements Translog.Snapshot {
                 IOUtils.close(orderedTranslogs);
             } catch (IOException e) {
                 throw new ElasticsearchException("failed to close channel snapshots", e);
-            } finally {
-                orderedTranslogs.clear();
             }
         }
     }

@@ -80,7 +80,7 @@ import org.elasticsearch.index.shard.IndexShardState;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.store.IndexStoreModule;
 import org.elasticsearch.index.translog.Translog;
-import org.elasticsearch.index.translog.TranslogFile;
+import org.elasticsearch.index.translog.TranslogWriter;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.indices.breaker.HierarchyCircuitBreakerService;
@@ -440,7 +440,7 @@ public final class InternalTestCluster extends TestCluster {
         }
 
         if (random.nextBoolean()) {
-            builder.put(Translog.INDEX_TRANSLOG_FS_TYPE, RandomPicks.randomFrom(random, TranslogFile.Type.values()));
+            builder.put(Translog.INDEX_TRANSLOG_FS_TYPE, RandomPicks.randomFrom(random, TranslogWriter.Type.values()));
             if (random.nextBoolean()) {
                 builder.put(Translog.INDEX_TRANSLOG_SYNC_INTERVAL, 0); // 0 has special meaning to sync each op
             } else {

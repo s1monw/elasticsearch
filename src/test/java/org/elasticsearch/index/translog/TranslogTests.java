@@ -20,6 +20,7 @@
 package org.elasticsearch.index.translog;
 
 import org.apache.lucene.index.Term;
+import org.apache.lucene.store.ByteArrayDataOutput;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.LuceneTestCase;
 import org.elasticsearch.ElasticsearchException;
@@ -106,7 +107,7 @@ public class TranslogTests extends ElasticsearchTestCase {
 
     protected Translog create() throws IOException {
         return new Translog(shardId,
-                ImmutableSettings.settingsBuilder().put("index.translog.fs.type", TranslogFile.Type.SIMPLE.name()).build(),
+                ImmutableSettings.settingsBuilder().put("index.translog.fs.type", TranslogWriter.Type.SIMPLE.name()).build(),
                 BigArrays.NON_RECYCLING_INSTANCE, translogDir);
     }
 
@@ -318,7 +319,7 @@ public class TranslogTests extends ElasticsearchTestCase {
     }
 
     public void testSnapshotOnClosedTranslog() throws IOException {
-        assertTrue(Files.exists(translogDir.resolve("translog-1")));
+        assertTrue(Files.exists(translogDir.resolve(translog.getFilename(1))));
         translog.add(new Translog.Create("test", "1", new byte[]{1}));
         translog.close();
         try {
@@ -830,4 +831,90 @@ public class TranslogTests extends ElasticsearchTestCase {
         }
         return b;
     }
+
+
+    public void testBasicCheckpoint() throws IOException {
+        List<Translog.Location> locations = newArrayList();
+        int translogOperations = randomIntBetween(10, 100);
+        int lastSynced = -1;
+        for (int op = 0; op < translogOperations; op++) {
+            locations.add(translog.add(new Translog.Create("test", "" + op, Integer.toString(op).getBytes(Charset.forName("UTF-8")))));
+            if (frequently()) {
+                translog.sync();
+                lastSynced = op;
+            }
+        }
+        assertEquals(translogOperations, translog.totalOperations());
+        final Translog.Location lastLocation = translog.add(new Translog.Create("test", "" + translogOperations, Integer.toString(translogOperations).getBytes(Charset.forName("UTF-8"))));
+
+        try (final ImmutableTranslogReader reader = translog.openReader(translog.location().resolve(translog.getFilename(translog.currentId())))) {
+            assertEquals(lastSynced + 1, reader.totalOperations());
+            for (int op = 0; op < translogOperations; op++) {
+                Translog.Location location = locations.get(op);
+                if (op <= lastSynced) {
+                    final Translog.Operation read = reader.read(location);
+                    assertEquals(Integer.toString(op), read.getSource().source.toUtf8());
+                } else {
+                    try {
+                        reader.read(location);
+                        fail("read past checkpoint");
+                    } catch (EOFException ex) {
+
+                    }
+                }
+            }
+            try {
+                reader.read(lastLocation);
+                fail("read past checkpoint");
+            } catch (EOFException ex) {
+            }
+        }
+        assertEquals(translogOperations+1, translog.totalOperations());
+        translog.close();
+    }
+
+    public void testTranslogWriter() throws IOException {
+        final TranslogWriter writer = translog.createWriter();
+        final int numOps = randomIntBetween(10, 100);
+        byte[] bytes = new byte[4];
+        ByteArrayDataOutput out = new ByteArrayDataOutput(bytes);
+        for (int i = 0; i < numOps; i++) {
+            out.reset(bytes);
+            out.writeInt(i);
+            writer.add(new BytesArray(bytes));
+        }
+        writer.sync();
+
+        final TranslogReader reader = randomBoolean() ? writer : translog.openReader(writer.path());
+        for (int i = 0; i < numOps; i++) {
+            ByteBuffer buffer = ByteBuffer.allocate(4);
+            reader.readBytes(buffer, reader.firstPosition() + 4*i);
+            buffer.flip();
+            final int value = buffer.getInt();
+            assertEquals(i, value);
+        }
+
+        out.reset(bytes);
+        out.writeInt(2048);
+        writer.add(new BytesArray(bytes));
+
+        if (reader instanceof ImmutableTranslogReader) {
+            ByteBuffer buffer = ByteBuffer.allocate(4);
+            try {
+                reader.readBytes(buffer, reader.firstPosition() + 4 * numOps);
+                fail("read past EOF?");
+            } catch (EOFException ex) {
+                // expected
+            }
+        } else {
+            // live reader!
+            ByteBuffer buffer = ByteBuffer.allocate(4);
+            reader.readBytes(buffer, reader.firstPosition() + 4*numOps);
+            buffer.flip();
+            final int value = buffer.getInt();
+            assertEquals(2048, value);
+        }
+        IOUtils.close(writer, reader);
+    }
+
 }
