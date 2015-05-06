@@ -30,18 +30,15 @@ import java.nio.channels.FileChannel;
 class Checkpoint implements Comparable<Checkpoint> {
     final long syncedPosition;
     final int numWrittenOperations;
-    final int generation;
 
-    Checkpoint(long syncedPosition, int numWrittenOperations, int generation) {
+    Checkpoint(long syncedPosition, int numWrittenOperations) {
         this.syncedPosition = syncedPosition;
         this.numWrittenOperations = numWrittenOperations;
-        this.generation = generation;
     }
 
     Checkpoint(DataInput in) throws IOException {
         syncedPosition = in.readLong();
         numWrittenOperations = in.readInt();
-        generation = in.readInt();
     }
 
     @Override
@@ -49,10 +46,9 @@ class Checkpoint implements Comparable<Checkpoint> {
         return Long.compare(syncedPosition, o.syncedPosition);
     }
 
-    void write(ByteBuffer out) throws IOException {
-        out.putLong(syncedPosition);
-        out.putInt(numWrittenOperations);
-        out.putInt(generation);
+    void write(DataOutput out) throws IOException {
+        out.writeLong(syncedPosition);
+        out.writeInt(numWrittenOperations);
     }
 
     @Override
@@ -60,7 +56,6 @@ class Checkpoint implements Comparable<Checkpoint> {
         return "Checkpoint{" +
                 "syncedPosition=" + syncedPosition +
                 ", numWrittenOperations=" + numWrittenOperations +
-                ", generation=" + generation +
                 '}';
     }
 }

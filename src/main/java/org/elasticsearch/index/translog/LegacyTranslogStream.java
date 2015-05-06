@@ -73,7 +73,7 @@ public class LegacyTranslogStream implements TranslogStream {
 
     @Override
     public Checkpoint getLatestCheckpoint(ChannelReference reference) throws IOException {
-        return new Checkpoint(reference.channel().size(), ChannelReader.UNKNOWN_OP_COUNT, 0);
+        return new Checkpoint(reference.channel().size(), ChannelReader.UNKNOWN_OP_COUNT);
     }
 
 }

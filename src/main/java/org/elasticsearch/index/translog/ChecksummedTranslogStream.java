@@ -139,17 +139,17 @@ public class ChecksummedTranslogStream implements TranslogStream {
     @Override
     public Checkpoint getLatestCheckpoint(ChannelReference reference) throws IOException {
         if (reference.channel().size() == 0) { // nocommit - old files can have no header.... bummer!
-            return new Checkpoint(reference.channel().size(), ChannelReader.UNKNOWN_OP_COUNT, 0);
+            return new Checkpoint(reference.channel().size(), ChannelReader.UNKNOWN_OP_COUNT);
         }
         try (final InputStream fileInputStream = Files.newInputStream(reference.file())) {
             final InputStreamStreamInput in = new InputStreamStreamInput(fileInputStream);
             final int version = CodecUtil.checkHeader(new InputStreamDataInput(in), TranslogStreams.TRANSLOG_CODEC, VERSION_CHECKSUMS, VERSION);
             switch (version) {
                 case VERSION_CHECKPOINTS:
-                    return ChannelReference.findCheckPoint(reference.file());
+                    return ChannelReference.openCheckpoint(reference.file());
                 case VERSION_CHECKSUMS:
                     // legacy - we still have to support it somehow
-                    return new Checkpoint(reference.channel().size(), ChannelReader.UNKNOWN_OP_COUNT, 0);
+                    return new Checkpoint(reference.channel().size(), ChannelReader.UNKNOWN_OP_COUNT);
                 default:
                     throw new IllegalStateException("Unknown version: " + version);
             }

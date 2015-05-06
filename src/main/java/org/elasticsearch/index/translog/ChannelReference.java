@@ -26,25 +26,18 @@ import org.apache.lucene.util.RamUsageEstimator;
 import org.elasticsearch.common.io.Channels;
 import org.elasticsearch.common.util.concurrent.AbstractRefCounted;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.*;
 
 class ChannelReference extends AbstractRefCounted {
-
-    private static final Checkpoint EMPTY_CHECKPOINT = new Checkpoint(0,0,0);
 
     private final Path file;
 
     private final FileChannel channel;
 
     private final TranslogStream stream;
-    private int generation = -1;
-
 
     public ChannelReference(Path file, boolean readOnly) throws IOException {
         super(file.toString());
@@ -102,37 +95,26 @@ class ChannelReference extends AbstractRefCounted {
         writeCheckpoint(lastSyncPosition, operationCounter);
     }
 
-    private long writeCheckpoint(long syncPosition, int numOperations) throws IOException {
-        generation++;
-        try (FileChannel channel = FileChannel.open(file.resolveSibling(generationFile(generation)), StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW)) {
-            Checkpoint pos = new Checkpoint(syncPosition, numOperations, generation);
-            ByteBuffer buffer = ByteBuffer.allocate(RamUsageEstimator.NUM_BYTES_INT + RamUsageEstimator.NUM_BYTES_INT + RamUsageEstimator.NUM_BYTES_LONG);
-            pos.write(buffer);
+    private void writeCheckpoint(long syncPosition, int numOperations) throws IOException {
+        final Path checkpointFile = checkpointFile(file);
+        try (FileChannel channel = FileChannel.open(checkpointFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
+            Checkpoint pos = new Checkpoint(syncPosition, numOperations);
+            byte[] buffer = new byte[RamUsageEstimator.NUM_BYTES_INT + RamUsageEstimator.NUM_BYTES_LONG];
+
+            pos.write(new ByteArrayDataOutput(buffer));
             Channels.writeToChannel(buffer, channel);
             channel.force(false);
         }
-        Files.deleteIfExists(file.resolveSibling(generationFile(generation - 1)));
-        IOUtils.fsync(file.getParent(), true); //nocommit do we have to do that?
-        return generation;
     }
 
-    public static Checkpoint findCheckPoint(Path translogFile) throws IOException {
-        Checkpoint currentPosition = EMPTY_CHECKPOINT;
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(translogFile.getParent(), "checkpoint_" + translogFile.getFileName().toString() + "_*.gen")) {
-            for (Path path : stream) {
-                try (InputStream in = Files.newInputStream(path)) {
-                    final Checkpoint checkpoint = new Checkpoint(new InputStreamDataInput(in));
-                    if (checkpoint.compareTo(currentPosition) > 0) {
-                        currentPosition = checkpoint;
-                    }
-                }
-            }
+    public static Checkpoint openCheckpoint(Path translogFile) throws IOException {
+        try (InputStream in = Files.newInputStream(checkpointFile(translogFile))) {
+            return new Checkpoint(new InputStreamDataInput(in));
         }
-        return currentPosition;
     }
 
-    private String generationFile(long generation) {
-        return "checkpoint_" + file.getFileName().toString() + "_" + generation + ".gen";
+    private static Path checkpointFile(Path file) {
+        return file.resolveSibling("checkpoint_" + file.getFileName().toString());
     }
 
     public Checkpoint checkpointFromStream() throws IOException {
