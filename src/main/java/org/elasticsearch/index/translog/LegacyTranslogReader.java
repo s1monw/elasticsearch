@@ -32,6 +32,7 @@ import java.nio.file.Path;
 /**
  * Version 0 of the translog format, there is no header in this file
  */
+@Deprecated 
 public final class LegacyTranslogReader extends ImmutableTranslogReader {
 
     /**
