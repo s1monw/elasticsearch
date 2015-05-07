@@ -19,55 +19,40 @@
 
 package org.elasticsearch.index.translog;
 
-import org.apache.lucene.store.ByteArrayDataOutput;
-import org.apache.lucene.store.InputStreamDataInput;
 import org.apache.lucene.util.IOUtils;
-import org.apache.lucene.util.RamUsageEstimator;
-import org.elasticsearch.common.SuppressForbidden;
-import org.elasticsearch.common.io.Channels;
+import org.elasticsearch.common.util.Callback;
 import org.elasticsearch.common.util.concurrent.AbstractRefCounted;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.*;
 
-class ChannelReference extends AbstractRefCounted {
+final class ChannelReference extends AbstractRefCounted {
 
     private final Path file;
 
     private final FileChannel channel;
 
-    private final TranslogStream stream;
+    protected final long translogId;
+    private final Callback<ChannelReference> onClose;
 
-    public ChannelReference(Path file, boolean readOnly) throws IOException {
+    public ChannelReference(Path file, long translogId, FileChannel channel, Callback<ChannelReference> onClose) throws IOException {
         super(file.toString());
+        this.translogId = translogId;
         this.file = file;
-        if (readOnly) {
-            this.channel = FileChannel.open(file, StandardOpenOption.READ);
-            try {
-                this.stream = TranslogStreams.translogStreamFor(file);
-            } catch (Throwable t) {
-                IOUtils.closeWhileHandlingException(channel);
-                throw t;
-            }
-        } else {
-            this.stream = TranslogStreams.LATEST;
-            Path pendingFile = file.resolveSibling("pending_" + file.getFileName());
-            final int headerLength;
-            try (FileChannel channel = FileChannel.open(pendingFile, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE_NEW)) {
-                headerLength = this.stream.writeHeader(channel);
-                channel.force(false);
-                writeCheckpoint(headerLength, 0);
-            }
-            Files.move(pendingFile, file, StandardCopyOption.ATOMIC_MOVE);
+        this.channel = channel;
+        this.onClose = onClose;
+//        if (readOnly) {
+//            this.channel = FileChannel.open(file, StandardOpenOption.READ);
+//        } else {
 
-            this.channel = FileChannel.open(file, StandardOpenOption.READ, StandardOpenOption.WRITE);
-            this.channel.position(headerLength);
-        }
+//        }
 
 
+    }
+
+    public long getId() {
+        return translogId;
     }
 
     public Path file() {
@@ -78,9 +63,6 @@ class ChannelReference extends AbstractRefCounted {
         return this.channel;
     }
 
-    public TranslogStream stream() {
-        return this.stream;
-    }
 
     @Override
     public String toString() {
@@ -89,45 +71,15 @@ class ChannelReference extends AbstractRefCounted {
 
     @Override
     protected void closeInternal() {
-        IOUtils.closeWhileHandlingException(channel);
-    }
-
-    public void checkpoint(long lastSyncPosition, int operationCounter) throws IOException {
-        channel.force(false);
-        writeCheckpoint(lastSyncPosition, operationCounter);
-    }
-
-//    @SuppressForbidden(reason = "We need control over if the channel write succeeded")
-    private void writeCheckpoint(long syncPosition, int numOperations) throws IOException {
-        final Path checkpointFile = checkpointFile(file);
-        try (FileChannel channel = FileChannel.open(checkpointFile, StandardOpenOption.WRITE, StandardOpenOption.CREATE)) {
-            Checkpoint pos = new Checkpoint(syncPosition, numOperations);
-            byte[] buffer = new byte[RamUsageEstimator.NUM_BYTES_INT + RamUsageEstimator.NUM_BYTES_LONG];
-
-            pos.write(new ByteArrayDataOutput(buffer));
-            Channels.writeToChannel(buffer, channel);
-            /* //nocommit should we rather do our own writing here?
-            ByteBuffer bb = ByteBuffer.wrap(buffer, 0, buffer.length);
-            final int write = channel.write(bb);
-            if (write != buffer.length) { // hmm should we retry here?
-                throw new IllegalStateException("write checkpoint failed only wrote: " + write + " bytes");
+        try {
+            IOUtils.closeWhileHandlingException(channel);
+        } finally {
+            if (onClose != null) {
+                onClose.handle(this);
             }
-            */
-            channel.force(false);
         }
+
     }
 
-    public static Checkpoint openCheckpoint(Path translogFile) throws IOException {
-        try (InputStream in = Files.newInputStream(checkpointFile(translogFile))) {
-            return new Checkpoint(new InputStreamDataInput(in));
-        }
-    }
 
-    private static Path checkpointFile(Path file) {
-        return file.resolveSibling("checkpoint_" + file.getFileName().toString());
-    }
-
-    public Checkpoint checkpointFromStream() throws IOException {
-        return stream.getLatestCheckpoint(this);
-    }
 }

@@ -28,18 +28,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * an implementation of {@link org.elasticsearch.index.translog.Translog.Snapshot}, wrapping
- * a {@link ChannelReader}. This class is NOT thread-safe.
+ * a {@link TranslogReader}. This class is NOT thread-safe.
  */
 public final class ChannelSnapshot implements Closeable {
 
-    private final ChannelReader reader;
+    private final TranslogReader reader;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final int totalOperations;
     private int readOperations = 0;
 
     protected long position;
 
-    public ChannelSnapshot(ChannelReader reader) {
+    public ChannelSnapshot(TranslogReader reader) {
         this.reader = reader;
         this.position = reader.firstPosition();
         totalOperations = this.reader.totalOperations();

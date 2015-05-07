@@ -21,7 +21,6 @@ package org.elasticsearch.index.translog;
 
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.common.util.BigArrays;
-import org.elasticsearch.test.junit.annotations.TestLogging;
 
 import java.io.IOException;
 
@@ -34,7 +33,7 @@ public class BufferedTranslogTests extends TranslogTests {
     protected Translog create() throws IOException {
         return new Translog(shardId,
                 ImmutableSettings.settingsBuilder()
-                        .put("index.translog.fs.type", TranslogFile.Type.BUFFERED.name())
+                        .put("index.translog.fs.type", TranslogWriter.Type.BUFFERED.name())
                         .put("index.translog.fs.buffer_size", 10 + randomInt(128 * 1024))
                         .build(),
                 BigArrays.NON_RECYCLING_INSTANCE, translogDir
