@@ -364,7 +364,7 @@ public class IndexShardTests extends ElasticsearchSingleNodeTest {
         }
     }
 
-    public void testMinimumCompatVersion() {
+    public void testMinimumCompatVersion() throws IOException {
         Version versionCreated = VersionUtils.randomVersion(random());
         assertAcked(client().admin().indices().prepareCreate("test")
                 .setSettings(SETTING_NUMBER_OF_SHARDS, 1, SETTING_NUMBER_OF_REPLICAS, 0, SETTING_VERSION_CREATED, versionCreated.id));
@@ -372,10 +372,10 @@ public class IndexShardTests extends ElasticsearchSingleNodeTest {
         ensureGreen("test");
         IndicesService indicesService = getInstanceFromNode(IndicesService.class);
         IndexShard test = indicesService.indexService("test").shard(0);
-        assertEquals(versionCreated.luceneVersion, test.minimumCompatibleVersion());
+        assertEquals(org.apache.lucene.util.Version.LUCENE_5_1_0, test.engine().getMinimumCommittedVersion()); // we get the min version for the segments_N file
         client().prepareIndex("test", "test").setSource("{}").get();
-        assertEquals(versionCreated.luceneVersion, test.minimumCompatibleVersion());
+        assertEquals(org.apache.lucene.util.Version.LUCENE_5_1_0, test.engine().getMinimumCommittedVersion());
         test.engine().flush();
-        assertEquals(Version.CURRENT.luceneVersion, test.minimumCompatibleVersion());
+        assertEquals(Version.CURRENT.luceneVersion, test.engine().getMinimumCommittedVersion());
     }
 }

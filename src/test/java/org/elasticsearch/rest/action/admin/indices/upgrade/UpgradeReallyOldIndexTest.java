@@ -25,6 +25,8 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.indices.IndicesService;
 
+import java.io.IOException;
+
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoFailures;
 
 public class UpgradeReallyOldIndexTest extends StaticIndexBackwardCompatibilityTest {
@@ -45,11 +47,11 @@ public class UpgradeReallyOldIndexTest extends StaticIndexBackwardCompatibilityT
         assertMinVersion(indexName, Version.CURRENT.luceneVersion);
     }
 
-    private void assertMinVersion(String index, org.apache.lucene.util.Version version) {
+    private void assertMinVersion(String index, org.apache.lucene.util.Version version) throws IOException {
         for (IndicesService services : internalCluster().getInstances(IndicesService.class)) {
             IndexService indexService = services.indexService(index);
             if (indexService != null) {
-                assertEquals(version, indexService.shard(0).minimumCompatibleVersion());
+                assertEquals(version, indexService.shard(0).engine().getMinimumCommittedVersion());
             }
         }
 

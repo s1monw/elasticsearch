@@ -801,6 +801,9 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
                         }
                     }
                 }
+                if (segmentCommitInfos.size() == 0) {
+                    maxVersion = Lucene.getMinimumSegmentVersion(segmentCommitInfos, directory);
+                }
                 final String segmentsFile = segmentCommitInfos.getSegmentsFileName();
                 String legacyChecksum = checksumMap.get(segmentsFile);
                 if (maxVersion.onOrAfter(FIRST_LUCENE_CHECKSUM_VERSION)) {
@@ -1185,7 +1188,7 @@ public class Store extends AbstractIndexShardComponent implements Closeable, Ref
 
         synchronized void writeChecksums(Directory directory, Map<String, String> checksums, long lastVersion) throws IOException {
             // Make sure if clock goes backwards we still move version forwards:
-            long nextVersion = Math.max(lastVersion+1, System.currentTimeMillis());
+            long nextVersion = Math.max(lastVersion + 1, System.currentTimeMillis());
             final String checksumName = CHECKSUMS_PREFIX + nextVersion;
             try (IndexOutput output = directory.createOutput(checksumName, IOContext.DEFAULT)) {
                 output.writeInt(0); // version

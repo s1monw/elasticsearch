@@ -55,11 +55,7 @@ import org.apache.lucene.search.TimeLimitingCollector;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.TopFieldDocs;
 import org.apache.lucene.search.TwoPhaseIterator;
-import org.apache.lucene.store.Directory;
-import org.apache.lucene.store.IOContext;
-import org.apache.lucene.store.IndexInput;
-import org.apache.lucene.store.Lock;
-import org.apache.lucene.store.LockObtainFailedException;
+import org.apache.lucene.store.*;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Counter;
@@ -131,6 +127,36 @@ public class Lucene {
      */
     public static SegmentInfos readSegmentInfos(Directory directory) throws IOException {
         return SegmentInfos.readLatestCommit(directory);
+    }
+
+    /**
+     * Returns the minimum version the given segment infos was written with.
+     */
+    public static Version getMinimumSegmentVersion(SegmentInfos infos, Directory directory) throws IOException {
+        try (ChecksumIndexInput input = directory.openChecksumInput(infos.getSegmentsFileName(), IOContext.READ)) {
+            // NOTE: as long as we want to throw indexformattooold (vs corruptindexexception), we need
+            // to read the magic ourselves.
+            int magic = input.readInt();
+            if (magic != CodecUtil.CODEC_MAGIC) {
+                throw new IndexFormatTooOldException(input, magic, CodecUtil.CODEC_MAGIC, CodecUtil.CODEC_MAGIC);
+            }
+            // 4.0+
+            int format = CodecUtil.checkHeaderNoMagic(input, "segments", SegmentInfos.VERSION_40, SegmentInfos.VERSION_51);
+            switch (format) {
+                case SegmentInfos.VERSION_40:
+                    return Version.LUCENE_4_0_0;
+                case SegmentInfos.VERSION_46:
+                    return Version.LUCENE_4_6_0;
+                case SegmentInfos.VERSION_48:
+                    return Version.LUCENE_4_8_0;
+                case SegmentInfos.VERSION_50:
+                    return Version.LUCENE_5_0_0;
+                case SegmentInfos.VERSION_51:
+                    return Version.LUCENE_5_1_0;
+                default:
+                    throw new IllegalStateException("unknown version [" + format + "]");
+            }
+        }
     }
 
     /**

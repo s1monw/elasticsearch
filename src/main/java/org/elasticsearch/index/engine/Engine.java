@@ -29,6 +29,7 @@ import org.apache.lucene.search.join.BitDocIdSetFilter;
 import org.apache.lucene.util.Accountable;
 import org.apache.lucene.util.Accountables;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.Base64;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.bytes.BytesReference;
@@ -55,7 +56,9 @@ import org.elasticsearch.index.store.Store;
 import org.elasticsearch.index.translog.Translog;
 
 import java.io.Closeable;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.NoSuchFileException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -432,6 +435,33 @@ public abstract class Engine implements Closeable {
         });
 
         return segmentsArr;
+    }
+
+    public org.apache.lucene.util.Version getMinimumCommittedVersion() throws IOException {
+        SegmentInfos lastCommittedSegmentInfos = getLastCommittedSegmentInfos();
+        org.apache.lucene.util.Version luceneVersion = null;
+        for (SegmentCommitInfo info : lastCommittedSegmentInfos) {
+            if (luceneVersion == null || luceneVersion.onOrAfter(info.info.getVersion())) {
+                luceneVersion = info.info.getVersion();
+            }
+        }
+        if (luceneVersion == null) {
+            store.incRef();
+            try {
+                do {
+                    try {
+                        return Lucene.getMinimumSegmentVersion(lastCommittedSegmentInfos, store.directory());
+                    } catch (FileNotFoundException | NoSuchFileException ex) {
+                        // continue = we might have been deleted after a commit;
+                        lastCommittedSegmentInfos = getLastCommittedSegmentInfos();
+                    }
+                } while (true);
+            } finally {
+                store.decRef();
+            }
+        } else {
+            return luceneVersion;
+        }
     }
 
     /**

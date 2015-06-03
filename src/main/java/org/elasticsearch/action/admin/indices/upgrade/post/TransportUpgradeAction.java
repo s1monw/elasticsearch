@@ -20,6 +20,7 @@
 package org.elasticsearch.action.admin.indices.upgrade.post;
 
 import org.apache.lucene.util.Version;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.PrimaryMissingActionException;
 import org.elasticsearch.action.ShardOperationFailedException;
@@ -40,6 +41,7 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -129,8 +131,12 @@ public class TransportUpgradeAction extends TransportBroadcastAction<UpgradeRequ
     @Override
     protected ShardUpgradeResponse shardOperation(ShardUpgradeRequest request) {
         IndexShard indexShard = indicesService.indexServiceSafe(request.shardId().getIndex()).shardSafe(request.shardId().id());
-        org.apache.lucene.util.Version version = indexShard.upgrade(request.upgradeRequest());
-        return new ShardUpgradeResponse(request.shardId(), indexShard.routingEntry().primary(), version);
+        try {
+            org.apache.lucene.util.Version version = indexShard.upgrade(request.upgradeRequest());
+            return new ShardUpgradeResponse(request.shardId(), indexShard.routingEntry().primary(), version);
+        } catch (IOException ex) {
+            throw new ElasticsearchException("failed to upgrade shard", ex);
+        }
     }
 
     /**

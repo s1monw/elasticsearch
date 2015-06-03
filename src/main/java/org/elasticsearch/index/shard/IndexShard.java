@@ -696,32 +696,22 @@ public class IndexShard extends AbstractIndexShardComponent {
     /**
      * Upgrades the shard to the current version of Lucene and returns the minimum segment version
      */
-    public org.apache.lucene.util.Version upgrade(UpgradeRequest upgrade) {
+    public org.apache.lucene.util.Version upgrade(UpgradeRequest upgrade) throws IOException {
         verifyStarted();
         if (logger.isTraceEnabled()) {
             logger.trace("upgrade with {}", upgrade);
         }
-        org.apache.lucene.util.Version previousVersion = minimumCompatibleVersion();
+        org.apache.lucene.util.Version previousVersion = engine().getMinimumCommittedVersion();
         // we just want to upgrade the segments, not actually optimize to a single segment
         engine().forceMerge(true,  // we need to flush at the end to make sure the upgrade is durable
                 Integer.MAX_VALUE, // we just want to upgrade the segments, not actually optimize to a single segment
                 false, true, upgrade.upgradeOnlyAncientSegments());
-        org.apache.lucene.util.Version version = minimumCompatibleVersion();
+        org.apache.lucene.util.Version version = engine().getMinimumCommittedVersion();
         if (logger.isTraceEnabled()) {
             logger.trace("upgraded segment {} from version {} to version {}", previousVersion, version);
         }
 
         return version;
-    }
-
-    public org.apache.lucene.util.Version minimumCompatibleVersion() {
-        org.apache.lucene.util.Version luceneVersion = null;
-        for(Segment segment : engine().segments(false)) {
-            if (luceneVersion == null || luceneVersion.onOrAfter(segment.getVersion())) {
-                luceneVersion = segment.getVersion();
-            }
-        }
-        return luceneVersion == null ?  Version.indexCreated(indexSettings).luceneVersion : luceneVersion;
     }
 
     public SnapshotIndexCommit snapshotIndex(boolean flushFirst) throws EngineException {
