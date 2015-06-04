@@ -119,4 +119,7 @@
         </pluginManagement>
     </build>
 
+    <modules>
+        <module>analysis-kuromoji</module>
+    </modules>
 </project>
