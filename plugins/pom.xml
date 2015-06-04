@@ -126,5 +126,6 @@
         <module>analysis-phonetic</module>
         <module>analysis-icu</module>
         <module>mapper-attachments</module>
+        <module>cloud-gce</module>
     </modules>
 </project>
