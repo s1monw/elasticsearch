@@ -280,7 +280,7 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
          * Delete shard snapshot
          */
         public void delete() {
-            final ImmutableMap<String, BlobMetaData> blobs;
+            final Map<String, BlobMetaData> blobs;
             try {
                 blobs = blobContainer.listBlobs();
             } catch (IOException e) {
@@ -327,7 +327,7 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
          * @param snapshots list of active snapshots in the container
          * @param blobs     list of blobs in the container
          */
-        protected void cleanup(List<BlobStoreIndexShardSnapshot> snapshots, ImmutableMap<String, BlobMetaData> blobs) {
+        protected void cleanup(List<BlobStoreIndexShardSnapshot> snapshots, Map<String, BlobMetaData> blobs) {
             BlobStoreIndexShardSnapshots newSnapshots = new BlobStoreIndexShardSnapshots(snapshots);
             // now go over all the blobs, and if they don't exists in a snapshot, delete them
             for (String blobName : blobs.keySet()) {
@@ -360,7 +360,7 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
          * @param blobs list of blobs in the repository
          * @return next available blob number
          */
-        protected long findLatestFileNameGeneration(ImmutableMap<String, BlobMetaData> blobs) {
+        protected long findLatestFileNameGeneration(Map<String, BlobMetaData> blobs) {
             long generation = -1;
             for (String name : blobs.keySet()) {
                 if (!name.startsWith("__")) {
@@ -385,7 +385,7 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
          * @param blobs list of blobs in repository
          * @return BlobStoreIndexShardSnapshots
          */
-        protected BlobStoreIndexShardSnapshots buildBlobStoreIndexShardSnapshots(ImmutableMap<String, BlobMetaData> blobs) {
+        protected BlobStoreIndexShardSnapshots buildBlobStoreIndexShardSnapshots(Map<String, BlobMetaData> blobs) {
             List<BlobStoreIndexShardSnapshot> snapshots = Lists.newArrayList();
             for (String name : blobs.keySet()) {
                 if (name.startsWith(SNAPSHOT_PREFIX)) {
@@ -434,7 +434,7 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
             logger.debug("[{}] [{}] snapshot to [{}] ...", shardId, snapshotId, repositoryName);
             store.incRef();
             try {
-                final ImmutableMap<String, BlobMetaData> blobs;
+                final Map<String, BlobMetaData> blobs;
                 try {
                     blobs = blobContainer.listBlobs();
                 } catch (IOException e) {
@@ -585,7 +585,7 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
          * @param blobs    list of blobs
          * @return true if file exists in the list of blobs
          */
-        private boolean snapshotFileExistsInBlobs(BlobStoreIndexShardSnapshot.FileInfo fileInfo, ImmutableMap<String, BlobMetaData> blobs) {
+        private boolean snapshotFileExistsInBlobs(BlobStoreIndexShardSnapshot.FileInfo fileInfo, Map<String, BlobMetaData> blobs) {
             BlobMetaData blobMetaData = blobs.get(fileInfo.name());
             if (blobMetaData != null) {
                 return blobMetaData.length() == fileInfo.length();

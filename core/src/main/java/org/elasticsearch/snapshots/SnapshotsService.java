@@ -155,7 +155,7 @@ public class SnapshotsService extends AbstractLifecycleComponent<SnapshotsServic
             snapshotSet.add(inProgressSnapshot(entry));
         }
         Repository repository = repositoriesService.repository(repositoryName);
-        ImmutableList<SnapshotId> snapshotIds = repository.snapshots();
+        List<SnapshotId> snapshotIds = repository.snapshots();
         for (SnapshotId snapshotId : snapshotIds) {
             snapshotSet.add(repository.readSnapshot(snapshotId));
         }
