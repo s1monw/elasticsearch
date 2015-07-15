@@ -311,11 +311,23 @@ public class NodeEnvironment extends AbstractComponent implements Closeable {
      * shard paths. The "write.lock" file is assumed to be under the shard
      * path's "index" directory as used by Elasticsearch.
      *
+     * @return a closeable instance that holds on to the acquired locks. Users must close this instance to release the locks.
      * @throws LockObtainFailedException if any of the locks could not be acquired
      */
-    public static void acquireFSLockForPaths(@IndexSettings Settings indexSettings, Path... shardPaths) throws IOException {
-        Lock[] locks = new Lock[shardPaths.length];
-        Directory[] dirs = new Directory[shardPaths.length];
+    public static Closeable acquireFSLockForPaths(@IndexSettings Settings indexSettings, Path... shardPaths) throws IOException {
+        final Lock[] locks = new Lock[shardPaths.length];
+        final Directory[] dirs = new Directory[shardPaths.length];
+        final Closeable closeable = new Closeable() {
+            @Override
+            public void close() throws IOException {
+                try {
+                    IOUtils.close(locks);
+                } finally {
+                    IOUtils.close(dirs);
+                }
+            }
+        };
+        boolean success = false;
         try {
             for (int i = 0; i < shardPaths.length; i++) {
                 // resolve the directory the shard actually lives in
@@ -330,9 +342,12 @@ public class NodeEnvironment extends AbstractComponent implements Closeable {
                             IndexWriter.WRITE_LOCK_NAME + " for " + p);
                 }
             }
+            success = true;
+            return closeable;
         } finally {
-            IOUtils.closeWhileHandlingException(locks);
-            IOUtils.closeWhileHandlingException(dirs);
+           if (success == false) {
+               IOUtils.closeWhileHandlingException(locks);
+           }
         }
     }
 
@@ -353,17 +368,19 @@ public class NodeEnvironment extends AbstractComponent implements Closeable {
         assert isShardLocked(shardId) : "shard " + shardId + " is not locked";
         final Path[] paths = availableShardPaths(shardId);
         logger.trace("acquiring locks for {}, paths: [{}]", shardId, paths);
-        acquireFSLockForPaths(indexSettings, paths);
-        IOUtils.rm(paths);
-        if (hasCustomDataPath(indexSettings)) {
-            Path customLocation = resolveCustomLocation(indexSettings, shardId);
-            logger.trace("acquiring lock for {}, custom path: [{}]", shardId, customLocation);
-            acquireFSLockForPaths(indexSettings, customLocation);
-            logger.trace("deleting custom shard {} directory [{}]", shardId, customLocation);
-            IOUtils.rm(customLocation);
+        try (Closeable locks = acquireFSLockForPaths(indexSettings, paths)){
+            IOUtils.rm(paths);
+            if (hasCustomDataPath(indexSettings)) {
+                Path customLocation = resolveCustomLocation(indexSettings, shardId);
+                logger.trace("acquiring lock for {}, custom path: [{}]", shardId, customLocation);
+                try (Closeable customLocks = acquireFSLockForPaths(indexSettings, customLocation)) {
+                    logger.trace("deleting custom shard {} directory [{}]", shardId, customLocation);
+                    IOUtils.rm(customLocation);
+                }
+            }
+            logger.trace("deleted shard {} directory, paths: [{}]", shardId, paths);
+            assert FileSystemUtils.exists(paths) == false;
         }
-        logger.trace("deleted shard {} directory, paths: [{}]", shardId, paths);
-        assert FileSystemUtils.exists(paths) == false;
     }
 
     private boolean isShardLocked(ShardId id) {

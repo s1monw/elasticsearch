@@ -47,6 +47,7 @@ import org.elasticsearch.test.ElasticsearchSingleNodeTest;
 import org.elasticsearch.test.VersionUtils;
 import org.junit.Test;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -120,8 +121,7 @@ public class IndexShardTests extends ElasticsearchSingleNodeTest {
         Path[] shardPaths = env.availableShardPaths(new ShardId("test", 0));
         logger.info("--> paths: [{}]", shardPaths);
         // Should not be able to acquire the lock because it's already open
-        try {
-            NodeEnvironment.acquireFSLockForPaths(Settings.EMPTY, shardPaths);
+        try (Closeable locks = NodeEnvironment.acquireFSLockForPaths(Settings.EMPTY, shardPaths)){
             fail("should not have been able to acquire the lock");
         } catch (LockObtainFailedException e) {
             assertTrue("msg: " + e.getMessage(), e.getMessage().contains("unable to acquire write.lock"));

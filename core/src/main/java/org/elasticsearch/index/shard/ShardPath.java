@@ -26,6 +26,7 @@ import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.env.ShardLock;
 import org.elasticsearch.index.settings.IndexSettings;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.FileStore;
 import java.nio.file.Files;
@@ -130,8 +131,9 @@ public final class ShardPath {
                 if (load.indexUUID.equals(indexUUID) == false && IndexMetaData.INDEX_UUID_NA_VALUE.equals(load.indexUUID) == false) {
                     logger.warn("{} deleting leftover shard on path: [{}] with a different index UUID", lock.getShardId(), path);
                     assert Files.isDirectory(path) : path + " is not a directory";
-                    NodeEnvironment.acquireFSLockForPaths(indexSettings, paths);
-                    IOUtils.rm(path);
+                    try (Closeable locks = NodeEnvironment.acquireFSLockForPaths(indexSettings, paths)) {
+                        IOUtils.rm(path);
+                    }
                 }
             }
         }
