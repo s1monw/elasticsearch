@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -149,7 +150,7 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
     protected final Map<String, List<Channel>> serverChannels = newConcurrentMap();
     protected final ConcurrentMap<String, BoundTransportAddress> profileBoundAddresses = newConcurrentMap();
     protected volatile TransportServiceAdapter transportServiceAdapter;
-    protected volatile BoundTransportAddress boundAddress;
+    protected final SetOnce<BoundTransportAddress> boundAddress = new SetOnce<>();
     protected final KeyedLock<String> connectionLock = new KeyedLock<>();
     protected final NamedWriteableRegistry namedWriteableRegistry;
 
@@ -290,7 +291,7 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
                 int publishPort = settings.getAsInt("transport.netty.publish_port", settings.getAsInt("transport.publish_port", boundAddress.getPort()));
                 String publishHost = settings.get("transport.netty.publish_host", settings.get("transport.publish_host", settings.get("transport.host")));
                 InetSocketAddress publishAddress = createPublishAddress(publishHost, publishPort);
-                this.boundAddress = new BoundTransportAddress(new InetSocketTransportAddress(boundAddress), new InetSocketTransportAddress(publishAddress));
+                this.boundAddress.set(new BoundTransportAddress(new InetSocketTransportAddress(boundAddress), new InetSocketTransportAddress(publishAddress)));
             }
             success = true;
         } finally {
@@ -618,7 +619,7 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
 
     @Override
     public BoundTransportAddress boundAddress() {
-        return this.boundAddress;
+        return this.boundAddress.get();
     }
 
     protected void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {

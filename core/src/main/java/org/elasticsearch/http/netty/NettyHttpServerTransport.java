@@ -19,6 +19,7 @@
 
 package org.elasticsearch.http.netty;
 
+import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.common.Booleans;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
@@ -52,9 +53,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -128,13 +128,13 @@ public class NettyHttpServerTransport extends AbstractLifecycleComponent<HttpSer
     protected final ByteSizeValue maxCumulationBufferCapacity;
     protected final int maxCompositeBufferComponents;
 
-    protected volatile ServerBootstrap serverBootstrap;
+    protected final SetOnce<ServerBootstrap> serverBootstrap = new SetOnce<>();
 
-    protected volatile BoundTransportAddress boundAddress;
+    protected final SetOnce<BoundTransportAddress> boundAddress = new SetOnce<>();
 
-    protected volatile List<Channel> serverChannels = new ArrayList<>();
+    protected final List<Channel> serverChannels = Collections.synchronizedList(new ArrayList<Channel>());
 
-    protected OpenChannelsHandler serverOpenChannels;
+    protected final SetOnce<OpenChannelsHandler> serverOpenChannels = new SetOnce<>();
 
     protected volatile HttpServerAdapter httpServerAdapter;
 
@@ -213,39 +213,8 @@ public class NettyHttpServerTransport extends AbstractLifecycleComponent<HttpSer
 
     @Override
     protected void doStart() {
-        this.serverOpenChannels = new OpenChannelsHandler(logger);
-
-        if (blockingServer) {
-            serverBootstrap = new ServerBootstrap(new OioServerSocketChannelFactory(
-                    Executors.newCachedThreadPool(daemonThreadFactory(settings, "http_server_boss")),
-                    Executors.newCachedThreadPool(daemonThreadFactory(settings, "http_server_worker"))
-            ));
-        } else {
-            serverBootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
-                    Executors.newCachedThreadPool(daemonThreadFactory(settings, "http_server_boss")),
-                    Executors.newCachedThreadPool(daemonThreadFactory(settings, "http_server_worker")),
-                    workerCount));
-        }
-
-        serverBootstrap.setPipelineFactory(configureServerChannelPipelineFactory());
-
-        if (!"default".equals(tcpNoDelay)) {
-            serverBootstrap.setOption("child.tcpNoDelay", Booleans.parseBoolean(tcpNoDelay, null));
-        }
-        if (!"default".equals(tcpKeepAlive)) {
-            serverBootstrap.setOption("child.keepAlive", Booleans.parseBoolean(tcpKeepAlive, null));
-        }
-        if (tcpSendBufferSize != null && tcpSendBufferSize.bytes() > 0) {
-            serverBootstrap.setOption("child.sendBufferSize", tcpSendBufferSize.bytes());
-        }
-        if (tcpReceiveBufferSize != null && tcpReceiveBufferSize.bytes() > 0) {
-            serverBootstrap.setOption("child.receiveBufferSize", tcpReceiveBufferSize.bytes());
-        }
-        serverBootstrap.setOption("receiveBufferSizePredictorFactory", receiveBufferSizePredictorFactory);
-        serverBootstrap.setOption("child.receiveBufferSizePredictorFactory", receiveBufferSizePredictorFactory);
-        serverBootstrap.setOption("reuseAddress", reuseAddress);
-        serverBootstrap.setOption("child.reuseAddress", reuseAddress);
-
+        this.serverOpenChannels.set(new OpenChannelsHandler(logger));
+        this.serverBootstrap.set(buildServerBootstrap());
         // Bind and start to accept incoming connections.
         InetAddress hostAddresses[];
         try {
@@ -268,9 +237,52 @@ public class NettyHttpServerTransport extends AbstractLifecycleComponent<HttpSer
         } catch (Exception e) {
             throw new BindTransportException("Failed to resolve publish address", e);
         }
-        this.boundAddress = new BoundTransportAddress(new InetSocketTransportAddress(boundAddress), new InetSocketTransportAddress(publishAddress));
+
+        this.boundAddress.set(new BoundTransportAddress(new InetSocketTransportAddress(boundAddress), new InetSocketTransportAddress(publishAddress)));
     }
-    
+
+    private ServerBootstrap buildServerBootstrap() {
+        final ServerBootstrap bootstrap;
+        if (blockingServer) {
+            bootstrap = new ServerBootstrap(new OioServerSocketChannelFactory(
+                    Executors.newCachedThreadPool(daemonThreadFactory(settings, "http_server_boss")),
+                    Executors.newCachedThreadPool(daemonThreadFactory(settings, "http_server_worker"))
+            ));
+        } else {
+            bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(
+                    Executors.newCachedThreadPool(daemonThreadFactory(settings, "http_server_boss")),
+                    Executors.newCachedThreadPool(daemonThreadFactory(settings, "http_server_worker")),
+                    workerCount));
+        }
+        boolean success = false;
+        try {
+            bootstrap.setPipelineFactory(configureServerChannelPipelineFactory());
+
+            if (!"default".equals(tcpNoDelay)) {
+                bootstrap.setOption("child.tcpNoDelay", Booleans.parseBoolean(tcpNoDelay, null));
+            }
+            if (!"default".equals(tcpKeepAlive)) {
+                bootstrap.setOption("child.keepAlive", Booleans.parseBoolean(tcpKeepAlive, null));
+            }
+            if (tcpSendBufferSize != null && tcpSendBufferSize.bytes() > 0) {
+                bootstrap.setOption("child.sendBufferSize", tcpSendBufferSize.bytes());
+            }
+            if (tcpReceiveBufferSize != null && tcpReceiveBufferSize.bytes() > 0) {
+                bootstrap.setOption("child.receiveBufferSize", tcpReceiveBufferSize.bytes());
+            }
+            bootstrap.setOption("receiveBufferSizePredictorFactory", receiveBufferSizePredictorFactory);
+            bootstrap.setOption("child.receiveBufferSizePredictorFactory", receiveBufferSizePredictorFactory);
+            bootstrap.setOption("reuseAddress", reuseAddress);
+            bootstrap.setOption("child.reuseAddress", reuseAddress);
+            success = true;
+            return bootstrap;
+        } finally {
+            if (success == false) {
+                bootstrap.releaseExternalResources();
+            }
+        }
+    }
+
     private void bindAddress(final InetAddress hostAddress) {
         PortsRange portsRange = new PortsRange(port);
         final AtomicReference<Exception> lastException = new AtomicReference<>();
@@ -280,7 +292,7 @@ public class NettyHttpServerTransport extends AbstractLifecycleComponent<HttpSer
             public boolean onPortNumber(int portNumber) {
                 try {
                     synchronized (serverChannels) {
-                        Channel channel = serverBootstrap.bind(new InetSocketAddress(hostAddress, portNumber));
+                        Channel channel = serverBootstrap.get().bind(new InetSocketAddress(hostAddress, portNumber));
                         serverChannels.add(channel);
                         boundSocket.set(channel.getLocalAddress());
                     }
@@ -300,23 +312,27 @@ public class NettyHttpServerTransport extends AbstractLifecycleComponent<HttpSer
     @Override
     protected void doStop() {
         synchronized (serverChannels) {
-            if (serverChannels != null) {
-                for (Channel channel : serverChannels) {
+            for (Channel channel : serverChannels) {
+                try {
                     channel.close().awaitUninterruptibly();
+                } catch (Throwable t) {
+                    logger.warn("failed to close channel {}", t, channel);
                 }
-                serverChannels = null;
+            }
+            serverChannels.clear();
+        }
+        try {
+            final OpenChannelsHandler openChannelsHandler = serverOpenChannels.get();
+            if (openChannelsHandler != null) {
+                openChannelsHandler.close();
+            }
+        } finally {
+            final ServerBootstrap bootstrap = serverBootstrap.get();
+            if (bootstrap != null) {
+                bootstrap.releaseExternalResources();
             }
         }
 
-        if (serverOpenChannels != null) {
-            serverOpenChannels.close();
-            serverOpenChannels = null;
-        }
-
-        if (serverBootstrap != null) {
-            serverBootstrap.releaseExternalResources();
-            serverBootstrap = null;
-        }
     }
 
     @Override
@@ -325,7 +341,7 @@ public class NettyHttpServerTransport extends AbstractLifecycleComponent<HttpSer
 
     @Override
     public BoundTransportAddress boundAddress() {
-        return this.boundAddress;
+        return this.boundAddress.get();
     }
 
     @Override
@@ -339,7 +355,7 @@ public class NettyHttpServerTransport extends AbstractLifecycleComponent<HttpSer
 
     @Override
     public HttpStats stats() {
-        OpenChannelsHandler channels = serverOpenChannels;
+        OpenChannelsHandler channels = serverOpenChannels.get();
         return new HttpStats(channels == null ? 0 : channels.numberOfOpenChannels(), channels == null ? 0 : channels.totalChannels());
     }
 
@@ -385,7 +401,7 @@ public class NettyHttpServerTransport extends AbstractLifecycleComponent<HttpSer
         @Override
         public ChannelPipeline getPipeline() throws Exception {
             ChannelPipeline pipeline = Channels.pipeline();
-            pipeline.addLast("openChannels", transport.serverOpenChannels);
+            pipeline.addLast("openChannels", transport.serverOpenChannels.get());
             HttpRequestDecoder requestDecoder = new HttpRequestDecoder(
                     (int) transport.maxInitialLineLength.bytes(),
                     (int) transport.maxHeaderSize.bytes(),
