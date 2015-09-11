@@ -239,13 +239,11 @@ public class Node implements Releasable {
         ESLogger logger = Loggers.getLogger(Node.class, settings.get("name"));
         logger.info("starting ...");
 
-        // hack around dependency injection problem (for now...)
-        injector.getInstance(Discovery.class).setRoutingService(injector.getInstance(RoutingService.class));
-
         for (Class<? extends LifecycleComponent> plugin : pluginsService.nodeServices()) {
             injector.getInstance(plugin).start();
         }
-
+        // hack around dependency injection problem (for now...)
+        injector.getInstance(Discovery.class).setRoutingService(injector.getInstance(RoutingService.class));
         injector.getInstance(MappingUpdatedAction.class).setClient(client);
         injector.getInstance(IndicesService.class).start();
         injector.getInstance(IndexingMemoryController.class).start();
