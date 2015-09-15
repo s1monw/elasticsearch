@@ -38,7 +38,7 @@ public class SearchPhaseExecutionException extends ElasticsearchException {
     private final ShardSearchFailure[] shardFailures;
 
     public SearchPhaseExecutionException(String phaseName, String msg, ShardSearchFailure[] shardFailures) {
-        super(msg);
+        super(msg, getFirstCauseOrNull(shardFailures));
         this.phaseName = phaseName;
         this.shardFailures = shardFailures;
     }
@@ -135,6 +135,15 @@ public class SearchPhaseExecutionException extends ElasticsearchException {
             rootCauses.addAll(Arrays.asList(guessRootCauses));
         }
         return rootCauses.toArray(new ElasticsearchException[0]);
+    }
+
+    private static Throwable getFirstCauseOrNull(ShardSearchFailure[] shardFailures) {
+        for (ShardSearchFailure failure : shardFailures) {
+            if (failure.getCause() != null) {
+                return failure.getCause();
+            }
+        }
+        return null;
     }
 
     @Override

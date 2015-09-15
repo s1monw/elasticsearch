@@ -218,7 +218,7 @@ public class DateMathParserTests extends ESTestCase {
             parser.parse(date, callable(0));
             fail("Date: " + date + "\n" + msg);
         } catch (ElasticsearchParseException e) {
-            assertThat(ExceptionsHelper.detailedMessage(e).contains(exc), equalTo(true));
+            assertThat(e.toString().contains(exc), equalTo(true));
         }
     }
     

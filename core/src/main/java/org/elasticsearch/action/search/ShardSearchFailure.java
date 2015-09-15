@@ -64,7 +64,7 @@ public class ShardSearchFailure implements ShardOperationFailedException {
             this.shardTarget = shardTarget;
         }
         status = ExceptionsHelper.status(actual);
-        this.reason = t.getMessage();
+        this.reason = t.toString();
         this.cause = actual;
     }
 
