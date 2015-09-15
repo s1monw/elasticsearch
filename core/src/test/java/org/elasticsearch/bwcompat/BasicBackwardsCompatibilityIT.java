@@ -390,7 +390,7 @@ public class BasicBackwardsCompatibilityIT extends ESBackcompatTestCase {
                     .addMapping("type", mapping));
         } catch (MapperParsingException ex) {
             assertThat(ex.getCause(), instanceOf(IllegalArgumentException.class));
-            assertThat(ExceptionsHelper.detailedMessage(ex).contains("type=_field_names is not supported on indices created before version 1.3.0"), equalTo(true));
+            assertThat(ex.toString().contains("type=_field_names is not supported on indices created before version 1.3.0"), equalTo(true));
         }
 
     }

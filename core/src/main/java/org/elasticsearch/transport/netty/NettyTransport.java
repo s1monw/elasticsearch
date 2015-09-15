@@ -1060,16 +1060,12 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
      * Disconnects from a node if a channel is found as part of that nodes channels.
      */
     protected void disconnectFromNodeChannel(final Channel channel, final Throwable failure) {
-        threadPool().generic().execute(new Runnable() {
-
-            @Override
-            public void run() {
-                for (DiscoveryNode node : connectedNodes.keySet()) {
-                    if (disconnectFromNode(node, channel, ExceptionsHelper.detailedMessage(failure))) {
-                        // if we managed to find this channel and disconnect from it, then break, no need to check on
-                        // the rest of the nodes
-                        break;
-                    }
+        threadPool().generic().execute(() -> {
+            for (DiscoveryNode node : connectedNodes.keySet()) {
+                if (disconnectFromNode(node, channel, failure == null  ? "unknown" : failure.toString())) {
+                    // if we managed to find this channel and disconnect from it, then break, no need to check on
+                    // the rest of the nodes
+                    break;
                 }
             }
         });
@@ -1164,12 +1160,7 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
         public void operationComplete(final ChannelFuture future) throws Exception {
             NodeChannels nodeChannels = connectedNodes.get(node);
             if (nodeChannels != null && nodeChannels.hasChannel(future.getChannel())) {
-                threadPool().generic().execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        disconnectFromNode(node, future.getChannel(), "channel closed event");
-                    }
-                });
+                threadPool().generic().execute(() -> disconnectFromNode(node, future.getChannel(), "channel closed event"));
             }
         }
     }

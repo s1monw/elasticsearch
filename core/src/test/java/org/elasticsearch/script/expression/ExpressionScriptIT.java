@@ -513,7 +513,7 @@ public class ExpressionScriptIT extends ESIntegTestCase {
             client().prepareIndex("test_index", "trans_test", "1").setSource("double_field", 0.0).get();
             fail("Expression scripts should not be allowed to run as mapping scripts.");
         } catch (Exception e) {
-            String message = ExceptionsHelper.detailedMessage(e);
+            String message = e.toString();
             assertThat(message + " should have contained failed to parse", message.contains("failed to parse"), equalTo(true));
             assertThat(message + " should have contained not supported", message.contains("not supported"), equalTo(true));
         }

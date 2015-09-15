@@ -177,7 +177,7 @@ public class BlobStoreIndexShardRepository extends AbstractComponent implements 
         } catch (Throwable e) {
             snapshotStatus.time(System.currentTimeMillis() - snapshotStatus.startTime());
             snapshotStatus.updateStage(IndexShardSnapshotStatus.Stage.FAILURE);
-            snapshotStatus.failure(ExceptionsHelper.detailedMessage(e));
+            snapshotStatus.failure(e.toString());
             if (e instanceof IndexShardSnapshotFailedException) {
                 throw (IndexShardSnapshotFailedException) e;
             } else {

@@ -409,7 +409,12 @@ public class ElasticsearchException extends RuntimeException implements ToXConte
             }
             builder.append(' ');
         }
-        return builder.append(ExceptionsHelper.detailedMessage(this).trim()).toString();
+        builder.append(super.toString());
+        Throwable rootCause = getRootCause();
+        if (rootCause != null && rootCause != this) {
+            builder.append(" with root cause: [").append(rootCause).append("]");
+        }
+        return builder.toString();
     }
 
     /**

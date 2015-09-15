@@ -300,12 +300,12 @@ public class SnapshotShardsService extends AbstractLifecycleComponent<SnapshotSh
                             @Override
                             public void onFailure(Throwable t) {
                                 logger.warn("[{}] [{}] failed to create snapshot", t, shardId, entry.getKey());
-                                updateIndexShardSnapshotStatus(entry.getKey(), shardId, new SnapshotsInProgress.ShardSnapshotStatus(localNodeId, SnapshotsInProgress.State.FAILED, ExceptionsHelper.detailedMessage(t)));
+                                updateIndexShardSnapshotStatus(entry.getKey(), shardId, new SnapshotsInProgress.ShardSnapshotStatus(localNodeId, SnapshotsInProgress.State.FAILED, t.getMessage()));
                             }
 
                         });
                     } catch (Throwable t) {
-                        updateIndexShardSnapshotStatus(entry.getKey(), shardId, new SnapshotsInProgress.ShardSnapshotStatus(localNodeId, SnapshotsInProgress.State.FAILED, ExceptionsHelper.detailedMessage(t)));
+                        updateIndexShardSnapshotStatus(entry.getKey(), shardId, new SnapshotsInProgress.ShardSnapshotStatus(localNodeId, SnapshotsInProgress.State.FAILED, t.getMessage()));
                     }
                 }
             }

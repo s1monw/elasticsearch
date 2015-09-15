@@ -40,17 +40,17 @@ public class MultiTermVectorsResponse extends ActionResponse implements Iterable
         private String index;
         private String type;
         private String id;
-        private String message;
+        private Throwable throwable;
 
         Failure() {
 
         }
 
-        public Failure(String index, String type, String id, String message) {
+        public Failure(String index, String type, String id, Throwable throwable) {
             this.index = index;
             this.type = type;
             this.id = id;
-            this.message = message;
+            this.throwable = throwable;
         }
 
         /**
@@ -77,8 +77,8 @@ public class MultiTermVectorsResponse extends ActionResponse implements Iterable
         /**
          * The failure message.
          */
-        public String getMessage() {
-            return this.message;
+        public Throwable getCause() {
+            return this.throwable;
         }
 
         public static Failure readFailure(StreamInput in) throws IOException {
@@ -92,7 +92,7 @@ public class MultiTermVectorsResponse extends ActionResponse implements Iterable
             index = in.readString();
             type = in.readOptionalString();
             id = in.readString();
-            message = in.readString();
+            throwable = in.readThrowable();
         }
 
         @Override
@@ -100,7 +100,7 @@ public class MultiTermVectorsResponse extends ActionResponse implements Iterable
             out.writeString(index);
             out.writeOptionalString(type);
             out.writeString(id);
-            out.writeString(message);
+            out.writeThrowable(throwable);
         }
     }
 
@@ -132,7 +132,7 @@ public class MultiTermVectorsResponse extends ActionResponse implements Iterable
                 builder.field(Fields._INDEX, failure.getIndex());
                 builder.field(Fields._TYPE, failure.getType());
                 builder.field(Fields._ID, failure.getId());
-                builder.field(Fields.ERROR, failure.getMessage());
+                builder.field(Fields.ERROR, failure.getCause());
                 builder.endObject();
             } else {
                 TermVectorsResponse getResponse = response.getResponse();

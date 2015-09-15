@@ -128,7 +128,7 @@ public class IndexedScriptIT extends ESIntegTestCase {
             fail("update script should have been rejected");
         } catch (Exception e) {
             assertThat(e.getMessage(), containsString("failed to execute script"));
-            assertThat(ExceptionsHelper.detailedMessage(e),
+            assertThat(e.toString(),
                     containsString("scripts of type [indexed], operation [update] and lang [groovy] are disabled"));
         }
     }

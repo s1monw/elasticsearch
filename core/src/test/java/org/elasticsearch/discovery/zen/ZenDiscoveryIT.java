@@ -226,7 +226,7 @@ public class ZenDiscoveryIT extends ESIntegTestCase {
         });
         latch.await();
         assertThat(reference.get(), notNullValue());
-        assertThat(ExceptionsHelper.detailedMessage(reference.get()), containsString("cluster state from a different master than the current one, rejecting"));
+        assertThat(reference.get().toString(), containsString("cluster state from a different master than the current one, rejecting"));
     }
 
     @Test

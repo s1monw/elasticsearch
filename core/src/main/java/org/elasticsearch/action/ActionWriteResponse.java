@@ -220,7 +220,7 @@ public class ActionWriteResponse extends ActionResponse {
              */
             @Override
             public String reason() {
-                return ExceptionsHelper.detailedMessage(cause);
+                return cause == null ? "unknown" : cause.getMessage();
             }
 
             /**

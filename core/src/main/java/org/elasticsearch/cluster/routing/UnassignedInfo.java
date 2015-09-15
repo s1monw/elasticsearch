@@ -182,7 +182,7 @@ public class UnassignedInfo implements ToXContent, Writeable<UnassignedInfo> {
         if (message == null) {
             return null;
         }
-        return message + (failure == null ? "" : ", failure " + ExceptionsHelper.detailedMessage(failure));
+        return message + (failure == null ? "" : ", failure " + failure.toString());
     }
 
     /**

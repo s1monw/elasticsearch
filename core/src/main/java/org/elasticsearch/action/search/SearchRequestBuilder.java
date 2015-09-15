@@ -889,7 +889,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
             try {
                 return XContentHelper.convertToJson(request.source().toBytesArray(), false, true);
             } catch (Exception e) {
-                return "{ \"error\" : \"" + ExceptionsHelper.detailedMessage(e) + "\"}";
+                return "{ \"error\" : \"" + e + "\"}";
             }
         }
         return new SearchSourceBuilder().toString();

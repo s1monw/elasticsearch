@@ -283,7 +283,7 @@ public class ShardStateAction extends AbstractComponent {
 
         @Override
         public String toString() {
-            return "" + shardRouting + ", indexUUID [" + indexUUID + "], message [" + message + "], failure [" + ExceptionsHelper.detailedMessage(failure) + "]";
+            return "" + shardRouting + ", indexUUID [" + indexUUID + "], message [" + message + "], failure [" + failure + "]";
         }
     }
 }

@@ -318,7 +318,7 @@ public class MoreLikeThisQueryBuilder extends QueryBuilder implements BoostableQ
                 toXContent(builder, EMPTY_PARAMS);
                 return builder.string();
             } catch (Exception e) {
-                return "{ \"error\" : \"" + ExceptionsHelper.detailedMessage(e) + "\"}";
+                return "{ \"error\" : \"" + e + "\"}";
             }
         }
 

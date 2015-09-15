@@ -206,7 +206,7 @@ public class StoreRecoveryService extends AbstractIndexShardComponent implements
                     try {
                         files = Arrays.toString(store.directory().listAll());
                     } catch (Throwable e1) {
-                        files += " (failure=" + ExceptionsHelper.detailedMessage(e1) + ")";
+                        files += " (failure=" + e1 + ")";
                     }
                     if (indexShouldExists) {
                         throw new IndexShardRecoveryException(shardId(), "shard allocated for local recovery (post api), should exist, but doesn't, current files: " + files, e);

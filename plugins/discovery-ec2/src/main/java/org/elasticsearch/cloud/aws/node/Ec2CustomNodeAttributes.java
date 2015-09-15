@@ -68,7 +68,7 @@ public class Ec2CustomNodeAttributes extends AbstractComponent implements Discov
             }
             ec2Attributes.put("aws_availability_zone", metadataResult);
         } catch (IOException e) {
-            logger.debug("failed to get metadata for [placement/availability-zone]: " + ExceptionsHelper.detailedMessage(e));
+            logger.debug("failed to get metadata for [placement/availability-zone] ", e);
         } finally {
             IOUtils.closeWhileHandlingException(in);
         }

@@ -358,7 +358,7 @@ public class SnapshotsService extends AbstractLifecycleComponent<SnapshotsServic
                     removeSnapshotFromClusterState(snapshot.snapshotId(), null, t);
                     try {
                         repositoriesService.repository(snapshot.snapshotId().getRepository()).finalizeSnapshot(
-                                snapshot.snapshotId(), snapshot.indices(), snapshot.startTime(), ExceptionsHelper.detailedMessage(t), 0, Collections.<SnapshotShardFailure>emptyList());
+                                snapshot.snapshotId(), snapshot.indices(), snapshot.startTime(), t.getMessage(), 0, Collections.<SnapshotShardFailure>emptyList());
                     } catch (Throwable t2) {
                         logger.warn("[{}] failed to close snapshot in repository", snapshot.snapshotId());
                     }
@@ -388,7 +388,7 @@ public class SnapshotsService extends AbstractLifecycleComponent<SnapshotsServic
             if (snapshotCreated) {
                 try {
                     repositoriesService.repository(snapshot.snapshotId().getRepository()).finalizeSnapshot(snapshot.snapshotId(), snapshot.indices(), snapshot.startTime(),
-                            ExceptionsHelper.detailedMessage(t), 0, Collections.<SnapshotShardFailure>emptyList());
+                            t.getMessage(), 0, Collections.<SnapshotShardFailure>emptyList());
                 } catch (Throwable t2) {
                     logger.warn("[{}] failed to close snapshot in repository", snapshot.snapshotId());
                 }

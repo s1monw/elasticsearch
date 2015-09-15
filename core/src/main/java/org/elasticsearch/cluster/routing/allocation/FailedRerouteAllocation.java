@@ -51,7 +51,7 @@ public class FailedRerouteAllocation extends RoutingAllocation {
 
         @Override
         public String toString() {
-            return "failed shard, shard " + shard + ", message [" + message + "], failure [" + ExceptionsHelper.detailedMessage(failure) + "]";
+            return "failed shard, shard " + shard + ", message [" + message + "], failure [" + failure + "]";
         }
     }
 

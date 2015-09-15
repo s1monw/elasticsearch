@@ -169,7 +169,7 @@ public class CountRequestBuilder extends BroadcastOperationRequestBuilder<CountR
             try {
                 return XContentHelper.convertToJson(request.source().toBytesArray(), false, true);
             } catch (Exception e) {
-                return "{ \"error\" : \"" + ExceptionsHelper.detailedMessage(e) + "\"}";
+                return "{ \"error\" : \"" + e + "\"}";
             }
         }
         return new QuerySourceBuilder().toString();

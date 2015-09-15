@@ -29,8 +29,6 @@ import org.elasticsearch.rest.RestStatus;
 
 import java.io.IOException;
 
-import static org.elasticsearch.ExceptionsHelper.detailedMessage;
-
 /**
  *
  */
@@ -73,7 +71,8 @@ public class DefaultShardOperationFailedException implements ShardOperationFaile
 
     @Override
     public String reason() {
-        return detailedMessage(reason);
+        return reason == null ? "unknown" : reason.toString();
+
     }
 
     @Override

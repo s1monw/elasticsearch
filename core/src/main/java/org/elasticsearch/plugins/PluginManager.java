@@ -167,7 +167,7 @@ public class PluginManager {
                 throw e;
             } catch (Exception e) {
                 // ignore
-                terminal.println("Failed: %s", ExceptionsHelper.detailedMessage(e));
+                terminal.println("Failed: %s", e.toString());
             }
         } else {
             if (PluginHandle.isOfficialPlugin(pluginHandle.name, pluginHandle.user, pluginHandle.version)) {
@@ -193,7 +193,7 @@ public class PluginManager {
                 } catch (ElasticsearchTimeoutException | ElasticsearchCorruptionException e) {
                     throw e;
                 } catch (Exception e) {
-                    terminal.println(VERBOSE, "Failed: %s", ExceptionsHelper.detailedMessage(e));
+                    terminal.println(VERBOSE, "Failed: %s", e.toString());
                 }
             }
         }

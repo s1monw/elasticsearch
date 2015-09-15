@@ -271,7 +271,7 @@ public class EsExecutorsTests extends ESTestCase {
                 fail("Didn't get a rejection when we expected one.");
             } catch (EsRejectedExecutionException e) {
                 assertFalse("Thread pool registering as terminated when it isn't", e.isExecutorShutdown());
-                String message = ExceptionsHelper.detailedMessage(e);
+                String message = e.toString();
                 assertThat(message, containsString("of dummy runnable"));
                 assertThat(message, containsString("on EsThreadPoolExecutor[testRejectionMessage"));
                 assertThat(message, containsString("queue capacity = " + queue));
@@ -311,7 +311,7 @@ public class EsExecutorsTests extends ESTestCase {
             fail("Didn't get a rejection when we expected one.");
         } catch (EsRejectedExecutionException e) {
             assertTrue("Thread pool not registering as terminated when it is", e.isExecutorShutdown());
-            String message = ExceptionsHelper.detailedMessage(e);
+            String message = e.toString();
             assertThat(message, containsString("of dummy runnable"));
             assertThat(message, containsString("on EsThreadPoolExecutor[" + getTestName()));
             assertThat(message, containsString("queue capacity = " + queue));

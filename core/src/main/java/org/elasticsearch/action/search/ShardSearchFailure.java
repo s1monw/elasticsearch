@@ -50,7 +50,6 @@ public class ShardSearchFailure implements ShardOperationFailedException {
     private Throwable cause;
 
     private ShardSearchFailure() {
-
     }
 
     public ShardSearchFailure(Throwable t) {
@@ -65,7 +64,7 @@ public class ShardSearchFailure implements ShardOperationFailedException {
             this.shardTarget = shardTarget;
         }
         status = ExceptionsHelper.status(actual);
-        this.reason = ExceptionsHelper.detailedMessage(t);
+        this.reason = t.getMessage();
         this.cause = actual;
     }
 

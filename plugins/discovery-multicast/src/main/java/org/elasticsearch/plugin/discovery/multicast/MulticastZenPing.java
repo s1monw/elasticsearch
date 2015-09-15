@@ -140,9 +140,9 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
         } catch (Throwable t) {
             String msg = "multicast failed to start [{}], disabling. Consider using IPv4 only (by defining env. variable `ES_USE_IPV4`)";
             if (logger.isDebugEnabled()) {
-                logger.debug(msg, t, ExceptionsHelper.detailedMessage(t));
+                logger.debug(msg, t, t.getMessage());
             } else {
-                logger.info(msg, ExceptionsHelper.detailedMessage(t));
+                logger.info(msg, t.getMessage());
             }
         }
     }
@@ -278,7 +278,7 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
             if (logger.isDebugEnabled()) {
                 logger.debug("failed to send multicast ping request", e);
             } else {
-                logger.warn("failed to send multicast ping request: {}", ExceptionsHelper.detailedMessage(e));
+                logger.warn("failed to send multicast ping request: {}", e.getMessage());
             }
         }
     }

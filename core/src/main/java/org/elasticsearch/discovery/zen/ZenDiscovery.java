@@ -456,16 +456,16 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
                 Throwable unwrap = ExceptionsHelper.unwrapCause(t);
                 if (unwrap instanceof NotMasterException) {
                     if (++joinAttempt == this.joinRetryAttempts) {
-                        logger.info("failed to send join request to master [{}], reason [{}], tried [{}] times", masterNode, ExceptionsHelper.detailedMessage(t), joinAttempt);
+                        logger.info("failed to send join request to master [{}], reason [{}], tried [{}] times", masterNode, t.getMessage(), joinAttempt);
                         return false;
                     } else {
-                        logger.trace("master {} failed with [{}]. retrying... (attempts done: [{}])", masterNode, ExceptionsHelper.detailedMessage(t), joinAttempt);
+                        logger.trace("master {} failed with [{}]. retrying... (attempts done: [{}])", masterNode, t.getMessage(), joinAttempt);
                     }
                 } else {
                     if (logger.isTraceEnabled()) {
                         logger.trace("failed to send join request to master [{}]", t, masterNode);
                     } else {
-                        logger.info("failed to send join request to master [{}], reason [{}]", masterNode, ExceptionsHelper.detailedMessage(t));
+                        logger.info("failed to send join request to master [{}], reason [{}]", masterNode, t.getMessage());
                     }
                     return false;
                 }

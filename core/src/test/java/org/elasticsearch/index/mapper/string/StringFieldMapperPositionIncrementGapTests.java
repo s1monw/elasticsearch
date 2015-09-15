@@ -96,7 +96,7 @@ public class StringFieldMapperPositionIncrementGapTests extends ESSingleNodeTest
             setupGapInMapping(-1);
             fail("Expected an error");
         } catch (MapperParsingException e) {
-            assertThat(ExceptionsHelper.detailedMessage(e), containsString("positions_increment_gap less than 0 aren't allowed"));
+            assertThat(e.toString(), containsString("positions_increment_gap less than 0 aren't allowed"));
         }
     }
 
