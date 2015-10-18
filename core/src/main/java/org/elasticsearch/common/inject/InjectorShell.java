@@ -16,15 +16,28 @@
 
 package org.elasticsearch.common.inject;
 
-import com.google.common.collect.ImmutableSet;
-import org.elasticsearch.common.inject.internal.*;
-import org.elasticsearch.common.inject.spi.*;
+import org.elasticsearch.common.inject.internal.Errors;
+import org.elasticsearch.common.inject.internal.ErrorsException;
+import org.elasticsearch.common.inject.internal.InternalContext;
+import org.elasticsearch.common.inject.internal.InternalFactory;
+import org.elasticsearch.common.inject.internal.PrivateElementsImpl;
+import org.elasticsearch.common.inject.internal.ProviderInstanceBindingImpl;
+import org.elasticsearch.common.inject.internal.Scoping;
+import org.elasticsearch.common.inject.internal.SourceProvider;
+import org.elasticsearch.common.inject.internal.Stopwatch;
+import org.elasticsearch.common.inject.spi.Dependency;
+import org.elasticsearch.common.inject.spi.Element;
+import org.elasticsearch.common.inject.spi.Elements;
+import org.elasticsearch.common.inject.spi.InjectionPoint;
+import org.elasticsearch.common.inject.spi.PrivateElements;
+import org.elasticsearch.common.inject.spi.TypeListenerBinding;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.logging.Logger;
 
+import static java.util.Collections.emptySet;
 import static org.elasticsearch.common.inject.Scopes.SINGLETON;
 
 /**
@@ -185,7 +198,7 @@ class InjectorShell {
         injector.state.putBinding(key,
                 new ProviderInstanceBindingImpl<>(injector, key, SourceProvider.UNKNOWN_SOURCE,
                         injectorFactory, Scoping.UNSCOPED, injectorFactory,
-                        ImmutableSet.<InjectionPoint>of()));
+                        emptySet()));
     }
 
     private static class InjectorFactory implements InternalFactory<Injector>, Provider<Injector> {
@@ -222,7 +235,7 @@ class InjectorShell {
         injector.state.putBinding(key,
                 new ProviderInstanceBindingImpl<>(injector, key,
                         SourceProvider.UNKNOWN_SOURCE, loggerFactory, Scoping.UNSCOPED,
-                        loggerFactory, ImmutableSet.<InjectionPoint>of()));
+                        loggerFactory, emptySet()));
     }
 
     private static class LoggerFactory implements InternalFactory<Logger>, Provider<Logger> {

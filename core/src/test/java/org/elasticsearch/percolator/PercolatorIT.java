@@ -32,7 +32,6 @@ import org.elasticsearch.action.percolate.PercolateSourceBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.client.Requests;
-import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.lucene.search.function.CombineFunction;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
@@ -48,7 +47,6 @@ import org.elasticsearch.index.query.QueryShardException;
 import org.elasticsearch.index.query.functionscore.weight.WeightBuilder;
 import org.elasticsearch.index.query.support.QueryInnerHits;
 import org.elasticsearch.rest.RestStatus;
-import org.elasticsearch.script.Script;
 import org.elasticsearch.search.highlight.HighlightBuilder;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.test.ESIntegTestCase;
@@ -62,7 +60,8 @@ import static org.elasticsearch.common.settings.Settings.builder;
 import static org.elasticsearch.common.settings.Settings.settingsBuilder;
 import static org.elasticsearch.common.xcontent.XContentFactory.*;
 import static org.elasticsearch.index.query.QueryBuilders.*;
-import static org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders.scriptFunction;
+import static org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders.fieldValueFactorFunction;
+import static org.elasticsearch.percolator.PercolatorTestUtil.convertFromTextArray;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 import static org.hamcrest.Matchers.*;
 
@@ -1174,7 +1173,7 @@ public class PercolatorIT extends ESIntegTestCase {
                     .setScore(true)
                     .setSize(size)
                     .setPercolateDoc(docBuilder().setDoc("field", "value"))
-                    .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), scriptFunction(new Script("doc['level'].value"))))
+                    .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), fieldValueFactorFunction("level")))
                     .execute().actionGet();
             assertMatchCount(response, numQueries);
             assertThat(response.getMatches().length, equalTo(size));
@@ -1191,7 +1190,7 @@ public class PercolatorIT extends ESIntegTestCase {
                     .setSortByScore(true)
                     .setSize(size)
                     .setPercolateDoc(docBuilder().setDoc("field", "value"))
-                    .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), scriptFunction(new Script("doc['level'].value"))))
+                    .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), fieldValueFactorFunction("level")))
                     .execute().actionGet();
             assertMatchCount(response, numQueries);
             assertThat(response.getMatches().length, equalTo(size));
@@ -1215,7 +1214,7 @@ public class PercolatorIT extends ESIntegTestCase {
                     .setSize(size)
                     .setPercolateDoc(docBuilder().setDoc("field", "value"))
                     .setPercolateQuery(
-                            QueryBuilders.functionScoreQuery(matchQuery("field1", value), scriptFunction(new Script("doc['level'].value")))
+                            QueryBuilders.functionScoreQuery(matchQuery("field1", value), fieldValueFactorFunction("level"))
                                     .boostMode(
                                     CombineFunction.REPLACE))
                     .execute().actionGet();
@@ -1249,7 +1248,7 @@ public class PercolatorIT extends ESIntegTestCase {
                 .setSortByScore(true)
                 .setSize(2)
                 .setPercolateDoc(docBuilder().setDoc("field", "value"))
-                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), scriptFunction(new Script("doc['level'].value"))))
+                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), fieldValueFactorFunction("level")))
                 .execute().actionGet();
         assertMatchCount(response, 2l);
         assertThat(response.getMatches()[0].getId().string(), equalTo("2"));
@@ -1260,7 +1259,7 @@ public class PercolatorIT extends ESIntegTestCase {
         response = client().preparePercolate().setIndices("my-index").setDocumentType("my-type")
                 .setSortByScore(true)
                 .setPercolateDoc(docBuilder().setDoc("field", "value"))
-                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), scriptFunction(new Script("doc['level'].value"))))
+                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), fieldValueFactorFunction("level")))
                 .execute().actionGet();
         assertThat(response.getCount(), equalTo(0l));
         assertThat(response.getShardFailures().length, greaterThan(0));
@@ -1289,7 +1288,7 @@ public class PercolatorIT extends ESIntegTestCase {
         PercolateResponse response = client().preparePercolate().setIndices("my-index").setDocumentType("my-type")
                 .setSize(2)
                 .setPercolateDoc(docBuilder().setDoc("field", "value"))
-                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), scriptFunction(new Script("doc['level'].value"))))
+                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), fieldValueFactorFunction("level")))
                 .addSort(SortBuilders.fieldSort("level"))
                 .get();
 
@@ -1307,7 +1306,7 @@ public class PercolatorIT extends ESIntegTestCase {
                 .setSortByScore(true)
                 .setSize(2)
                 .setPercolateDoc(docBuilder().setDoc("field", "value"))
-                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), scriptFunction(new Script("doc['level'].value"))))
+                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), fieldValueFactorFunction("level")))
                 .execute().actionGet();
         assertMatchCount(response, 0l);
     }
@@ -1327,7 +1326,7 @@ public class PercolatorIT extends ESIntegTestCase {
                 .setSortByScore(true)
                 .setSize(2)
                 .setPercolateDoc(docBuilder().setDoc("field", "value"))
-                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), scriptFunction(new Script("doc['level'].value"))))
+                .setPercolateQuery(QueryBuilders.functionScoreQuery(matchAllQuery(), fieldValueFactorFunction("level")))
                 .execute().actionGet();
         assertMatchCount(response, 0l);
     }
@@ -1546,18 +1545,6 @@ public class PercolatorIT extends ESIntegTestCase {
         assertThat(matches[3].getHighlightFields().get("field1").fragments()[0].string(), equalTo("The quick brown fox jumps over the lazy <em>dog</em>"));
         assertThat(matches[4].getScore(), equalTo(5.5f));
         assertThat(matches[4].getHighlightFields().get("field1").fragments()[0].string(), equalTo("The quick brown <em>fox</em> jumps over the lazy dog"));
-    }
-
-    public static String[] convertFromTextArray(PercolateResponse.Match[] matches, String index) {
-        if (matches.length == 0) {
-            return Strings.EMPTY_ARRAY;
-        }
-        String[] strings = new String[matches.length];
-        for (int i = 0; i < matches.length; i++) {
-            assertEquals(index, matches[i].getIndex().string());
-            strings[i] = matches[i].getId().string();
-        }
-        return strings;
     }
 
     @Test

@@ -22,11 +22,15 @@ package org.elasticsearch.search.scroll;
 import org.elasticsearch.action.search.*;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.Priority;
+import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.UncategorizedExecutionException;
+import org.elasticsearch.common.xcontent.ToXContent;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.rest.action.search.RestClearScrollAction;
@@ -42,9 +46,7 @@ import java.io.IOException;
 import java.util.Map;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.index.query.QueryBuilders.matchAllQuery;
-import static org.elasticsearch.index.query.QueryBuilders.queryStringQuery;
-import static org.elasticsearch.index.query.QueryBuilders.termQuery;
+import static org.elasticsearch.index.query.QueryBuilders.*;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.*;
 import static org.hamcrest.Matchers.*;
 
@@ -295,6 +297,7 @@ public class SearchScrollIT extends ESIntegTestCase {
         assertThat(clearResponse.isSucceeded(), is(true));
         assertThat(clearResponse.getNumFreed(), greaterThan(0));
         assertThat(clearResponse.status(), equalTo(RestStatus.OK));
+        assertToXContentResponse(clearResponse, true, clearResponse.getNumFreed());
 
         assertThrows(client().prepareSearchScroll(searchResponse1.getScrollId()).setScroll(TimeValue.timeValueMinutes(2)), RestStatus.NOT_FOUND);
         assertThrows(client().prepareSearchScroll(searchResponse2.getScrollId()).setScroll(TimeValue.timeValueMinutes(2)), RestStatus.NOT_FOUND);
@@ -311,6 +314,7 @@ public class SearchScrollIT extends ESIntegTestCase {
         assertThat(response.isSucceeded(), is(true));
         assertThat(response.getNumFreed(), equalTo(0));
         assertThat(response.status(), equalTo(RestStatus.NOT_FOUND));
+        assertToXContentResponse(response, true, response.getNumFreed());
     }
 
     @Test
@@ -405,6 +409,7 @@ public class SearchScrollIT extends ESIntegTestCase {
         assertThat(clearResponse.isSucceeded(), is(true));
         assertThat(clearResponse.getNumFreed(), greaterThan(0));
         assertThat(clearResponse.status(), equalTo(RestStatus.OK));
+        assertToXContentResponse(clearResponse, true, clearResponse.getNumFreed());
 
         assertThrows(internalCluster().transportClient().prepareSearchScroll(searchResponse1.getScrollId()).setScroll(TimeValue.timeValueMinutes(2)), RestStatus.NOT_FOUND);
         assertThrows(internalCluster().transportClient().prepareSearchScroll(searchResponse2.getScrollId()).setScroll(TimeValue.timeValueMinutes(2)), RestStatus.NOT_FOUND);
@@ -501,11 +506,8 @@ public class SearchScrollIT extends ESIntegTestCase {
     @Test
     public void testParseSearchScrollRequestWithInvalidJsonThrowsException() throws Exception {
         SearchScrollRequest searchScrollRequest = new SearchScrollRequest();
-        BytesReference invalidContent = XContentFactory.jsonBuilder().startObject()
-            .value("invalid_json").endObject().bytes();
-
         try {
-            RestSearchScrollAction.buildFromContent(invalidContent, searchScrollRequest);
+            RestSearchScrollAction.buildFromContent(new BytesArray("{invalid_json}"), searchScrollRequest);
             fail("expected parseContent failure");
         } catch (Exception e) {
             assertThat(e, instanceOf(IllegalArgumentException.class));
@@ -542,12 +544,10 @@ public class SearchScrollIT extends ESIntegTestCase {
 
     @Test
     public void testParseClearScrollRequestWithInvalidJsonThrowsException() throws Exception {
-        BytesReference invalidContent = XContentFactory.jsonBuilder().startObject()
-            .value("invalid_json").endObject().bytes();
         ClearScrollRequest clearScrollRequest = new ClearScrollRequest();
 
         try {
-            RestClearScrollAction.buildFromContent(invalidContent, clearScrollRequest);
+            RestClearScrollAction.buildFromContent(new BytesArray("{invalid_json}"), clearScrollRequest);
             fail("expected parseContent failure");
         } catch (Exception e) {
             assertThat(e, instanceOf(IllegalArgumentException.class));
@@ -599,4 +599,19 @@ public class SearchScrollIT extends ESIntegTestCase {
         }
     }
 
+    private void assertToXContentResponse(ClearScrollResponse response, boolean succeed, int numFreed) throws IOException {
+        XContentBuilder builder = XContentFactory.jsonBuilder();
+        builder.startObject();
+        response.toXContent(builder, ToXContent.EMPTY_PARAMS);
+        builder.endObject();
+
+        BytesReference bytesReference = builder.bytes();
+        Map<String, Object> map;
+        try (XContentParser parser = XContentFactory.xContent(bytesReference).createParser(bytesReference)) {
+            map = parser.map();
+        }
+
+        assertThat(map.get("succeeded"), is(succeed));
+        assertThat(map.get("num_freed"), equalTo(numFreed));
+    }
 }

@@ -22,7 +22,7 @@ package org.elasticsearch.cluster.metadata;
 import com.carrotsearch.hppc.ObjectHashSet;
 import com.carrotsearch.hppc.cursors.ObjectCursor;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
-import com.google.common.collect.ImmutableSet;
+
 import org.apache.lucene.util.CollectionUtil;
 import org.elasticsearch.cluster.Diff;
 import org.elasticsearch.cluster.Diffable;
@@ -59,12 +59,26 @@ import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.warmer.IndexWarmersMetaData;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.unmodifiableSet;
 import static org.elasticsearch.common.settings.Settings.readSettingsFromStream;
 import static org.elasticsearch.common.settings.Settings.settingsBuilder;
 import static org.elasticsearch.common.settings.Settings.writeSettingsToStream;
+import static org.elasticsearch.common.util.set.Sets.newHashSet;
 
 public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, FromXContentBuilder<MetaData>, ToXContent {
 
@@ -170,8 +184,8 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, Fr
         int totalNumberOfShards = 0;
         int numberOfShards = 0;
         for (ObjectCursor<IndexMetaData> cursor : indices.values()) {
-            totalNumberOfShards += cursor.value.totalNumberOfShards();
-            numberOfShards += cursor.value.numberOfShards();
+            totalNumberOfShards += cursor.value.getTotalNumberOfShards();
+            numberOfShards += cursor.value.getNumberOfShards();
         }
         this.totalNumberOfShards = totalNumberOfShards;
         this.numberOfShards = numberOfShards;
@@ -339,7 +353,7 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, Fr
 
             } else {
                 filteredMappings = ImmutableOpenMap.builder();
-                for (ObjectObjectCursor<String, MappingMetaData> cursor : indexMetaData.mappings()) {
+                for (ObjectObjectCursor<String, MappingMetaData> cursor : indexMetaData.getMappings()) {
                     if (Regex.simpleMatch(types, cursor.key)) {
                         filteredMappings.put(cursor.key, cursor.value);
                     }
@@ -729,16 +743,16 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, Fr
     }
 
     /** All known byte-sized cluster settings. */
-    public static final Set<String> CLUSTER_BYTES_SIZE_SETTINGS = ImmutableSet.of(
+    public static final Set<String> CLUSTER_BYTES_SIZE_SETTINGS = unmodifiableSet(newHashSet(
         IndicesStore.INDICES_STORE_THROTTLE_MAX_BYTES_PER_SEC,
         RecoverySettings.INDICES_RECOVERY_FILE_CHUNK_SIZE,
         RecoverySettings.INDICES_RECOVERY_TRANSLOG_SIZE,
         RecoverySettings.INDICES_RECOVERY_MAX_BYTES_PER_SEC,
-        RecoverySettings.INDICES_RECOVERY_MAX_SIZE_PER_SEC);
+        RecoverySettings.INDICES_RECOVERY_MAX_SIZE_PER_SEC));
 
 
     /** All known time cluster settings. */
-    public static final Set<String> CLUSTER_TIME_SETTINGS = ImmutableSet.of(
+    public static final Set<String> CLUSTER_TIME_SETTINGS = unmodifiableSet(newHashSet(
                                     IndicesTTLService.INDICES_TTL_INTERVAL,
                                     RecoverySettings.INDICES_RECOVERY_RETRY_DELAY_STATE_SYNC,
                                     RecoverySettings.INDICES_RECOVERY_RETRY_DELAY_NETWORK,
@@ -749,7 +763,7 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, Fr
                                     InternalClusterInfoService.INTERNAL_CLUSTER_INFO_UPDATE_INTERVAL,
                                     InternalClusterInfoService.INTERNAL_CLUSTER_INFO_TIMEOUT,
                                     DiscoverySettings.PUBLISH_TIMEOUT,
-                                    InternalClusterService.SETTING_CLUSTER_SERVICE_SLOW_TASK_LOGGING_THRESHOLD);
+                                    InternalClusterService.SETTING_CLUSTER_SERVICE_SLOW_TASK_LOGGING_THRESHOLD));
 
     /** As of 2.0 we require units for time and byte-sized settings.  This methods adds default units to any cluster settings that don't
      *  specify a unit. */
@@ -840,19 +854,19 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, Fr
             // we know its a new one, increment the version and store
             indexMetaDataBuilder.version(indexMetaDataBuilder.version() + 1);
             IndexMetaData indexMetaData = indexMetaDataBuilder.build();
-            indices.put(indexMetaData.index(), indexMetaData);
+            indices.put(indexMetaData.getIndex(), indexMetaData);
             return this;
         }
 
         public Builder put(IndexMetaData indexMetaData, boolean incrementVersion) {
-            if (indices.get(indexMetaData.index()) == indexMetaData) {
+            if (indices.get(indexMetaData.getIndex()) == indexMetaData) {
                 return this;
             }
             // if we put a new index metadata, increment its version
             if (incrementVersion) {
-                indexMetaData = IndexMetaData.builder(indexMetaData).version(indexMetaData.version() + 1).build();
+                indexMetaData = IndexMetaData.builder(indexMetaData).version(indexMetaData.getVersion() + 1).build();
             }
-            indices.put(indexMetaData.index(), indexMetaData);
+            indices.put(indexMetaData.getIndex(), indexMetaData);
             return this;
         }
 
@@ -923,7 +937,7 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, Fr
                     throw new IndexNotFoundException(index);
                 }
                 put(IndexMetaData.builder(indexMetaData)
-                        .settings(settingsBuilder().put(indexMetaData.settings()).put(settings)));
+                        .settings(settingsBuilder().put(indexMetaData.getSettings()).put(settings)));
             }
             return this;
         }
@@ -989,7 +1003,7 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, Fr
             // do the required operations, the bottleneck isn't resolving expressions into concrete indices.
             List<String> allIndicesLst = new ArrayList<>();
             for (ObjectCursor<IndexMetaData> cursor : indices.values()) {
-                allIndicesLst.add(cursor.value.index());
+                allIndicesLst.add(cursor.value.getIndex());
             }
             String[] allIndices = allIndicesLst.toArray(new String[allIndicesLst.size()]);
 
@@ -997,10 +1011,10 @@ public class MetaData implements Iterable<IndexMetaData>, Diffable<MetaData>, Fr
             List<String> allClosedIndicesLst = new ArrayList<>();
             for (ObjectCursor<IndexMetaData> cursor : indices.values()) {
                 IndexMetaData indexMetaData = cursor.value;
-                if (indexMetaData.state() == IndexMetaData.State.OPEN) {
-                    allOpenIndicesLst.add(indexMetaData.index());
-                } else if (indexMetaData.state() == IndexMetaData.State.CLOSE) {
-                    allClosedIndicesLst.add(indexMetaData.index());
+                if (indexMetaData.getState() == IndexMetaData.State.OPEN) {
+                    allOpenIndicesLst.add(indexMetaData.getIndex());
+                } else if (indexMetaData.getState() == IndexMetaData.State.CLOSE) {
+                    allClosedIndicesLst.add(indexMetaData.getIndex());
                 }
             }
             String[] allOpenIndices = allOpenIndicesLst.toArray(new String[allOpenIndicesLst.size()]);

@@ -16,8 +16,17 @@
 
 package org.elasticsearch.common.inject.assistedinject;
 
-import com.google.common.collect.ImmutableMap;
-import org.elasticsearch.common.inject.*;
+import org.elasticsearch.common.inject.AbstractModule;
+import org.elasticsearch.common.inject.Binder;
+import org.elasticsearch.common.inject.Binding;
+import org.elasticsearch.common.inject.ConfigurationException;
+import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.inject.Injector;
+import org.elasticsearch.common.inject.Key;
+import org.elasticsearch.common.inject.Module;
+import org.elasticsearch.common.inject.Provider;
+import org.elasticsearch.common.inject.ProvisionException;
+import org.elasticsearch.common.inject.TypeLiteral;
 import org.elasticsearch.common.inject.internal.Errors;
 import org.elasticsearch.common.inject.internal.ErrorsException;
 import org.elasticsearch.common.inject.spi.Message;
@@ -30,8 +39,11 @@ import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import static java.util.Collections.unmodifiableMap;
 import static org.elasticsearch.common.inject.internal.Annotations.getKey;
 
 /**
@@ -78,8 +90,8 @@ public final class FactoryProvider2<F> implements InvocationHandler, Provider<F>
      * the produced type, or null if all methods return concrete types
      */
     private final Key<?> producedType;
-    private final ImmutableMap<Method, Key<?>> returnTypesByMethod;
-    private final ImmutableMap<Method, List<Key<?>>> paramTypes;
+    private final Map<Method, Key<?>> returnTypesByMethod;
+    private final Map<Method, List<Key<?>>> paramTypes;
 
     /**
      * the hosting injector, or null if we haven't been initialized yet
@@ -105,9 +117,8 @@ public final class FactoryProvider2<F> implements InvocationHandler, Provider<F>
                 Class<F> factoryRawType = (Class) factoryType.getRawType();
 
         try {
-            ImmutableMap.Builder<Method, Key<?>> returnTypesBuilder = ImmutableMap.builder();
-            ImmutableMap.Builder<Method, List<Key<?>>> paramTypesBuilder
-                    = ImmutableMap.builder();
+            Map<Method, Key<?>> returnTypesBuilder = new HashMap<>();
+            Map<Method, List<Key<?>>> paramTypesBuilder = new HashMap<>();
             // TODO: also grab methods from superinterfaces
             for (Method method : factoryRawType.getMethods()) {
                 Key<?> returnType = getKey(
@@ -123,8 +134,8 @@ public final class FactoryProvider2<F> implements InvocationHandler, Provider<F>
                 }
                 paramTypesBuilder.put(method, Collections.unmodifiableList(keys));
             }
-            returnTypesByMethod = returnTypesBuilder.build();
-            paramTypes = paramTypesBuilder.build();
+            returnTypesByMethod = unmodifiableMap(returnTypesBuilder);
+            paramTypes = unmodifiableMap(paramTypesBuilder);
         } catch (ErrorsException e) {
             throw new ConfigurationException(e.getErrors().getMessages());
         }
