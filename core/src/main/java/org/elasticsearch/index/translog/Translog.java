@@ -128,8 +128,6 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
         }
     };
 
-
-
     /**
      * Creates a new Translog instance. This method will create a new transaction log unless the given {@link TranslogConfig} has
      * a non-null {@link org.elasticsearch.index.translog.Translog.TranslogGeneration}. If the generation is null this method
@@ -521,6 +519,10 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
         return config;
     }
 
+    public Location getCurrentLocation() {
+        return current.getLocation();
+    }
+
 
     private final class OnCloseRunnable implements Callback<ChannelReference> {
         @Override
@@ -726,7 +728,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
         @Override
         public int compareTo(Location o) {
             if (generation == o.generation) {
-                return Long.compare(translogLocation, o.translogLocation);
+                return Long.compare(translogLocation + size, o.translogLocation + o.size);
             }
             return Long.compare(generation, o.generation);
         }

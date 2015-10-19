@@ -352,7 +352,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndexSett
                 if (newRouting.state() == ShardRoutingState.STARTED || newRouting.state() == ShardRoutingState.RELOCATING) {
                     // we want to refresh *before* we move to internal STARTED state
                     try {
-                        getEngine().refresh("cluster_state_started");
+                        refreshInternal("cluster_state_started");
                     } catch (Throwable t) {
                         logger.debug("failed to refresh due to move to cluster wide started", t);
                     }
@@ -506,13 +506,37 @@ public class IndexShard extends AbstractIndexShardComponent implements IndexSett
     }
 
     public void refresh(String source) {
+       refresh(source, null);
+    }
+
+    private volatile Translog.Location lastRefreshedLocation;
+    private final Object lock = new Object();
+
+    public void refresh(String source, @Nullable Translog.Location location) {
         verifyNotClosed();
         if (logger.isTraceEnabled()) {
-            logger.trace("refresh with source: {}", source);
+            logger.trace("refresh with source: {} location: {}", source, location);
         }
+        if (location == null || location.compareTo(lastRefreshedLocation) > 0) {
+            refreshInternal(source);
+        }
+    }
+
+    private void refreshInternal(String source) {
         long time = System.nanoTime();
-        getEngine().refresh(source);
+        Translog.Location refresh = getEngine().refresh(source);
+        synchronized (lock) {
+            if (lastRefreshedLocation == null || refresh.compareTo(lastRefreshedLocation) > 0) {
+                lastRefreshedLocation = refresh;
+                logger.info(lastRefreshedLocation.toString());
+            }
+        }
         refreshMetric.inc(System.nanoTime() - time);
+
+    }
+
+    public boolean isVisible(Translog.Location translogLocation) {
+        return lastRefreshedLocation != null && lastRefreshedLocation.compareTo(translogLocation) >= 0;
     }
 
     public RefreshStats refreshStats() {
@@ -883,7 +907,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndexSett
      */
     public void finalizeRecovery() {
         recoveryState().setStage(RecoveryState.Stage.FINALIZE);
-        getEngine().refresh("recovery_finalization");
+        refreshInternal("recovery_finalization");
         startScheduledTasksIfNeeded();
         engineConfig.setEnableGcDeletes(true);
     }
@@ -1006,7 +1030,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndexSett
             long iwBytesUsed = engine.indexWriterRAMBytesUsed();
 
             String message = LoggerMessageFormat.format("updating index_buffer_size from [{}] to [{}]; IndexWriter now using [{}] bytes",
-                                                        preValue, shardIndexingBufferSize, iwBytesUsed);
+                    preValue, shardIndexingBufferSize, iwBytesUsed);
 
             if (iwBytesUsed > shardIndexingBufferSize.bytes()) {
                 // our allowed buffer was changed to less than we are currently using; we ask IW to refresh

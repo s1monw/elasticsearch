@@ -463,7 +463,7 @@ public abstract class Engine implements Closeable {
      * Refreshes the engine for new search operations to reflect the latest
      * changes.
      */
-    public abstract void refresh(String source) throws EngineException;
+    public abstract Translog.Location refresh(String source) throws EngineException;
 
     /**
      * Flushes the state of the engine including the transaction log, clearing memory.

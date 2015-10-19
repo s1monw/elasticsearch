@@ -60,6 +60,7 @@ import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.env.ShardLock;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexServicesProvider;
+import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.engine.EngineConfig;
 import org.elasticsearch.index.engine.EngineException;
@@ -1058,6 +1059,51 @@ public class IndexShardTests extends ESSingleNodeTestCase {
         @Override
         public Object getCoreCacheKey() {
             return in.getCoreCacheKey();
+        }
+    }
+
+    public void testRefreshLocation() throws IOException {
+        createIndex("test", settingsBuilder().put(IndexShard.INDEX_REFRESH_INTERVAL, "-1").build());
+        ensureGreen();
+        IndicesService indicesService = getInstanceFromNode(IndicesService.class);
+        IndexService test = indicesService.indexService("test");
+        IndexShard shard = test.getShardOrNull(0);
+        SourceToParse source = SourceToParse.source(new BytesArray("{\"foo\" : \"bar\"}")).index("test").type("type").id("1");
+        Engine.Index index = shard.prepareIndex(source, -1, VersionType.INTERNAL, Engine.Operation.Origin.PRIMARY);
+        shard.index(index);
+        assertFalse(shard.isVisible(index.getTranslogLocation()));
+        try (Engine.Searcher searcher = shard.acquireSearcher("foo")) {
+            int count = searcher.searcher().count(new MatchAllDocsQuery());
+            assertEquals(0, count);
+        }
+        shard.refresh("test", index.getTranslogLocation());
+        assertTrue(shard.isVisible(index.getTranslogLocation()));
+        try (Engine.Searcher searcher = shard.acquireSearcher("foo")) {
+            int count = searcher.searcher().count(new MatchAllDocsQuery());
+            assertEquals(1, count);
+        }
+
+        source = SourceToParse.source(new BytesArray("{\"foo\" : \"baz\"}")).index("test").type("type").id("2");
+        Engine.Index secondDoc = shard.prepareIndex(source, -1, VersionType.INTERNAL, Engine.Operation.Origin.PRIMARY);
+        shard.index(secondDoc);
+
+        assertFalse(shard.isVisible(secondDoc.getTranslogLocation()));
+        assertTrue(shard.isVisible(index.getTranslogLocation()));
+
+        shard.refresh("test", index.getTranslogLocation());
+        assertFalse(shard.isVisible(secondDoc.getTranslogLocation()));
+        assertTrue(shard.isVisible(index.getTranslogLocation()));
+
+        if (randomBoolean()) {
+            shard.refresh("test", secondDoc.getTranslogLocation());
+        } else {
+            shard.refresh("test");
+        }
+
+        assertTrue(shard.isVisible(secondDoc.getTranslogLocation()));
+        try (Engine.Searcher searcher = shard.acquireSearcher("foo")) {
+            int count = searcher.searcher().count(new MatchAllDocsQuery());
+            assertEquals(2, count);
         }
     }
 }

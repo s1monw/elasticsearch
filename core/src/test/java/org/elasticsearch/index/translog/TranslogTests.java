@@ -26,15 +26,12 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.ByteArrayDataOutput;
 import org.apache.lucene.util.IOUtils;
 import org.apache.lucene.util.LuceneTestCase;
-import org.apache.lucene.util.TestUtil;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.Version;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.io.FileSystemUtils;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
@@ -49,7 +46,6 @@ import org.junit.Test;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.Charset;
@@ -60,7 +56,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.hamcrest.Matchers.*;
@@ -207,6 +202,25 @@ public class TranslogTests extends ESTestCase {
         } catch (IllegalStateException ex) {
             // expected
         }
+    }
+
+
+    public void testGetCurrentLocation() throws IOException {
+        Translog.Location loc1 = translog.add(new Translog.Index("test", "1", new byte[]{1}));
+        assertEquals(0, loc1.compareTo(loc1));
+        assertEquals(0, loc1.compareTo(translog.getCurrentLocation()));
+
+        if (randomBoolean()) {
+            translog.sync();
+        }
+        Translog.Location loc2 = translog.add(new Translog.Index("test", "2", new byte[]{2}));
+        assertEquals(-1, loc1.compareTo(loc2));
+        assertEquals(1, loc2.compareTo(loc1));
+
+
+        assertEquals(-1, loc1.compareTo(translog.getCurrentLocation()));
+        assertEquals(1, translog.getCurrentLocation().compareTo(loc1));
+        assertEquals(0, loc2.compareTo(translog.getCurrentLocation()));
     }
 
     @Test

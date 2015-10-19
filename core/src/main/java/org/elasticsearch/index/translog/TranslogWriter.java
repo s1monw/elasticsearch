@@ -30,6 +30,7 @@ import org.elasticsearch.common.io.Channels;
 import org.elasticsearch.common.util.Callback;
 import org.elasticsearch.common.util.concurrent.ReleasableLock;
 import org.elasticsearch.index.shard.ShardId;
+import org.elasticsearch.transport.Transport;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -132,6 +133,12 @@ public class TranslogWriter extends TranslogReader {
             operationCounter = operationCounter + 1;
         }
         return new Translog.Location(generation, position, data.length());
+    }
+
+    Translog.Location getLocation() {
+        try (ReleasableLock lock = readLock.acquire()) {
+            return new Translog.Location(generation, writtenOffset, 0);
+        }
     }
 
     /**

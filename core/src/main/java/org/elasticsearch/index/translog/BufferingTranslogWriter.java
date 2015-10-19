@@ -67,6 +67,13 @@ public final class BufferingTranslogWriter extends TranslogWriter {
         }
     }
 
+    @Override
+    Translog.Location getLocation() {
+        try (ReleasableLock lock = readLock.acquire()) {
+            return new Translog.Location(generation, totalOffset, 0);
+        }
+    }
+
     protected final void flush() throws IOException {
         assert writeLock.isHeldByCurrentThread();
         if (bufferCount > 0) {

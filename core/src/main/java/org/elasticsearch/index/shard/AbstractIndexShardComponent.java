@@ -55,6 +55,4 @@ public abstract class AbstractIndexShardComponent implements IndexShardComponent
     public String nodeName() {
         return indexSettings.get("name", "");
     }
-
-
 }

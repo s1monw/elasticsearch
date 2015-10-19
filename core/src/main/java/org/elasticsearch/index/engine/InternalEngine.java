@@ -512,11 +512,13 @@ public class InternalEngine extends Engine {
     }
 
     @Override
-    public void refresh(String source) throws EngineException {
+    public Translog.Location refresh(String source) throws EngineException {
         // we obtain a read lock here, since we don't want a flush to happen while we are refreshing
         // since it flushes the index as well (though, in terms of concurrency, we are allowed to do it)
+        Translog.Location location = null;
         try (ReleasableLock lock = readLock.acquire()) {
             ensureOpen();
+            location = translog.getCurrentLocation();
             searcherManager.maybeRefreshBlocking();
         } catch (AlreadyClosedException e) {
             ensureOpen();
@@ -527,13 +529,13 @@ public class InternalEngine extends Engine {
             failEngine("refresh failed", t);
             throw new RefreshFailedEngineException(shardId, t);
         }
-
         // TODO: maybe we should just put a scheduled job in threadPool?
         // We check for pruning in each delete request, but we also prune here e.g. in case a delete burst comes in and then no more deletes
         // for a long time:
         maybePruneDeletedTombstones();
         versionMapRefreshPending.set(false);
         mergeScheduler.refreshConfig();
+        return location;
     }
 
     @Override

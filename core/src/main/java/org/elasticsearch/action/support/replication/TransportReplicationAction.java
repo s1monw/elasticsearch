@@ -1070,7 +1070,7 @@ public abstract class TransportReplicationAction<Request extends ReplicationRequ
     protected final void processAfter(boolean refresh, IndexShard indexShard, Translog.Location location) {
         if (refresh) {
             try {
-                indexShard.refresh("refresh_flag_index");
+                indexShard.refresh("refresh_flag_index", location);
             } catch (Throwable e) {
                 // ignore
             }
