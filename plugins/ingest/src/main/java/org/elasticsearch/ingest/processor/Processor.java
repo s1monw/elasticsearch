@@ -63,4 +63,11 @@ public interface Processor {
         default void close() throws IOException {
         }
     }
+
+    /* simonw: I think if you have a factory that has more than one method something is wrong.
+       we shouldn't have to maintain state here either - I think both
+        - setConfigDirectory
+        - close
+       needs to go, and since it's java8 we can maybe just use a method reference they instead of having
+       a factory class?*/
 }

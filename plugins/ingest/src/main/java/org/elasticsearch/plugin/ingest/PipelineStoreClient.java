@@ -47,6 +47,10 @@ public class PipelineStoreClient extends AbstractLifecycleComponent {
         this.scrollTimeout = settings.getAsTime("ingest.pipeline.store.scroll.timeout", TimeValue.timeValueSeconds(30));
     }
 
+
+    // simonw: useing an injector here is not a good idea at all I think we should fold this class into PipelineStore mainly
+    //         and extract the generic SearchScrollIterator and put it in core as a util with a nice unittest etc.
+    //         on PipelineStore we might be able to just get the client via ctor argument without the injector? if you need an injector your design is wrong at some point :)
     @Override
     protected void doStart() {
         client = injector.getInstance(Client.class);
@@ -55,7 +59,7 @@ public class PipelineStoreClient extends AbstractLifecycleComponent {
     @Override
     protected void doStop() {
         client.close();
-    }
+    } // simonw: wait why do we close this client - the node should take care of this!!!
 
     @Override
     protected void doClose() {

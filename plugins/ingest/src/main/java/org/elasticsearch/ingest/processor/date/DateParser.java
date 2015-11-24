@@ -27,7 +27,7 @@ import org.joda.time.DateTime;
  *
  */
 public interface DateParser {
-
+//simonw: given that we have java8 maybe just use Function<DateTime, String> and trash the interface?
     /**
      * Parser the date provided as a string argument into a joda {@link DateTime} object
      */

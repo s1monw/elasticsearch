@@ -27,6 +27,7 @@ import static org.elasticsearch.plugin.ingest.IngestPlugin.PIPELINE_ID_PARAM_CON
 
 public class IngestRestFilter extends RestFilter {
 
+    /* simonw: I think we should in core factor out the filter registration to simplify this and get away from guice - I can take care of this */
     @Inject
     public IngestRestFilter(RestController controller) {
         controller.registerFilter(this);

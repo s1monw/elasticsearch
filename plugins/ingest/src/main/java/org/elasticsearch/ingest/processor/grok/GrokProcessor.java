@@ -54,6 +54,8 @@ public final class GrokProcessor implements Processor {
                 matches.forEach((k, v) -> ingestDocument.setPropertyValue(k, v));
             }
         }
+
+        //simonw: I think we should throw an excepiton here?
     }
 
     @Override

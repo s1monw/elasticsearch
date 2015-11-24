@@ -27,7 +27,12 @@ import java.util.*;
  * Represents a single document being captured before indexing and holds the source and meta data (like id, type and index).
  */
 public final class IngestDocument {
-
+    /**
+     * simonw: is there any chance that we model this as a flat hierarchy. ie there is a string key and a value but
+     * but values are never maps again? I guess that is tricky with lists of objects... hmm, I see so
+     * if we have to do this I'd really like to spend some time to model this properly and instead of
+     * using Map<String, Object>... I need to first figure out how everything works...
+     */
     private final Map<String, String> metaData;
     private final Map<String, Object> source;
 

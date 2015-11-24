@@ -55,6 +55,7 @@ public class PutPipelineTransportAction extends HandledTransportAction<PutPipeli
         try {
             pipelineStore.constructPipeline(request.id(), pipelineConfig);
         } catch (IOException e) {
+            /* simonw: isn't this happening anyway? I mean if we fail with an exception we call the listener right? it might be an option to add throws Exception to doExecute? I am sure we have that in other places*/
             listener.onFailure(e);
             return;
         }

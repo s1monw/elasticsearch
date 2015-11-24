@@ -29,6 +29,8 @@ import org.elasticsearch.threadpool.ThreadPool;
 
 public class PipelineExecutionService {
 
+    /*simonw: I think this class can be foled into PipelineStore by simply adding
+     * an #execute() method to it?*/
     static final String THREAD_POOL_NAME = IngestPlugin.NAME;
 
     private final PipelineStore store;
@@ -60,6 +62,7 @@ public class PipelineExecutionService {
         });
     }
 
+    /* simonw: can we just use ActionListener here? */
     public interface Listener {
 
         void executed(IngestDocument ingestDocument);
@@ -68,6 +71,7 @@ public class PipelineExecutionService {
 
     }
 
+    /* simonw: This should go into the plugin class directly */
     public static Settings additionalSettings(Settings nodeSettings) {
         Settings settings = nodeSettings.getAsSettings("threadpool." + THREAD_POOL_NAME);
         if (!settings.names().isEmpty()) {

@@ -36,6 +36,11 @@ public class IngestModule extends AbstractModule {
 
     private final Map<String, Processor.Factory> processors = new HashMap<>();
 
+    /**
+     * Can we maybe cut over to a non-guice structure here.
+     * We should at most bind one class to an instance directly rather thatn use the dep-injection
+     * framework taht we have to un-do once we get rid of guice.
+     */
     @Override
     protected void configure() {
         binder().bind(IngestRestFilter.class).asEagerSingleton();

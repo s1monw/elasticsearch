@@ -29,6 +29,7 @@ import java.util.Map;
 
 final class DatabaseReaderService implements Closeable {
 
+    // simonw: this can really just go into GeoIpProcessor no need for an extra class
     private final Map<String, DatabaseReader> databaseReaders = new HashMap<>();
 
     synchronized DatabaseReader getOrCreateDatabaseReader(String key, InputStream inputStream) throws IOException {
@@ -44,6 +45,7 @@ final class DatabaseReaderService implements Closeable {
 
     @Override
     public void close() throws IOException {
+        /* simonw: use IOUtils - this should also be synchronized and if somebody calles getOrCreateDatabaseReader after it was closed we must fail*/
         for (DatabaseReader databaseReader : databaseReaders.values()) {
             databaseReader.close();
         }

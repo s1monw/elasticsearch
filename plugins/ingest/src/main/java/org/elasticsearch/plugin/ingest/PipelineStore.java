@@ -41,6 +41,7 @@ import java.util.*;
 
 public class PipelineStore extends AbstractLifecycleComponent {
 
+    /* simonw: the .ingest index do we have a template for this index or are we using defaults? would be good to document that here */
     public final static String INDEX = ".ingest";
     public final static String TYPE = "pipeline";
 
@@ -50,13 +51,16 @@ public class PipelineStore extends AbstractLifecycleComponent {
     private final PipelineStoreClient client;
     private final Pipeline.Factory factory = new Pipeline.Factory();
     private final Map<String, Processor.Factory> processorFactoryRegistry;
-
     private volatile Map<String, PipelineReference> pipelines = new HashMap<>();
 
     @Inject
     public PipelineStore(Settings settings, ThreadPool threadPool, Environment environment, ClusterService clusterService, PipelineStoreClient client, Map<String, Processor.Factory> processors) {
         super(settings);
         this.threadPool = threadPool;
+        // simonw: it would be really nice if we could not depend on ClusterService, I think this interface makes a lot of things pretty complicated since it's hard to mock and replace in tests
+        // what I think we should do is have a class on top of this class that does all the wireing. That way we can in the top-level class register a listener and refresh stuff if needed.
+        // we can also remove the dependency from ThreadPool since we might not need to do the scheduling in here but in the top level. We can also as a next step only implement Closeable instead
+        // AbstractLifecycleComponent and have that way a very simple and clean class that is easy to test.
         this.clusterService = clusterService;
         this.pipelineUpdateInterval = settings.getAsTime("ingest.pipeline.store.update.interval", TimeValue.timeValueSeconds(1));
         this.client = client;
@@ -77,6 +81,7 @@ public class PipelineStore extends AbstractLifecycleComponent {
 
     @Override
     protected void doClose() {
+        // use IOUtils to release closeables
         for (Processor.Factory factory : processorFactoryRegistry.values()) {
             try {
                 factory.close();
@@ -91,6 +96,7 @@ public class PipelineStore extends AbstractLifecycleComponent {
         if (ref != null) {
             return ref.getPipeline();
         } else {
+            // simonw: maybe we should just throw an exception and fail here?
             return null;
         }
     }
@@ -122,6 +128,7 @@ public class PipelineStore extends AbstractLifecycleComponent {
         return factory.create(id, config, processorFactoryRegistry);
     }
 
+    /* simonw: can we make this synchronized otherwise this is prone to race-conditions */
     void updatePipelines() throws IOException {
         // note: this process isn't fast or smart, but the idea is that there will not be many pipelines,
         // so for that reason the goal is to keep the update logic simple.
@@ -159,6 +166,11 @@ public class PipelineStore extends AbstractLifecycleComponent {
         }
     }
 
+    /* simonw: why is this an async process - can't we make this sync somehow without the update interval
+       and force folks to kick off an update or in the put action we can just notify all nodes to refresh?
+       I really like the fact that we in-general are getting rid of things that are async since they are very very hard to test.
+       Bottom line I think we should make this not a scheduled task but a simple API that gets called from a transport action we can
+       also have a dedicated refresh API that is called after the a pipline is modified...*/
     void startUpdateWorker() {
         if (lifecycleState() == Lifecycle.State.STARTED) {
             threadPool.schedule(pipelineUpdateInterval, ThreadPool.Names.GENERIC, new Updater());
@@ -211,10 +223,12 @@ public class PipelineStore extends AbstractLifecycleComponent {
             return version;
         }
 
+        /* simonw: do we need to expose this - it's mutable and very lowlevel? */
         public BytesReference getSource() {
             return source;
         }
 
+        // simonw: hmm seems like we have to compare version too?
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;

@@ -27,7 +27,7 @@ import java.util.Map;
 
 final class PatternUtils {
     private PatternUtils() {}
-
+    // simonw: does this need to be an extra class or can it maybe go into core?
     public static void loadBankFromStream(Map<String, String> patternBank, InputStream inputStream) throws IOException {
         String line;
         BufferedReader br = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
