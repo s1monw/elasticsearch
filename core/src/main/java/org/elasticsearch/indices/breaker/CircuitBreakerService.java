@@ -60,10 +60,6 @@ public abstract class CircuitBreakerService extends AbstractLifecycleComponent<C
     }
 
     @Override
-    protected void doStop() {
-    }
-
-    @Override
     protected void doClose() {
     }
 }

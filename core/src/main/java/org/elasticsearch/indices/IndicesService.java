@@ -160,7 +160,7 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
     }
 
     @Override
-    protected void doStop() {
+    protected void doClose() {
         ImmutableSet<String> indices = ImmutableSet.copyOf(this.indices.keySet());
         final CountDownLatch latch = new CountDownLatch(indices.size());
 
@@ -182,19 +182,16 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
         }
         try {
             if (latch.await(shardsClosedTimeout.seconds(), TimeUnit.SECONDS) == false) {
-              logger.warn("Not all shards are closed yet, waited {}sec - stopping service", shardsClosedTimeout.seconds());
+                logger.warn("Not all shards are closed yet, waited {}sec - stopping service", shardsClosedTimeout.seconds());
             }
         } catch (InterruptedException e) {
             // ignore
         } finally {
             indicesStopExecutor.shutdown();
+            IOUtils.closeWhileHandlingException(injector.getInstance(RecoverySettings.class),
+                    indicesAnalysisService);
         }
-    }
 
-    @Override
-    protected void doClose() {
-        IOUtils.closeWhileHandlingException(injector.getInstance(RecoverySettings.class),
-            indicesAnalysisService);
     }
 
     public IndicesLifecycle indicesLifecycle() {

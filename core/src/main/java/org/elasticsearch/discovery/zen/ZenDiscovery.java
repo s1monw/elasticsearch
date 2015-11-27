@@ -20,6 +20,7 @@
 package org.elasticsearch.discovery.zen;
 
 import com.google.common.collect.Sets;
+import org.apache.lucene.util.IOUtils;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.*;
@@ -38,6 +39,8 @@ import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.inject.internal.Nullable;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
+import org.elasticsearch.common.lease.Releasable;
+import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
@@ -225,11 +228,9 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
     }
 
     @Override
-    protected void doStop() {
+    protected void doClose() {
         joinThreadControl.stop();
-        pingService.stop();
-        masterFD.stop("zen disco stop");
-        nodesFD.stop();
+        Releasables.close(true, pingService, masterFD, nodesFD);
         initialStateSent.set(false);
         DiscoveryNodes nodes = nodes();
         if (sendLeaveRequest) {
@@ -256,15 +257,7 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
                 }
             }
         }
-    }
-
-    @Override
-    protected void doClose() {
-        masterFD.close();
-        nodesFD.close();
-        publishClusterState.close();
-        membership.close();
-        pingService.close();
+        Releasables.close(membership, publishClusterState);
     }
 
     @Override
@@ -618,14 +611,14 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
                 final DiscoveryNode electedMaster = electMaster.electMaster(discoveryNodes); // elect master
                 final DiscoveryNode localNode = currentState.nodes().localNode();
                 if (localNode.equals(electedMaster)) {
-                    masterFD.stop("got elected as new master since master left (reason = " + reason + ")");
+                    masterFD.close("got elected as new master since master left (reason = " + reason + ")");
                     discoveryNodes = DiscoveryNodes.builder(discoveryNodes).masterNodeId(localNode.id()).build();
                     ClusterState newState = ClusterState.builder(currentState).nodes(discoveryNodes).build();
                     nodesFD.updateNodesAndPing(newState);
                     return newState;
 
                 } else {
-                    nodesFD.stop();
+                    nodesFD.close();
                     if (electedMaster != null) {
                         discoveryNodes = DiscoveryNodes.builder(discoveryNodes).masterNodeId(electedMaster.id()).build();
                         masterFD.restart(electedMaster, "possible elected master since master left (reason = " + reason + ")");
@@ -982,8 +975,8 @@ public class ZenDiscovery extends AbstractLifecycleComponent<Discovery> implemen
         assert Thread.currentThread().getName().contains(InternalClusterService.UPDATE_THREAD_NAME);
 
         logger.warn(reason + ", current nodes: {}", clusterState.nodes());
-        nodesFD.stop();
-        masterFD.stop(reason);
+        nodesFD.close();
+        masterFD.close(reason);
 
 
         ClusterBlocks clusterBlocks = ClusterBlocks.builder().blocks(clusterState.blocks())

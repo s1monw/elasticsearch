@@ -417,8 +417,8 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
             public void messageReceived(StringMessageRequest request, TransportChannel channel) {
                 try {
                     latch2.await();
-                    logger.info("Stop ServiceB now");
-                    serviceB.stop();
+                    logger.info("Close ServiceB now");
+                    serviceB.close();
                 } catch (Exception e) {
                     fail(e.getMessage());
                 }

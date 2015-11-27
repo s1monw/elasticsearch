@@ -20,7 +20,6 @@
 package org.elasticsearch.transport.netty;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.elasticsearch.ExceptionsHelper;
@@ -323,7 +322,7 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
             success = true;
         } finally {
             if (success == false) {
-                doStop();
+                close();
             }
         }
     }
@@ -586,7 +585,7 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
     }
 
     @Override
-    protected void doStop() {
+    protected void doClose() {
         final CountDownLatch latch = new CountDownLatch(1);
         // make sure we run it on another thread than a possible IO handler thread
         threadPool.generic().execute(new Runnable() {
@@ -657,10 +656,6 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
         } catch (InterruptedException e) {
             // ignore
         }
-    }
-
-    @Override
-    protected void doClose() {
     }
 
     @Override
@@ -1289,7 +1284,7 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
 
         @Override
         protected void doRun() throws Exception {
-            if (lifecycle.stoppedOrClosed()) {
+            if (lifecycle.closed()) {
                 return;
             }
             for (Map.Entry<DiscoveryNode, NodeChannels> entry : connectedNodes.entrySet()) {
@@ -1319,7 +1314,7 @@ public class NettyTransport extends AbstractLifecycleComponent<Transport> implem
 
         @Override
         public void onFailure(Throwable t) {
-            if (lifecycle.stoppedOrClosed()) {
+            if (lifecycle.closed()) {
                 logger.trace("[{}] failed to send ping transport message", t);
             } else {
                 logger.warn("[{}] failed to send ping transport message", t);

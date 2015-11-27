@@ -246,15 +246,10 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> {
     }
 
     @Override
-    protected void doStop() {
+    protected void doClose() {
         for (final SearchContext context : activeContexts.values()) {
             freeContext(context.id());
         }
-    }
-
-    @Override
-    protected void doClose() {
-        doStop();
         FutureUtils.cancel(keepAliveReaper);
     }
 

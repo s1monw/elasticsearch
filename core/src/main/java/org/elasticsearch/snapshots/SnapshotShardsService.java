@@ -124,7 +124,7 @@ public class SnapshotShardsService extends AbstractLifecycleComponent<SnapshotSh
     }
 
     @Override
-    protected void doStop() {
+    protected void doClose() {
         shutdownLock.lock();
         try {
             while(!shardSnapshots.isEmpty() && shutdownCondition.await(5, TimeUnit.SECONDS)) {
@@ -134,13 +134,9 @@ public class SnapshotShardsService extends AbstractLifecycleComponent<SnapshotSh
             Thread.currentThread().interrupt();
         } finally {
             shutdownLock.unlock();
+            clusterService.remove(this);
         }
 
-    }
-
-    @Override
-    protected void doClose() {
-        clusterService.remove(this);
     }
 
     @Override

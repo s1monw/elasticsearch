@@ -248,11 +248,6 @@ public class TestClusterService implements ClusterService {
     }
 
     @Override
-    public ClusterService stop() throws ElasticsearchException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public void close() throws ElasticsearchException {
         throw new UnsupportedOperationException();
     }

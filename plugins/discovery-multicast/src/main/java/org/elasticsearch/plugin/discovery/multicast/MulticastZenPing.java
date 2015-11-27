@@ -161,15 +161,11 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
     }
 
     @Override
-    protected void doStop() {
+    protected void doClose() {
         if (multicastChannel != null) {
             multicastChannel.close();
             multicastChannel = null;
         }
-    }
-
-    @Override
-    protected void doClose() {
     }
 
     public PingResponse[] pingAndWait(TimeValue timeout) {
@@ -285,7 +281,7 @@ public class MulticastZenPing extends AbstractLifecycleComponent<ZenPing> implem
                 logger.trace("[{}] sending ping request", id);
             }
         } catch (Exception e) {
-            if (lifecycle.stoppedOrClosed()) {
+            if (lifecycle.closed()) {
                 return;
             }
             if (logger.isDebugEnabled()) {

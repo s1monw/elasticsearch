@@ -64,10 +64,6 @@ public class RestController extends AbstractLifecycleComponent<RestController> {
     }
 
     @Override
-    protected void doStop() {
-    }
-
-    @Override
     protected void doClose() {
         for (RestFilter filter : filters) {
             filter.close();

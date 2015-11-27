@@ -1082,11 +1082,6 @@ public class SnapshotsService extends AbstractLifecycleComponent<SnapshotsServic
     }
 
     @Override
-    protected void doStop() {
-
-    }
-
-    @Override
     protected void doClose() {
         clusterService.remove(this);
     }
