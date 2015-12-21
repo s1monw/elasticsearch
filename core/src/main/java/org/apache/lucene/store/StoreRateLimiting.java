@@ -24,9 +24,9 @@ import org.elasticsearch.common.unit.ByteSizeValue;
 
 /**
  */
-public class StoreRateLimiting {
+public final class StoreRateLimiting {
 
-    public static interface Provider {
+    public interface Provider {
 
         StoreRateLimiting rateLimiting();
     }
@@ -55,12 +55,7 @@ public class StoreRateLimiting {
 
     private final SimpleRateLimiter rateLimiter = new SimpleRateLimiter(0);
     private volatile SimpleRateLimiter actualRateLimiter;
-
     private volatile Type type;
-
-    public StoreRateLimiting() {
-
-    }
 
     @Nullable
     public RateLimiter getRateLimiter() {
@@ -85,9 +80,5 @@ public class StoreRateLimiting {
 
     public void setType(Type type) {
         this.type = type;
-    }
-
-    public void setType(String type) {
-        this.type = Type.fromString(type);
     }
 }

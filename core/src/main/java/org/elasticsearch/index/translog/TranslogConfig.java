@@ -20,6 +20,7 @@
 package org.elasticsearch.index.translog;
 
 import org.elasticsearch.common.Nullable;
+import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.BigArrays;
@@ -30,6 +31,7 @@ import org.elasticsearch.indices.memory.IndexingMemoryController;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.nio.file.Path;
+import java.util.Locale;
 
 /*
  * Holds all the configuration that is used to create a {@link Translog}.
@@ -38,10 +40,10 @@ import java.nio.file.Path;
  */
 public final class TranslogConfig {
 
-    public static final String INDEX_TRANSLOG_DURABILITY = "index.translog.durability";
-    public static final String INDEX_TRANSLOG_FS_TYPE = "index.translog.fs.type";
-    public static final String INDEX_TRANSLOG_BUFFER_SIZE = "index.translog.fs.buffer_size";
-    public static final String INDEX_TRANSLOG_SYNC_INTERVAL = "index.translog.sync_interval";
+    public static final Setting<Translog.Durabilty> INDEX_TRANSLOG_DURABILITY_SETTING = new Setting("index.translog.durability", Translog.Durabilty.REQUEST.name(), (s) -> Translog.Durabilty.valueOf(s.toUpperCase(Locale.ROOT)), true, Setting.Scope.INDEX);
+    public static final Setting<TranslogWriter.Type> INDEX_TRANSLOG_FS_TYPE_SETTING = new Setting<>("index.translog.fs.type", TranslogWriter.Type.BUFFERED.name(), (s) -> TranslogWriter.Type.fromString(s), true, Setting.Scope.INDEX);
+    public static final Setting<ByteSizeValue> INDEX_TRANSLOG_BUFFER_SIZE_SETTING = Setting.byteSizeSetting("index.translog.fs.buffer_size",  IndexingMemoryController.INACTIVE_SHARD_TRANSLOG_BUFFER, false, Setting.Scope.INDEX);
+    public static final Setting<TimeValue> INDEX_TRANSLOG_SYNC_INTERVAL_SETTING = Setting.positiveTimeSetting("index.translog.sync_interval", TimeValue.timeValueSeconds(5), false, Setting.Scope.INDEX);
 
     private final TimeValue syncInterval;
     private final BigArrays bigArrays;
@@ -60,21 +62,20 @@ public final class TranslogConfig {
      * @param shardId the shard ID this translog belongs to
      * @param translogPath the path to use for the transaction log files
      * @param indexSettings the index settings used to set internal variables
-     * @param durabilty the default durability setting for the translog
      * @param bigArrays a bigArrays instance used for temporarily allocating write operations
      * @param threadPool a {@link ThreadPool} to schedule async sync durability
      */
-    public TranslogConfig(ShardId shardId, Path translogPath, IndexSettings indexSettings, Translog.Durabilty durabilty, BigArrays bigArrays, @Nullable ThreadPool threadPool) {
+    public TranslogConfig(ShardId shardId, Path translogPath, IndexSettings indexSettings, BigArrays bigArrays, @Nullable ThreadPool threadPool) {
         this.indexSettings = indexSettings;
         this.shardId = shardId;
         this.translogPath = translogPath;
-        this.durabilty = durabilty;
+        this.durabilty = indexSettings.get(INDEX_TRANSLOG_DURABILITY_SETTING);
         this.threadPool = threadPool;
         this.bigArrays = bigArrays;
-        this.type = TranslogWriter.Type.fromString(indexSettings.getSettings().get(INDEX_TRANSLOG_FS_TYPE, TranslogWriter.Type.BUFFERED.name()));
-        this.bufferSize = (int) indexSettings.getSettings().getAsBytesSize(INDEX_TRANSLOG_BUFFER_SIZE, IndexingMemoryController.INACTIVE_SHARD_TRANSLOG_BUFFER).bytes(); // Not really interesting, updated by IndexingMemoryController...
+        this.type = indexSettings.get(INDEX_TRANSLOG_FS_TYPE_SETTING);
+        this.bufferSize = indexSettings.get(INDEX_TRANSLOG_BUFFER_SIZE_SETTING).bytesAsInt(); // Not really interesting, updated by IndexingMemoryController...
 
-        syncInterval = indexSettings.getSettings().getAsTime(INDEX_TRANSLOG_SYNC_INTERVAL, TimeValue.timeValueSeconds(5));
+        syncInterval = indexSettings.get(INDEX_TRANSLOG_SYNC_INTERVAL_SETTING);
         if (syncInterval.millis() > 0 && threadPool != null) {
             syncOnEachOperation = false;
         } else if (syncInterval.millis() == 0) {
@@ -82,6 +83,7 @@ public final class TranslogConfig {
         } else {
             syncOnEachOperation = false;
         }
+        indexSettings.addSettingsUpdateConsumer(INDEX_TRANSLOG_DURABILITY_SETTING, this::setDurabilty);
     }
 
     /**

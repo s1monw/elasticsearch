@@ -20,17 +20,35 @@ package org.elasticsearch.index;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.routing.UnassignedInfo;
+import org.elasticsearch.cluster.routing.allocation.decider.EnableAllocationDecider;
+import org.elasticsearch.cluster.routing.allocation.decider.FilterAllocationDecider;
+import org.elasticsearch.cluster.routing.allocation.decider.ShardsLimitAllocationDecider;
+import org.elasticsearch.cluster.settings.Validator;
 import org.elasticsearch.common.ParseFieldMatcher;
+import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.regex.Regex;
+import org.elasticsearch.common.settings.AbstractScopedSettings;
+import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.gateway.PrimaryShardAllocator;
+import org.elasticsearch.index.engine.EngineConfig;
+import org.elasticsearch.index.indexing.IndexingSlowLog;
 import org.elasticsearch.index.mapper.internal.AllFieldMapper;
+import org.elasticsearch.index.search.stats.SearchSlowLog;
+import org.elasticsearch.index.shard.IndexShard;
+import org.elasticsearch.index.shard.MergePolicyConfig;
+import org.elasticsearch.index.shard.MergeSchedulerConfig;
+import org.elasticsearch.index.store.IndexStore;
+import org.elasticsearch.index.translog.TranslogConfig;
+import org.elasticsearch.indices.IndicesWarmer;
+import org.elasticsearch.indices.cache.request.IndicesRequestCache;
+import org.elasticsearch.indices.ttl.IndicesTTLService;
+import org.elasticsearch.search.internal.DefaultSearchContext;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -41,7 +59,7 @@ import java.util.function.Predicate;
  * a settings consumer at index creation via {@link IndexModule#addIndexSettingsListener(Consumer)} that will
  * be called for each settings update.
  */
-public final class IndexSettings {
+public final class IndexSettings extends AbstractScopedSettings {
 
     public static final String DEFAULT_FIELD = "index.query.default_field";
     public static final String QUERY_STRING_LENIENT = "index.query_string.lenient";
@@ -49,10 +67,8 @@ public final class IndexSettings {
     public static final String QUERY_STRING_ALLOW_LEADING_WILDCARD = "indices.query.query_string.allowLeadingWildcard";
     public static final String ALLOW_UNMAPPED = "index.query.parse.allow_unmapped_fields";
     private final String uuid;
-    private final List<Consumer<Settings>> updateListeners;
     private final Index index;
     private final Version version;
-    private final ESLogger logger;
     private final String nodeName;
     private final Settings nodeSettings;
     private final int numberOfShards;
@@ -109,10 +125,10 @@ public final class IndexSettings {
      *
      * @param indexMetaData the index metadata this settings object is associated with
      * @param nodeSettings the nodes settings this index is allocated on.
-     * @param updateListeners a collection of listeners / consumers that should be notified if one or more settings are updated
+     * @param registeredSettings a collection of listeners / consumers that should be notified if one or more settings are updated
      */
-    public IndexSettings(final IndexMetaData indexMetaData, final Settings nodeSettings, final Collection<Consumer<Settings>> updateListeners) {
-        this(indexMetaData, nodeSettings, updateListeners, (index) -> Regex.simpleMatch(index, indexMetaData.getIndex()));
+    public IndexSettings(final IndexMetaData indexMetaData, final Settings nodeSettings, final Set<Setting<?>> registeredSettings) {
+        this(indexMetaData, nodeSettings, registeredSettings, (index) -> Regex.simpleMatch(index, indexMetaData.getIndex()));
     }
 
     /**
@@ -121,17 +137,16 @@ public final class IndexSettings {
      *
      * @param indexMetaData the index metadata this settings object is associated with
      * @param nodeSettings the nodes settings this index is allocated on.
-     * @param updateListeners a collection of listeners / consumers that should be notified if one or more settings are updated
+     * @param registeredSettings a collection of listeners / consumers that should be notified if one or more settings are updated
      * @param indexNameMatcher a matcher that can resolve an expression to the index name or index alias
      */
-    public IndexSettings(final IndexMetaData indexMetaData, final Settings nodeSettings, final Collection<Consumer<Settings>> updateListeners, final Predicate<String> indexNameMatcher) {
+    public IndexSettings(final IndexMetaData indexMetaData, final Settings nodeSettings, Set<Setting<?>> registeredSettings, final Predicate<String> indexNameMatcher) {
+        super(Settings.builder().put(nodeSettings).put(indexMetaData.getSettings()).build(), registeredSettings, Setting.Scope.INDEX);
         this.nodeSettings = nodeSettings;
         this.settings = Settings.builder().put(nodeSettings).put(indexMetaData.getSettings()).build();
-        this.updateListeners = Collections.unmodifiableList(new ArrayList<>(updateListeners));
         this.index = new Index(indexMetaData.getIndex());
         version = Version.indexCreated(settings);
         uuid = settings.get(IndexMetaData.SETTING_INDEX_UUID, IndexMetaData.INDEX_UUID_NA_VALUE);
-        logger = Loggers.getLogger(getClass(), settings, index);
         nodeName = settings.get("name", "");
         this.indexMetaData = indexMetaData;
         numberOfShards = settings.getAsInt(IndexMetaData.SETTING_NUMBER_OF_SHARDS, null);
@@ -145,16 +160,6 @@ public final class IndexSettings {
         this.defaultAllowUnmappedFields = settings.getAsBoolean(ALLOW_UNMAPPED, true);
         this.indexNameMatcher = indexNameMatcher;
         assert indexNameMatcher.test(indexMetaData.getIndex());
-    }
-
-
-    /**
-     * Creates a new {@link IndexSettings} instance adding the given listeners to the settings
-     */
-    IndexSettings newWithListener(final Collection<Consumer<Settings>> updateListeners) {
-        ArrayList<Consumer<Settings>> newUpdateListeners = new ArrayList<>(updateListeners);
-        newUpdateListeners.addAll(this.updateListeners);
-        return new IndexSettings(indexMetaData, nodeSettings, newUpdateListeners, indexNameMatcher);
     }
 
     /**
@@ -287,21 +292,72 @@ public final class IndexSettings {
             // nothing to update, same settings
             return false;
         }
-        final Settings mergedSettings = this.settings = Settings.builder().put(nodeSettings).put(newSettings).build();
-        for (final Consumer<Settings> consumer : updateListeners) {
-            try {
-                consumer.accept(mergedSettings);
-            } catch (Exception e) {
-                logger.warn("failed to refresh index settings for [{}]", e, mergedSettings);
-            }
-        }
+
+        this.settings = applySettings(newSettings);
         return true;
     }
 
-    /**
-     * Returns all settings update consumers
-     */
-    List<Consumer<Settings>> getUpdateListeners() { // for testing
-        return updateListeners;
-    }
+    public static Set<Setting<?>> BUILT_IN_CLUSTER_SETTINGS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+        IndexStore.INDEX_STORE_THROTTLE_MAX_BYTES_PER_SEC_SETTING, /* Validator.BYTES_SIZE */
+    IndexStore.INDEX_STORE_THROTTLE_TYPE_SETTING, /* Validator.EMPTY */
+    MergeSchedulerConfig.MAX_THREAD_COUNT_SETTING, /* Validator.NON_NEGATIVE_INTEGER */
+    MergeSchedulerConfig.MAX_MERGE_COUNT_SETTING, /* Validator.EMPTY */
+    MergeSchedulerConfig.AUTO_THROTTLE_SETTING, /* Validator.EMPTY */
+    FilterAllocationDecider.INDEX_ROUTING_REQUIRE_GROUP+ "*", /* Validator.EMPTY */
+    FilterAllocationDecider.INDEX_ROUTING_INCLUDE_GROUP + "*", /* Validator.EMPTY */
+    FilterAllocationDecider.INDEX_ROUTING_EXCLUDE_GROUP + "*", /* Validator.EMPTY */
+    EnableAllocationDecider.INDEX_ROUTING_ALLOCATION_ENABLE, /* Validator.EMPTY */
+    EnableAllocationDecider.INDEX_ROUTING_REBALANCE_ENABLE, /* Validator.EMPTY */
+    TranslogConfig.INDEX_TRANSLOG_FS_TYPE, /* Validator.EMPTY */
+    IndexMetaData.SETTING_NUMBER_OF_REPLICAS, /* Validator.NON_NEGATIVE_INTEGER */
+    IndexMetaData.SETTING_AUTO_EXPAND_REPLICAS, /* Validator.EMPTY */
+    IndexMetaData.SETTING_READ_ONLY, /* Validator.EMPTY */
+    IndexMetaData.SETTING_BLOCKS_READ, /* Validator.EMPTY */
+    IndexMetaData.SETTING_BLOCKS_WRITE, /* Validator.EMPTY */
+    IndexMetaData.SETTING_BLOCKS_METADATA, /* Validator.EMPTY */
+    IndexMetaData.SETTING_SHARED_FS_ALLOW_RECOVERY_ON_ANY_NODE, /* Validator.EMPTY */
+    IndexMetaData.SETTING_PRIORITY, /* Validator.NON_NEGATIVE_INTEGER */
+    IndicesTTLService.INDEX_TTL_DISABLE_PURGE, /* Validator.EMPTY */
+    IndexShard.INDEX_REFRESH_INTERVAL, /* Validator.TIME */
+    PrimaryShardAllocator.INDEX_RECOVERY_INITIAL_SHARDS, /* Validator.EMPTY */
+    EngineConfig.INDEX_COMPOUND_ON_FLUSH, /* Validator.BOOLEAN */
+    EngineConfig.INDEX_GC_DELETES_SETTING, /* Validator.TIME */
+    IndexShard.INDEX_FLUSH_ON_CLOSE, /* Validator.BOOLEAN */
+    EngineConfig.INDEX_VERSION_MAP_SIZE, /* Validator.BYTES_SIZE_OR_PERCENTAGE */
+    IndexingSlowLog.INDEX_INDEXING_SLOWLOG_THRESHOLD_INDEX_WARN, /* Validator.TIME */
+    IndexingSlowLog.INDEX_INDEXING_SLOWLOG_THRESHOLD_INDEX_INFO, /* Validator.TIME */
+    IndexingSlowLog.INDEX_INDEXING_SLOWLOG_THRESHOLD_INDEX_DEBUG, /* Validator.TIME */
+    IndexingSlowLog.INDEX_INDEXING_SLOWLOG_THRESHOLD_INDEX_TRACE, /* Validator.TIME */
+    IndexingSlowLog.INDEX_INDEXING_SLOWLOG_REFORMAT, /* Validator.EMPTY */
+    IndexingSlowLog.INDEX_INDEXING_SLOWLOG_LEVEL, /* Validator.EMPTY */
+    IndexingSlowLog.INDEX_INDEXING_SLOWLOG_MAX_SOURCE_CHARS_TO_LOG, /* Validator.EMPTY */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_QUERY_WARN, /* Validator.TIME */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_QUERY_INFO, /* Validator.TIME */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_QUERY_DEBUG, /* Validator.TIME */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_QUERY_TRACE, /* Validator.TIME */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_FETCH_WARN, /* Validator.TIME */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_FETCH_INFO, /* Validator.TIME */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_FETCH_DEBUG, /* Validator.TIME */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_THRESHOLD_FETCH_TRACE, /* Validator.TIME */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_REFORMAT, /* Validator.EMPTY */
+    SearchSlowLog.INDEX_SEARCH_SLOWLOG_LEVEL, /* Validator.EMPTY */
+    ShardsLimitAllocationDecider.INDEX_TOTAL_SHARDS_PER_NODE, /* Validator.INTEGER */
+    MergePolicyConfig.INDEX_MERGE_POLICY_EXPUNGE_DELETES_ALLOWED, /* Validator.DOUBLE */
+    MergePolicyConfig.INDEX_MERGE_POLICY_FLOOR_SEGMENT, /* Validator.BYTES_SIZE */
+    MergePolicyConfig.INDEX_MERGE_POLICY_MAX_MERGE_AT_ONCE, /* Validator.INTEGER_GTE_2 */
+    MergePolicyConfig.INDEX_MERGE_POLICY_MAX_MERGE_AT_ONCE_EXPLICIT, /* Validator.INTEGER_GTE_2 */
+    MergePolicyConfig.INDEX_MERGE_POLICY_MAX_MERGED_SEGMENT, /* Validator.BYTES_SIZE */
+    MergePolicyConfig.INDEX_MERGE_POLICY_SEGMENTS_PER_TIER, /* Validator.DOUBLE_GTE_2 */
+    MergePolicyConfig.INDEX_MERGE_POLICY_RECLAIM_DELETES_WEIGHT, /* Validator.NON_NEGATIVE_DOUBLE */
+    MergePolicyConfig.INDEX_COMPOUND_FORMAT, /* Validator.EMPTY */
+    IndexShard.INDEX_TRANSLOG_FLUSH_THRESHOLD_OPS, /* Validator.INTEGER */
+    IndexShard.INDEX_TRANSLOG_FLUSH_THRESHOLD_SIZE, /* Validator.BYTES_SIZE */
+    IndexShard.INDEX_TRANSLOG_DISABLE_FLUSH, /* Validator.EMPTY */
+    TranslogConfig.INDEX_TRANSLOG_DURABILITY, /* Validator.EMPTY */
+    IndicesWarmer.INDEX_WARMER_ENABLED, /* Validator.EMPTY */
+    IndicesRequestCache.INDEX_CACHE_REQUEST_ENABLED, /* Validator.BOOLEAN */
+    IndicesRequestCache.DEPRECATED_INDEX_CACHE_REQUEST_ENABLED, /* Validator.BOOLEAN */
+    UnassignedInfo.INDEX_DELAYED_NODE_LEFT_TIMEOUT_SETTING, /* Validator.TIME */
+    DefaultSearchContext.MAX_RESULT_WINDOW /* Validator.POSITIVE_INTEGER */
+    )));
 }

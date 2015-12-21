@@ -230,6 +230,16 @@ public abstract class AbstractScopedSettings extends AbstractComponent {
         return null;
     }
 
+    public <T> T get(Setting<T> setting) {
+        if (setting.getScope() != scope) {
+            throw new IllegalArgumentException("settings scope doesn't match the setting scope [" + this.scope + "] != [" + setting.getScope() + "]");
+        }
+        if (get(setting.getKey()) == null) {
+            throw new IllegalArgumentException("setting " + setting.getKey() + " has not been registered");
+        }
+        return setting.get(this.lastSettingsApplied);
+    }
+
     /**
      * Returns <code>true</code> if the setting for the given key is dynamically updateable. Otherwise <code>false</code>.
      */
