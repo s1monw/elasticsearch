@@ -94,6 +94,11 @@ public class SettingsModule extends AbstractModule {
                 }
             }
         }
+        try {
+            bufferedWriter.flush();
+        } catch (IOException boom) {
+            throw new RuntimeException("boom", boom);
+        }
 
         bind(Settings.class).toInstance(settings);
         bind(SettingsFilter.class).toInstance(settingsFilter);
