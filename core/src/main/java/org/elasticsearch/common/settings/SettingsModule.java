@@ -51,7 +51,7 @@ public class SettingsModule extends AbstractModule {
             Path file = Files.createTempFile(path, "settings", ".txt");
             bufferedWriter = Files.newBufferedWriter(file);
         } catch (IOException ex) {
-
+            throw new RuntimeException(ex);
         }
     }
 
