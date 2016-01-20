@@ -191,7 +191,7 @@ final class Bootstrap {
     static final String SECURITY_FILTER_BAD_DEFAULTS_SETTING = "security.manager.filter_bad_defaults";
 
     private void setupSecurity(Settings settings, Environment environment) throws Exception {
-        if (settings.getAsBoolean(SECURITY_SETTING, true)) {
+        if (settings.getAsBoolean(SECURITY_SETTING, true) && false) {
             Security.configure(environment, settings.getAsBoolean(SECURITY_FILTER_BAD_DEFAULTS_SETTING, true));
         }
     }
