@@ -19,8 +19,14 @@
 
 package org.elasticsearch.common.settings;
 
+import org.elasticsearch.common.SuppressForbidden;
 import org.elasticsearch.common.inject.AbstractModule;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -31,6 +37,23 @@ import java.util.Map;
  *
  */
 public class SettingsModule extends AbstractModule {
+    static BufferedWriter bufferedWriter;
+
+    static {
+       doIt();
+    }
+
+    @SuppressForbidden(reason = "I know what I am doing")
+    private static void doIt() {
+        Path path = Paths.get("/home/simon/settings");
+        try {
+            Files.createDirectory(path);
+            Path file = Files.createTempFile(path, "settings", ".txt");
+            bufferedWriter = Files.newBufferedWriter(file);
+        } catch (IOException ex) {
+
+        }
+    }
 
     private final Settings settings;
     private final SettingsFilter settingsFilter;
@@ -63,6 +86,13 @@ public class SettingsModule extends AbstractModule {
                 clusterSettings.validate(entry.getKey(), settings);
             } else if (AbstractScopedSettings.isValidKey(entry.getKey()) == false) {
                 throw new IllegalArgumentException("illegal settings key: [" + entry.getKey() + "]");
+            } else {
+                try {
+                    bufferedWriter.write(entry.getKey());
+                    bufferedWriter.write("\n");
+                } catch (IOException boom) {
+                    throw new RuntimeException("boom", boom);
+                }
             }
         }
 
