@@ -47,7 +47,6 @@ public class SettingsModule extends AbstractModule {
     private static void doIt() {
         Path path = Paths.get("/home/simon/settings");
         try {
-            Files.createDirectory(path);
             Path file = Files.createTempFile(path, "settings", ".txt");
             bufferedWriter = Files.newBufferedWriter(file);
         } catch (IOException ex) {
