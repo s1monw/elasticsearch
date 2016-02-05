@@ -36,8 +36,6 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.Engine;
-import org.elasticsearch.index.fielddata.IndexFieldDataService;
-import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.mapper.Uid;
 import org.elasticsearch.index.mapper.internal.TypeFieldMapper;
 import org.elasticsearch.index.mapper.internal.UidFieldMapper;
@@ -51,6 +49,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * Each shard will have a percolator registry even if there isn't a {@link PercolatorService#TYPE_NAME} document type in the index.
@@ -64,15 +63,15 @@ public final class PercolatorQueriesRegistry extends AbstractIndexShardComponent
     public final static Setting<Boolean> INDEX_MAP_UNMAPPED_FIELDS_AS_STRING_SETTING = Setting.boolSetting("index.percolator.map_unmapped_fields_as_string", false, false, Setting.Scope.INDEX);
 
     private final ConcurrentMap<BytesRef, Query> percolateQueries = ConcurrentCollections.newConcurrentMapWithAggressiveConcurrency();
-    private final QueryShardContext queryShardContext;
+    private final Supplier<QueryShardContext> queryShardContextSupplier;
     private boolean mapUnmappedFieldsAsString;
     private final MeanMetric percolateMetric = new MeanMetric();
     private final CounterMetric currentMetric = new CounterMetric();
     private final CounterMetric numberOfQueries = new CounterMetric();
 
-    public PercolatorQueriesRegistry(ShardId shardId, IndexSettings indexSettings, QueryShardContext queryShardContext) {
+    public PercolatorQueriesRegistry(ShardId shardId, IndexSettings indexSettings, Supplier<QueryShardContext> queryShardContextSupplier) {
         super(shardId, indexSettings);
-        this.queryShardContext = queryShardContext;
+        this.queryShardContextSupplier = queryShardContextSupplier;
         this.mapUnmappedFieldsAsString = indexSettings.getValue(INDEX_MAP_UNMAPPED_FIELDS_AS_STRING_SETTING);
     }
 
@@ -90,7 +89,7 @@ public final class PercolatorQueriesRegistry extends AbstractIndexShardComponent
     }
 
 
-    public void addPercolateQuery(String idAsString, BytesReference source) {
+    private void addPercolateQuery(String idAsString, BytesReference source) {
         Query newquery = parsePercolatorDocument(idAsString, source);
         BytesRef id = new BytesRef(idAsString);
         percolateQueries.put(id, newquery);
@@ -98,7 +97,7 @@ public final class PercolatorQueriesRegistry extends AbstractIndexShardComponent
 
     }
 
-    public void removePercolateQuery(String idAsString) {
+    private void removePercolateQuery(String idAsString) {
         BytesRef id = new BytesRef(idAsString);
         Query query = percolateQueries.remove(id);
         if (query != null) {
@@ -106,7 +105,7 @@ public final class PercolatorQueriesRegistry extends AbstractIndexShardComponent
         }
     }
 
-    public Query parsePercolatorDocument(String id, BytesReference source) {
+    Query parsePercolatorDocument(String id, BytesReference source) {
         try (XContentParser sourceParser = XContentHelper.createParser(source)) {
             String currentFieldName = null;
             XContentParser.Token token = sourceParser.nextToken(); // move the START_OBJECT
@@ -118,7 +117,7 @@ public final class PercolatorQueriesRegistry extends AbstractIndexShardComponent
                     currentFieldName = sourceParser.currentName();
                 } else if (token == XContentParser.Token.START_OBJECT) {
                     if ("query".equals(currentFieldName)) {
-                        return parseQuery(queryShardContext, mapUnmappedFieldsAsString, sourceParser);
+                        return parseQuery(queryShardContextSupplier.get(), mapUnmappedFieldsAsString, sourceParser);
                     } else {
                         sourceParser.skipChildren();
                     }

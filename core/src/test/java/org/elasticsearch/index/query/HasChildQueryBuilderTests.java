@@ -230,11 +230,12 @@ public class HasChildQueryBuilderTests extends AbstractQueryTestCase<HasChildQue
     }
     public void testToQueryInnerQueryType() throws IOException {
         String[] searchTypes = new String[]{PARENT_TYPE};
-        QueryShardContext.setTypes(searchTypes);
+        QueryShardContext shardContext = createShardContext();
+        shardContext.setTypes(searchTypes);
         HasChildQueryBuilder hasChildQueryBuilder = new HasChildQueryBuilder(CHILD_TYPE, new IdsQueryBuilder().addIds("id"));
         Query query = hasChildQueryBuilder.toQuery(createShardContext());
         //verify that the context types are still the same as the ones we previously set
-        assertThat(QueryShardContext.getTypes(), equalTo(searchTypes));
+        assertThat(shardContext.getTypes(), equalTo(searchTypes));
         assertLateParsingQuery(query, CHILD_TYPE, "id");
     }
 

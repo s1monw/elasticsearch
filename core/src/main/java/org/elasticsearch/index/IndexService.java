@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
@@ -77,6 +78,7 @@ import org.elasticsearch.index.store.Store;
 import org.elasticsearch.index.translog.Translog;
 import org.elasticsearch.indices.AliasFilterParsingException;
 import org.elasticsearch.indices.InvalidAliasNameException;
+import org.elasticsearch.indices.cache.query.IndicesQueryCache;
 import org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache;
 import org.elasticsearch.indices.mapper.MapperRegistry;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -104,6 +106,9 @@ public final class IndexService extends AbstractIndexComponent implements IndexC
     private final SimilarityService similarityService;
     private final EngineFactory engineFactory;
     private final IndexWarmer warmer;
+    private final Function<IndexService, QueryShardContext> shardContextFactory;
+    private final IndicesQueryCache indicesQueryCache;
+
     private volatile Map<Integer, IndexShard> shards = emptyMap();
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean deleted = new AtomicBoolean(false);
@@ -126,6 +131,8 @@ public final class IndexService extends AbstractIndexComponent implements IndexC
                         IndexModule.IndexSearcherWrapperFactory wrapperFactory,
                         MapperRegistry mapperRegistry,
                         IndicesFieldDataCache indicesFieldDataCache,
+                        IndicesQueryCache indicesQueryCache,
+                        Function<IndexService, QueryShardContext> shardContextFactory,
                         IndexingOperationListener... listenersIn) throws IOException {
         super(indexSettings);
         this.indexSettings = indexSettings;
@@ -140,8 +147,9 @@ public final class IndexService extends AbstractIndexComponent implements IndexC
         this.indexStore = indexStore;
         indexFieldData.setListener(new FieldDataCacheListener(this));
         this.bitsetFilterCache = new BitsetFilterCache(indexSettings, new BitsetCacheListener(this));
-        this.warmer = new IndexWarmer(indexSettings.getSettings(), nodeServicesProvider.getThreadPool(), bitsetFilterCache.createListener(nodeServicesProvider.getThreadPool()));
+        this.warmer = new IndexWarmer(indexSettings, nodeServicesProvider.getThreadPool(), indexFieldData, bitsetFilterCache.createListener(nodeServicesProvider.getThreadPool()));
         this.indexCache = new IndexCache(indexSettings, queryCache, bitsetFilterCache);
+        this.indicesQueryCache = indicesQueryCache;
         this.engineFactory = engineFactory;
         // initialize this last -- otherwise if the wrapper requires any other member to be non-null we fail with an NPE
         this.searcherWrapper = wrapperFactory.newWrapper(this);
@@ -154,6 +162,7 @@ public final class IndexService extends AbstractIndexComponent implements IndexC
         // kick off async ops for the first shard in this index
         this.refreshTask = new AsyncRefreshTask(this);
         searchSlowLog = new SearchSlowLog(indexSettings);
+        this.shardContextFactory = shardContextFactory;
         rescheduleFsyncTask(indexSettings.getTranslogDurability());
     }
 
@@ -322,11 +331,11 @@ public final class IndexService extends AbstractIndexComponent implements IndexC
                 }
             };
 
-            store = new Store(shardId, this.indexSettings, indexStore.newDirectoryService(path), lock, new StoreCloseListener(shardId, canDeleteShardContent, () -> nodeServicesProvider.getIndicesQueryCache().onClose(shardId)));
+            store = new Store(shardId, this.indexSettings, indexStore.newDirectoryService(path), lock, new StoreCloseListener(shardId, canDeleteShardContent, () -> indicesQueryCache.onClose(shardId)));
             if (useShadowEngine(primary, indexSettings)) {
-                indexShard = new ShadowIndexShard(shardId, this.indexSettings, path, store, indexCache, mapperService, similarityService, indexFieldData, engineFactory, eventListener, searcherWrapper, nodeServicesProvider, searchSlowLog, engineWarmer); // no indexing listeners - shadow  engines don't index
+                indexShard = new ShadowIndexShard(shardId, this.indexSettings, path, store, indexCache, mapperService, similarityService, engineFactory, eventListener, searcherWrapper, nodeServicesProvider, searchSlowLog, engineWarmer, this::getQueryShardContext); // no indexing listeners - shadow  engines don't index
             } else {
-                indexShard = new IndexShard(shardId, this.indexSettings, path, store, indexCache, mapperService, similarityService, indexFieldData, engineFactory, eventListener, searcherWrapper, nodeServicesProvider, searchSlowLog, engineWarmer, listeners);
+                indexShard = new IndexShard(shardId, this.indexSettings, path, store, indexCache, mapperService, similarityService, engineFactory, eventListener, searcherWrapper, nodeServicesProvider, searchSlowLog, engineWarmer, this::getQueryShardContext, listeners);
             }
             eventListener.indexShardStateChanged(indexShard, null, indexShard.state(), "shard created");
             eventListener.afterIndexShardCreated(indexShard);
@@ -418,7 +427,7 @@ public final class IndexService extends AbstractIndexComponent implements IndexC
     }
 
     public QueryShardContext getQueryShardContext() {
-        return new QueryShardContext(indexSettings, nodeServicesProvider.getClient(), indexCache.bitsetFilterCache(), indexFieldData, mapperService(), similarityService(), nodeServicesProvider.getScriptService(), nodeServicesProvider.getIndicesQueriesRegistry());
+        return shardContextFactory.apply(this);
     }
 
     ThreadPool getThreadPool() {

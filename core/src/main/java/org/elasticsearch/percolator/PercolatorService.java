@@ -183,7 +183,7 @@ public class PercolatorService extends AbstractComponent implements Releasable {
                 indexShard.shardId().getIndex().getName(),
                 request.indices()
         );
-        Query aliasFilter = percolateIndexService.aliasFilter(indexShard.getQueryShardContext(), filteringAliases);
+        Query aliasFilter = percolateIndexService.aliasFilter(percolateIndexService.getQueryShardContext(), filteringAliases);
 
         SearchShardTarget searchShardTarget = new SearchShardTarget(clusterService.localNode().id(), request.shardId().getIndex(), request.shardId().id());
         final PercolateContext context = new PercolateContext(
@@ -192,7 +192,6 @@ public class PercolatorService extends AbstractComponent implements Releasable {
         SearchContext.setCurrent(context);
         try {
             ParsedDocument parsedDocument = percolateDocumentParser.parse(request, context, percolateIndexService.mapperService(), percolateIndexService.getQueryShardContext());
-
             if (context.searcher().getIndexReader().maxDoc() == 0) {
                 return new PercolateShardResponse(Lucene.EMPTY_TOP_DOCS, Collections.emptyMap(), Collections.emptyMap(), context);
             }

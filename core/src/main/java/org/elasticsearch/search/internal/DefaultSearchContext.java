@@ -53,6 +53,7 @@ import org.elasticsearch.index.mapper.internal.TypeFieldMapper;
 import org.elasticsearch.index.mapper.object.ObjectMapper;
 import org.elasticsearch.index.query.AbstractQueryBuilder;
 import org.elasticsearch.index.query.ParsedQuery;
+import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.similarity.SimilarityService;
 import org.elasticsearch.script.ScriptService;
@@ -206,7 +207,7 @@ public class DefaultSearchContext extends SearchContext {
         }
 
         // initialize the filtering alias based on the provided filters
-        aliasFilter = indexService.aliasFilter(indexShard.getQueryShardContext(), request.filteringAliases());
+        aliasFilter = indexService.aliasFilter(indexService.getQueryShardContext(), request.filteringAliases());
 
         if (query() == null) {
             parsedQuery(ParsedQuery.parsedMatchAllQuery());
@@ -763,6 +764,11 @@ public class DefaultSearchContext extends SearchContext {
     @Override
     public Map<Class<?>, Collector> queryCollectors() {
         return queryCollectors;
+    }
+
+    @Override
+    public QueryShardContext getQueryShardContext() {
+        return indexService.getQueryShardContext();
     }
 
     @Override

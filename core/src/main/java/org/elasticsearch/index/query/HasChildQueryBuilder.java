@@ -205,12 +205,13 @@ public class HasChildQueryBuilder extends AbstractQueryBuilder<HasChildQueryBuil
 
     @Override
     protected Query doToQuery(QueryShardContext context) throws IOException {
-        String[] previousTypes = QueryShardContext.setTypesWithPrevious(type);
         Query innerQuery;
+        String[] previousTypes = context.getTypes();
+        context.setTypes(type);
         try {
             innerQuery = query.toQuery(context);
         } finally {
-            QueryShardContext.setTypes(previousTypes);
+            context.setTypes(previousTypes);
         }
         if (innerQuery == null) {
             return null;

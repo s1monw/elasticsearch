@@ -30,11 +30,13 @@ import org.elasticsearch.index.fielddata.IndexFieldDataService;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.merge.MergeStats;
 import org.elasticsearch.index.SearchSlowLog;
+import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.similarity.SimilarityService;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.index.translog.TranslogStats;
 
 import java.io.IOException;
+import java.util.function.Supplier;
 
 /**
  * ShadowIndexShard extends {@link IndexShard} to add file synchronization
@@ -44,9 +46,9 @@ import java.io.IOException;
  */
 public final class ShadowIndexShard extends IndexShard {
 
-    public ShadowIndexShard(ShardId shardId, IndexSettings indexSettings, ShardPath path, Store store, IndexCache indexCache, MapperService mapperService, SimilarityService similarityService, IndexFieldDataService indexFieldDataService, @Nullable EngineFactory engineFactory,
-                            IndexEventListener indexEventListener, IndexSearcherWrapper wrapper, NodeServicesProvider provider, SearchSlowLog searchSlowLog, Engine.Warmer engineWarmer) throws IOException {
-        super(shardId, indexSettings, path, store, indexCache, mapperService, similarityService, indexFieldDataService, engineFactory, indexEventListener, wrapper, provider, searchSlowLog, engineWarmer);
+    public ShadowIndexShard(ShardId shardId, IndexSettings indexSettings, ShardPath path, Store store, IndexCache indexCache, MapperService mapperService, SimilarityService similarityService, @Nullable EngineFactory engineFactory,
+                            IndexEventListener indexEventListener, IndexSearcherWrapper wrapper, NodeServicesProvider provider, SearchSlowLog searchSlowLog, Engine.Warmer engineWarmer, Supplier<QueryShardContext> contextSupplier) throws IOException {
+        super(shardId, indexSettings, path, store, indexCache, mapperService, similarityService, engineFactory, indexEventListener, wrapper, provider, searchSlowLog, engineWarmer, contextSupplier);
     }
 
     /**

@@ -38,6 +38,7 @@ import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.mapper.object.ObjectMapper;
 import org.elasticsearch.index.query.ParsedQuery;
+import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.similarity.SimilarityService;
 import org.elasticsearch.script.ScriptService;
@@ -589,5 +590,10 @@ public class TestSearchContext extends SearchContext {
 
     @Override
     public Map<Class<?>, Collector> queryCollectors() {return queryCollectors;}
+
+    @Override
+    public QueryShardContext getQueryShardContext() {
+        return indexService.getQueryShardContext();
+    }
 
 }

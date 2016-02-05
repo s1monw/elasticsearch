@@ -130,6 +130,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 public class IndexShard extends AbstractIndexShardComponent {
 
@@ -144,7 +145,6 @@ public class IndexShard extends AbstractIndexShardComponent {
     private final ShardRequestCache shardQueryCache;
     private final ShardFieldData shardFieldData;
     private final PercolatorQueriesRegistry percolatorQueriesRegistry;
-    private final IndexFieldDataService indexFieldDataService;
     private final ShardSuggestMetric shardSuggestMetric = new ShardSuggestMetric();
     private final ShardBitsetFilterCache shardBitsetFilterCache;
     private final Object mutex = new Object();
@@ -155,10 +155,8 @@ public class IndexShard extends AbstractIndexShardComponent {
     private final SimilarityService similarityService;
     private final EngineConfig engineConfig;
     private final TranslogConfig translogConfig;
-    private final IndicesQueryCache indicesQueryCache;
     private final IndexEventListener indexEventListener;
     private final IndexSettings idxSettings;
-    private final NodeServicesProvider provider;
 
     /** How many bytes we are currently moving to disk, via either IndexWriter.flush or refresh.  IndexingMemoryController polls this
      *  across all shards to decide if throttling is necessary because moving bytes to disk is falling behind vs incoming documents
@@ -205,9 +203,10 @@ public class IndexShard extends AbstractIndexShardComponent {
     private final AtomicBoolean active = new AtomicBoolean();
 
     public IndexShard(ShardId shardId, IndexSettings indexSettings, ShardPath path, Store store, IndexCache indexCache,
-                      MapperService mapperService, SimilarityService similarityService, IndexFieldDataService indexFieldDataService,
+                      MapperService mapperService, SimilarityService similarityService,
                       @Nullable EngineFactory engineFactory,
-                      IndexEventListener indexEventListener, IndexSearcherWrapper indexSearcherWrapper, NodeServicesProvider provider, SearchSlowLog slowLog, Engine.Warmer warmer, IndexingOperationListener... listeners) {
+                      IndexEventListener indexEventListener, IndexSearcherWrapper indexSearcherWrapper, NodeServicesProvider provider,
+                      SearchSlowLog slowLog, Engine.Warmer warmer, Supplier<QueryShardContext> queryShardContextSupplier, IndexingOperationListener... listeners) {
         super(shardId, indexSettings);
         final Settings settings = indexSettings.getSettings();
         this.idxSettings = indexSettings;
@@ -229,10 +228,8 @@ public class IndexShard extends AbstractIndexShardComponent {
         this.getService = new ShardGetService(indexSettings, this, mapperService);
         this.searchService = new ShardSearchStats(slowLog);
         this.shardWarmerService = new ShardIndexWarmerService(shardId, indexSettings);
-        this.indicesQueryCache = provider.getIndicesQueryCache();
         this.shardQueryCache = new ShardRequestCache(shardId, indexSettings);
         this.shardFieldData = new ShardFieldData();
-        this.indexFieldDataService = indexFieldDataService;
         this.shardBitsetFilterCache = new ShardBitsetFilterCache(shardId, indexSettings);
         state = IndexShardState.CREATED;
         this.path = path;
@@ -253,9 +250,8 @@ public class IndexShard extends AbstractIndexShardComponent {
 
         this.engineConfig = newEngineConfig(translogConfig, cachingPolicy);
         this.suspendableRefContainer = new SuspendableRefContainer();
-        this.provider = provider;
         this.searcherWrapper = indexSearcherWrapper;
-        this.percolatorQueriesRegistry = new PercolatorQueriesRegistry(shardId, indexSettings, newQueryShardContext());
+        this.percolatorQueriesRegistry = new PercolatorQueriesRegistry(shardId, indexSettings, queryShardContextSupplier);
     }
 
     public Store store() {
@@ -281,10 +277,6 @@ public class IndexShard extends AbstractIndexShardComponent {
 
     public ShardBitsetFilterCache shardBitsetFilterCache() {
         return shardBitsetFilterCache;
-    }
-
-    public IndexFieldDataService indexFieldDataService() {
-        return indexFieldDataService;
     }
 
     public MapperService mapperService() {
@@ -654,10 +646,6 @@ public class IndexShard extends AbstractIndexShardComponent {
         return shardWarmerService.stats();
     }
 
-    public QueryCacheStats queryCacheStats() {
-        return indicesQueryCache.getStats(shardId);
-    }
-
     public FieldDataStats fieldDataStats(String... fields) {
         return shardFieldData.stats(fields);
     }
@@ -814,7 +802,7 @@ public class IndexShard extends AbstractIndexShardComponent {
                         engine.flushAndClose();
                     }
                 } finally { // playing safe here and close the engine even if the above succeeds - close can be called multiple times
-                    IOUtils.close(engine, percolatorQueriesRegistry, queryShardContextCache);
+                    IOUtils.close(engine, percolatorQueriesRegistry);
                 }
             }
         }
@@ -1497,25 +1485,6 @@ public class IndexShard extends AbstractIndexShardComponent {
             this.cause = cause;
             this.indexUUID = indexUUID;
         }
-    }
-
-    private CloseableThreadLocal<QueryShardContext> queryShardContextCache = new CloseableThreadLocal<QueryShardContext>() {
-        // TODO We should get rid of this threadlocal but I think it should be a sep change
-        @Override
-        protected QueryShardContext initialValue() {
-            return newQueryShardContext();
-        }
-    };
-
-    private QueryShardContext newQueryShardContext() {
-        return new QueryShardContext(idxSettings, provider.getClient(), indexCache.bitsetFilterCache(), indexFieldDataService, mapperService, similarityService, provider.getScriptService(), provider.getIndicesQueriesRegistry());
-    }
-
-    /**
-     * Returns a threadlocal QueryShardContext for this shard.
-     */
-    public QueryShardContext getQueryShardContext() {
-        return queryShardContextCache.get();
     }
 
     EngineFactory getEngineFactory() {

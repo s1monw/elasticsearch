@@ -71,6 +71,7 @@ import org.elasticsearch.index.shard.IndexingStats;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.store.IndexStoreConfig;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
+import org.elasticsearch.indices.cache.query.IndicesQueryCache;
 import org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache;
 import org.elasticsearch.indices.mapper.MapperRegistry;
 import org.elasticsearch.indices.query.IndicesQueriesRegistry;
@@ -124,6 +125,7 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
     private final MapperRegistry mapperRegistry;
     private final IndexingMemoryController indexingMemoryController;
     private final TimeValue cleanInterval;
+    private final IndicesQueryCache indicesQueryCache;
 
     @Override
     protected void doStart() {
@@ -161,8 +163,7 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
         });
         this.cleanInterval = INDICES_FIELDDATA_CLEAN_INTERVAL_SETTING.get(settings);
         this.fieldDataCacheCleaner = new FieldDataCacheCleaner(indicesFieldDataCache, logger, threadPool, this.cleanInterval);
-
-
+        this.indicesQueryCache = new IndicesQueryCache(settings);
     }
 
     @Override
@@ -196,7 +197,7 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
 
     @Override
     protected void doClose() {
-        IOUtils.closeWhileHandlingException(analysisRegistry, indexingMemoryController, indicesFieldDataCache, fieldDataCacheCleaner);
+        IOUtils.closeWhileHandlingException(analysisRegistry, indexingMemoryController, indicesFieldDataCache, fieldDataCacheCleaner, indicesQueryCache);
     }
 
     /**
@@ -247,7 +248,7 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
                     if (indexShard.routingEntry() == null) {
                         continue;
                     }
-                    IndexShardStats indexShardStats = new IndexShardStats(indexShard.shardId(), new ShardStats[] { new ShardStats(indexShard.routingEntry(), indexShard.shardPath(), new CommonStats(indexShard, flags), indexShard.commitStats()) });
+                    IndexShardStats indexShardStats = new IndexShardStats(indexShard.shardId(), new ShardStats[] { new ShardStats(indexShard.routingEntry(), indexShard.shardPath(), new CommonStats(indexShard, indicesQueryCache, flags), indexShard.commitStats()) });
                     if (!statsByShard.containsKey(indexService.index())) {
                         statsByShard.put(indexService.index(), arrayAsArrayList(indexShardStats));
                     } else {
@@ -351,7 +352,7 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
         indexModule.addIndexEventListener(oldShardsStats);
         final IndexEventListener listener = indexModule.freeze();
         listener.beforeIndexCreated(index, idxSettings.getSettings());
-        final IndexService indexService = indexModule.newIndexService(nodeEnv, this, nodeServicesProvider, mapperRegistry, indicesFieldDataCache, indexingMemoryController);
+        final IndexService indexService = indexModule.newIndexService(nodeEnv, this, nodeServicesProvider, mapperRegistry, indicesFieldDataCache, indicesQueryCache, indexingMemoryController);
         boolean success = false;
         try {
             assert indexService.getIndexEventListener() == listener;
@@ -418,6 +419,10 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
 
     public CircuitBreakerService getCircuitBreakerService() {
         return circuitBreakerService;
+    }
+
+    public IndicesQueryCache getIndicesQueryCache() {
+        return indicesQueryCache;
     }
 
     static class OldShardsStats implements IndexEventListener {

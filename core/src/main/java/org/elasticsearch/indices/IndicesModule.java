@@ -160,7 +160,6 @@ public class IndicesModule extends AbstractModule {
         bind(IndicesStore.class).asEagerSingleton();
         bind(IndicesClusterStateService.class).asEagerSingleton();
         bind(SyncedFlushService.class).asEagerSingleton();
-        bind(IndicesQueryCache.class).asEagerSingleton();
         bind(IndicesRequestCache.class).asEagerSingleton();
         bind(TransportNodesListShardStoreMetaData.class).asEagerSingleton();
         bind(IndicesTTLService.class).asEagerSingleton();

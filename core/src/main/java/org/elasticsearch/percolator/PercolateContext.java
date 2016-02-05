@@ -46,6 +46,7 @@ import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.mapper.ParsedDocument;
 import org.elasticsearch.index.mapper.object.ObjectMapper;
 import org.elasticsearch.index.query.ParsedQuery;
+import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.similarity.SimilarityService;
 import org.elasticsearch.script.ScriptService;
@@ -687,5 +688,10 @@ public class PercolateContext extends SearchContext {
     @Override
     public Profilers getProfilers() {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public QueryShardContext getQueryShardContext() {
+        return indexService.getQueryShardContext();
     }
 }

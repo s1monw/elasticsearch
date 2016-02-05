@@ -340,7 +340,6 @@ public abstract class AbstractQueryTestCase<QB extends AbstractQueryBuilder<QB>>
     @After
     public void afterTest() {
         clientInvocationHandler.delegate = null;
-        QueryShardContext.removeTypes();
         SearchContext.removeCurrent();
     }
 

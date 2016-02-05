@@ -59,12 +59,12 @@ public final class IndexWarmer extends AbstractComponent {
         false, Setting.Scope.INDEX);
     private final List<Listener> listeners;
 
-    IndexWarmer(Settings settings, ThreadPool threadPool, Listener... listeners) {
-        super(settings);
+    IndexWarmer(IndexSettings settings, ThreadPool threadPool, IndexFieldDataService indexFieldDataService, Listener... listeners) {
+        super(settings.getSettings());
         ArrayList<Listener> list = new ArrayList<>();
         final Executor executor = threadPool.executor(ThreadPool.Names.WARMER);
-        list.add(new NormsWarmer(executor));
-        list.add(new FieldDataWarmer(executor));
+        list.add(new NormsWarmer(settings.getIndex(), executor));
+        list.add(new FieldDataWarmer(settings.getIndex(), indexFieldDataService, executor));
         for (Listener listener : listeners) {
             list.add(listener);
         }
@@ -139,11 +139,15 @@ public final class IndexWarmer extends AbstractComponent {
 
     private static class NormsWarmer implements IndexWarmer.Listener {
         private final Executor executor;
-        public NormsWarmer(Executor executor) {
+        private final Index index;
+
+        public NormsWarmer(Index index, Executor executor) {
             this.executor = executor;
+            this.index = index;
         }
         @Override
         public TerminationHandle warmNewReaders(final IndexShard indexShard, final Engine.Searcher searcher) {
+            assert indexShard.indexSettings().getIndex().equals(this.index);
             final MappedFieldType.Loading defaultLoading = indexShard.indexSettings().getValue(INDEX_NORMS_LOADING_SETTING);
             final MapperService mapperService = indexShard.mapperService();
             final ObjectSet<String> warmUp = new ObjectHashSet<>();
@@ -198,12 +202,18 @@ public final class IndexWarmer extends AbstractComponent {
     private static class FieldDataWarmer implements IndexWarmer.Listener {
 
         private final Executor executor;
-        public FieldDataWarmer(Executor executor) {
+        private final IndexFieldDataService indexFieldDataService;
+        private final Index index;
+
+        public FieldDataWarmer(Index index, IndexFieldDataService indexFieldDataService, Executor executor) {
+            this.index = index;
             this.executor = executor;
+            this.indexFieldDataService = indexFieldDataService;
         }
 
         @Override
         public TerminationHandle warmNewReaders(final IndexShard indexShard, final Engine.Searcher searcher) {
+            assert indexShard.indexSettings().getIndex().equals(this.index);
             final MapperService mapperService = indexShard.mapperService();
             final Map<String, MappedFieldType> warmUp = new HashMap<>();
             for (DocumentMapper docMapper : mapperService.docMappers(false)) {
@@ -223,7 +233,6 @@ public final class IndexWarmer extends AbstractComponent {
                     warmUp.put(indexName, fieldMapper.fieldType());
                 }
             }
-            final IndexFieldDataService indexFieldDataService = indexShard.indexFieldDataService();
             final CountDownLatch latch = new CountDownLatch(searcher.reader().leaves().size() * warmUp.size());
             for (final LeafReaderContext ctx : searcher.reader().leaves()) {
                 for (final MappedFieldType fieldType : warmUp.values()) {
@@ -266,7 +275,6 @@ public final class IndexWarmer extends AbstractComponent {
                     warmUpGlobalOrdinals.put(indexName, fieldMapper.fieldType());
                 }
             }
-            final IndexFieldDataService indexFieldDataService = indexShard.indexFieldDataService();
             final CountDownLatch latch = new CountDownLatch(warmUpGlobalOrdinals.size());
             for (final MappedFieldType fieldType : warmUpGlobalOrdinals.values()) {
                 executor.execute(() -> {

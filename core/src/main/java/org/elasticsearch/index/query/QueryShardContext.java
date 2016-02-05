@@ -74,7 +74,7 @@ import static java.util.Collections.unmodifiableMap;
  */
 public class QueryShardContext {
 
-    private static final ThreadLocal<String[]> typesContext = new ThreadLocal<>();
+    private String[] types;
     private final MapperService mapperService;
     private final ScriptService scriptService;
     private final SimilarityService similarityService;
@@ -82,25 +82,6 @@ public class QueryShardContext {
     private final IndexFieldDataService indexFieldDataService;
     private final IndexSettings indexSettings;
     private final Client client;
-
-    public static void setTypes(String[] types) {
-        typesContext.set(types);
-    }
-
-    public static String[] getTypes() {
-        return typesContext.get();
-    }
-
-    public static String[] setTypesWithPrevious(String... types) {
-        String[] old = typesContext.get();
-        setTypes(types);
-        return old;
-    }
-
-    public static void removeTypes() {
-        typesContext.remove();
-    }
-
     private final Map<String, Query> namedQueries = new HashMap<>();
     private final MapperQueryParser queryParser = new MapperQueryParser(this);
     private final IndicesQueriesRegistry indicesQueriesRegistry;
@@ -136,6 +117,15 @@ public class QueryShardContext {
     public void parseFieldMatcher(ParseFieldMatcher parseFieldMatcher) {
         this.parseContext.parseFieldMatcher(parseFieldMatcher);
     }
+
+    public void setTypes(String... types) {
+        this.types = types;
+    }
+
+    public String[] getTypes() {
+        return types;
+    }
+
 
     public ParseFieldMatcher parseFieldMatcher() {
         return parseContext.parseFieldMatcher();
