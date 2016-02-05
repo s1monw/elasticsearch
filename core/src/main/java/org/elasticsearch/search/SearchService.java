@@ -646,7 +646,6 @@ public class SearchService extends AbstractLifecycleComponent<SearchService> imp
         if (source == null) {
             return;
         }
-        final IndexShard indexShard = context.indexShard();
         QueryShardContext queryShardContext = context.getQueryShardContext();
         context.from(source.from());
         context.size(source.size());

@@ -768,7 +768,9 @@ public class DefaultSearchContext extends SearchContext {
 
     @Override
     public QueryShardContext getQueryShardContext() {
-        return indexService.getQueryShardContext();
+        QueryShardContext queryShardContext = indexService.getQueryShardContext();
+        queryShardContext.setTypes(types());
+        return queryShardContext;
     }
 
     @Override
