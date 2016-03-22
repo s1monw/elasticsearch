@@ -189,9 +189,6 @@ public class MetaDataCreateIndexService extends AbstractComponent {
 
                     @Override
                     public ClusterState execute(ClusterState currentState) throws Exception {
-                        Index createdIndex = null;
-                        String removalReason = null;
-                        try {
                             validate(request, currentState);
 
                             for (Alias alias : request.aliases()) {
@@ -308,83 +305,74 @@ public class MetaDataCreateIndexService extends AbstractComponent {
 
                             // Set up everything, now locally create the index to see that things are ok, and apply
                             final IndexMetaData tmpImd = IndexMetaData.builder(request.index()).settings(actualIndexSettings).build();
-                            // create the index here (on the master) to validate it can be created, as well as adding the mapping
-                            final IndexService indexService = indicesService.createIndex(nodeServicesProvider, tmpImd, Collections.emptyList());
-                            createdIndex = indexService.index();
-                            // now add the mappings
-                            MapperService mapperService = indexService.mapperService();
-                            // first, add the default mapping
-                            if (mappings.containsKey(MapperService.DEFAULT_MAPPING)) {
-                                try {
-                                    mapperService.merge(MapperService.DEFAULT_MAPPING, new CompressedXContent(XContentFactory.jsonBuilder().map(mappings.get(MapperService.DEFAULT_MAPPING)).string()), MapperService.MergeReason.MAPPING_UPDATE, request.updateAllTypes());
-                                } catch (Exception e) {
-                                    removalReason = "failed on parsing default mapping on index creation";
-                                    throw new MapperParsingException("Failed to parse mapping [{}]: {}", e, MapperService.DEFAULT_MAPPING, e.getMessage());
-                                }
-                            }
-                            for (Map.Entry<String, Map<String, Object>> entry : mappings.entrySet()) {
-                                if (entry.getKey().equals(MapperService.DEFAULT_MAPPING)) {
-                                    continue;
-                                }
-                                try {
-                                    // apply the default here, its the first time we parse it
-                                    mapperService.merge(entry.getKey(), new CompressedXContent(XContentFactory.jsonBuilder().map(entry.getValue()).string()), MapperService.MergeReason.MAPPING_UPDATE, request.updateAllTypes());
-                                } catch (Exception e) {
-                                    removalReason = "failed on parsing mappings on index creation";
-                                    throw new MapperParsingException("Failed to parse mapping [{}]: {}", e, entry.getKey(), e.getMessage());
-                                }
-                            }
-
-                            final QueryShardContext queryShardContext = indexService.newQueryShardContext();
-                            for (Alias alias : request.aliases()) {
-                                if (Strings.hasLength(alias.filter())) {
-                                    aliasValidator.validateAliasFilter(alias.name(), alias.filter(), queryShardContext);
-                                }
-                            }
-                            for (AliasMetaData aliasMetaData : templatesAliases.values()) {
-                                if (aliasMetaData.filter() != null) {
-                                    aliasValidator.validateAliasFilter(aliasMetaData.alias(), aliasMetaData.filter().uncompressed(), queryShardContext);
-                                }
-                            }
-
-                            // now, update the mappings with the actual source
-                            Map<String, MappingMetaData> mappingsMetaData = new HashMap<>();
-                            for (DocumentMapper mapper : mapperService.docMappers(true)) {
-                                MappingMetaData mappingMd = new MappingMetaData(mapper);
-                                mappingsMetaData.put(mapper.type(), mappingMd);
-                            }
-
                             final IndexMetaData.Builder indexMetaDataBuilder = IndexMetaData.builder(request.index()).settings(actualIndexSettings);
-                            for (MappingMetaData mappingMd : mappingsMetaData.values()) {
-                                indexMetaDataBuilder.putMapping(mappingMd);
-                            }
+                            // create the index here (on the master) to validate it can be created, as well as adding the mapping
+                            indicesService.verifyIndexMetadata(nodeServicesProvider, tmpImd, (indexService) -> {
+                                // now add the mappings
+                                MapperService mapperService = indexService.mapperService();
+                                // first, add the default mapping
+                                if (mappings.containsKey(MapperService.DEFAULT_MAPPING)) {
+                                    try {
+                                        mapperService.merge(MapperService.DEFAULT_MAPPING, new CompressedXContent(XContentFactory.jsonBuilder().map(mappings.get(MapperService.DEFAULT_MAPPING)).string()), MapperService.MergeReason.MAPPING_UPDATE, request.updateAllTypes());
+                                    } catch (Exception e) {
+                                        throw new MapperParsingException("Failed to parse mapping [{}]: {}", e, MapperService.DEFAULT_MAPPING, e.getMessage());
+                                    }
+                                }
+                                for (Map.Entry<String, Map<String, Object>> entry : mappings.entrySet()) {
+                                    if (entry.getKey().equals(MapperService.DEFAULT_MAPPING)) {
+                                        continue;
+                                    }
+                                    try {
+                                        // apply the default here, its the first time we parse it
+                                        mapperService.merge(entry.getKey(), new CompressedXContent(XContentFactory.jsonBuilder().map(entry.getValue()).string()), MapperService.MergeReason.MAPPING_UPDATE, request.updateAllTypes());
+                                    } catch (Exception e) {
+                                        throw new MapperParsingException("Failed to parse mapping [{}]: {}", e, entry.getKey(), e.getMessage());
+                                    }
+                                }
 
-                            for (AliasMetaData aliasMetaData : templatesAliases.values()) {
-                                indexMetaDataBuilder.putAlias(aliasMetaData);
-                            }
-                            for (Alias alias : request.aliases()) {
-                                AliasMetaData aliasMetaData = AliasMetaData.builder(alias.name()).filter(alias.filter())
+                                final QueryShardContext queryShardContext = indexService.newQueryShardContext();
+                                for (Alias alias : request.aliases()) {
+                                    if (Strings.hasLength(alias.filter())) {
+                                        aliasValidator.validateAliasFilter(alias.name(), alias.filter(), queryShardContext);
+                                    }
+                                }
+                                for (AliasMetaData aliasMetaData : templatesAliases.values()) {
+                                    if (aliasMetaData.filter() != null) {
+                                        aliasValidator.validateAliasFilter(aliasMetaData.alias(), aliasMetaData.filter().uncompressed(), queryShardContext);
+                                    }
+                                }
+                                // now, update the mappings with the actual source
+                                Map<String, MappingMetaData> mappingsMetaData = new HashMap<>();
+                                for (DocumentMapper mapper : mapperService.docMappers(true)) {
+                                    MappingMetaData mappingMd = new MappingMetaData(mapper);
+                                    mappingsMetaData.put(mapper.type(), mappingMd);
+                                }
+
+                                for (MappingMetaData mappingMd : mappingsMetaData.values()) {
+                                    indexMetaDataBuilder.putMapping(mappingMd);
+                                }
+
+                                for (AliasMetaData aliasMetaData : templatesAliases.values()) {
+                                    indexMetaDataBuilder.putAlias(aliasMetaData);
+                                }
+                                for (Alias alias : request.aliases()) {
+                                    AliasMetaData aliasMetaData = AliasMetaData.builder(alias.name()).filter(alias.filter())
                                         .indexRouting(alias.indexRouting()).searchRouting(alias.searchRouting()).build();
-                                indexMetaDataBuilder.putAlias(aliasMetaData);
-                            }
+                                    indexMetaDataBuilder.putAlias(aliasMetaData);
+                                }
 
-                            for (Map.Entry<String, Custom> customEntry : customs.entrySet()) {
-                                indexMetaDataBuilder.putCustom(customEntry.getKey(), customEntry.getValue());
-                            }
+                                for (Map.Entry<String, Custom> customEntry : customs.entrySet()) {
+                                    indexMetaDataBuilder.putCustom(customEntry.getKey(), customEntry.getValue());
+                                }
 
-                            indexMetaDataBuilder.state(request.state());
+                                indexMetaDataBuilder.state(request.state());
 
-                            final IndexMetaData indexMetaData;
-                            try {
-                                indexMetaData = indexMetaDataBuilder.build();
-                            } catch (Exception e) {
-                                removalReason = "failed to build index metadata";
-                                throw e;
-                            }
 
-                            indexService.getIndexEventListener().beforeIndexAddedToCluster(indexMetaData.getIndex(),
-                                    indexMetaData.getSettings());
+                                indexService.getIndexEventListener().beforeIndexAddedToCluster(indexService.index(),
+                                    indexService.getIndexSettings().getSettings());
+                            });
 
+                            final IndexMetaData indexMetaData = indexMetaDataBuilder.build();
                             MetaData newMetaData = MetaData.builder(currentState.metaData())
                                     .put(indexMetaData, false)
                                     .build();
@@ -412,14 +400,7 @@ public class MetaDataCreateIndexService extends AbstractComponent {
                                         "index [" + request.index() + "] created");
                                 updatedState = ClusterState.builder(updatedState).routingResult(routingResult).build();
                             }
-                            removalReason = "cleaning up after validating index on master";
                             return updatedState;
-                        } finally {
-                            if (createdIndex != null) {
-                                // Index was already partially created - need to clean up
-                                indicesService.removeIndex(createdIndex, removalReason != null ? removalReason : "failed to create index");
-                            }
-                        }
                     }
                 });
     }

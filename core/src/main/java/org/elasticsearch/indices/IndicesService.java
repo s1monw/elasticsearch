@@ -108,6 +108,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -387,11 +388,20 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
         return indexModule.newIndexService(nodeEnv, this, nodeServicesProvider, indicesQueryCache, mapperRegistry, indicesFieldDataCache, indexingOperationListeners);
     }
 
+    public synchronized void verifyIndexMetadata(final NodeServicesProvider nodeServicesProvider, IndexMetaData metaData) throws IOException {
+        verifyIndexMetadata(nodeServicesProvider, metaData, (indexService) -> {
+            for (ObjectCursor<MappingMetaData> typeMapping : metaData.getMappings().values()) {
+                // don't apply the default mapping, it has been applied when the mapping was created
+                indexService.mapperService().merge(typeMapping.value.type(), typeMapping.value.source(),
+                    MapperService.MergeReason.MAPPING_RECOVERY, true);
+            }
+        });
+    }
     /**
      * This method verifies that the given {@link IndexMetaData} holds sane values to create an {@link IndexService}. This method will throw an
      * exception if the creation fails. The created {@link IndexService} will not be registered and will be closed immediately.
      */
-    public synchronized void verifyIndexMetadata(final NodeServicesProvider nodeServicesProvider, IndexMetaData metaData) throws IOException {
+    public synchronized void verifyIndexMetadata(final NodeServicesProvider nodeServicesProvider, IndexMetaData metaData, Consumer<IndexService> validator) throws IOException {
         final List<Closeable> closeables = new ArrayList<>();
         try {
             IndicesFieldDataCache indicesFieldDataCache = new IndicesFieldDataCache(settings, new IndexFieldDataCache.Listener() {});
@@ -401,12 +411,10 @@ public class IndicesService extends AbstractLifecycleComponent<IndicesService> i
             // this will also fail if some plugin fails etc. which is nice since we can verify that early
             final IndexService service = createIndexService("metadata verification", nodeServicesProvider,
                 metaData, indicesQueryCache, indicesFieldDataCache, Collections.emptyList());
-            for (ObjectCursor<MappingMetaData> typeMapping : metaData.getMappings().values()) {
-                // don't apply the default mapping, it has been applied when the mapping was created
-                service.mapperService().merge(typeMapping.value.type(), typeMapping.value.source(),
-                    MapperService.MergeReason.MAPPING_RECOVERY, true);
-            }
             closeables.add(() -> service.close("metadata verification", false));
+            if (validator != null) {
+                validator.accept(service);
+            }
         } finally {
             IOUtils.close(closeables);
         }

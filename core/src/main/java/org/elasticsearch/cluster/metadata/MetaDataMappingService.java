@@ -54,6 +54,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Service responsible for submitting mapping changes
  */
@@ -109,7 +111,7 @@ public class MetaDataMappingService extends AbstractComponent {
             tasksPerIndex.computeIfAbsent(task.index, k -> new ArrayList<>()).add(task);
         }
 
-        boolean dirty = false;
+        final AtomicBoolean dirty = new AtomicBoolean(false);
         MetaData.Builder mdBuilder = MetaData.builder(currentState.metaData());
 
         for (Map.Entry<String, List<RefreshTask>> entry : tasksPerIndex.entrySet()) {
@@ -136,33 +138,30 @@ public class MetaDataMappingService extends AbstractComponent {
             }
 
             // construct the actual index if needed, and make sure the relevant mappings are there
-            boolean removeIndex = false;
-            IndexService indexService = indicesService.indexService(indexMetaData.getIndex());
+            final IndexService indexService = indicesService.indexService(indexMetaData.getIndex());
+            IndexMetaData.Builder builder = IndexMetaData.builder(indexMetaData);
             if (indexService == null) {
                 // we need to create the index here, and add the current mapping to it, so we can merge
-                indexService = indicesService.createIndex(nodeServicesProvider, indexMetaData, Collections.emptyList());
-                removeIndex = true;
-                for (ObjectCursor<MappingMetaData> metaData : indexMetaData.getMappings().values()) {
-                    // don't apply the default mapping, it has been applied when the mapping was created
-                    indexService.mapperService().merge(metaData.value.type(), metaData.value.source(), MapperService.MergeReason.MAPPING_RECOVERY, true);
-                }
-            }
-
-            IndexMetaData.Builder builder = IndexMetaData.builder(indexMetaData);
-            try {
-                boolean indexDirty = refreshIndexMapping(indexService, builder);
-                if (indexDirty) {
+                indicesService.verifyIndexMetadata(nodeServicesProvider, indexMetaData, (service) -> {
+                    for (ObjectCursor<MappingMetaData> metaData : indexMetaData.getMappings().values()) {
+                        // don't apply the default mapping, it has been applied when the mapping was created
+                        service.mapperService().merge(metaData.value.type(),
+                            metaData.value.source(), MapperService.MergeReason.MAPPING_RECOVERY, true);
+                    }
+                    if (refreshIndexMapping(service, builder)) {
+                        mdBuilder.put(builder);
+                        dirty.set(true);
+                    }
+                });
+            } else {
+                if (refreshIndexMapping(indexService, builder)) {
                     mdBuilder.put(builder);
-                    dirty = true;
-                }
-            } finally {
-                if (removeIndex) {
-                    indicesService.removeIndex(index, "created for mapping processing");
+                    dirty.set(true);
                 }
             }
         }
 
-        if (!dirty) {
+        if (dirty.get() == false) {
             return currentState;
         }
         return ClusterState.builder(currentState).metaData(mdBuilder).build();
@@ -211,39 +210,29 @@ public class MetaDataMappingService extends AbstractComponent {
         @Override
         public BatchResult<PutMappingClusterStateUpdateRequest> execute(ClusterState currentState,
                                                                         List<PutMappingClusterStateUpdateRequest> tasks) throws Exception {
-            Set<Index> indicesToClose = new HashSet<>();
             BatchResult.Builder<PutMappingClusterStateUpdateRequest> builder = BatchResult.builder();
-            try {
-                // precreate incoming indices;
-                for (PutMappingClusterStateUpdateRequest request : tasks) {
-                    try {
-                        for (Index index : request.indices()) {
-                            final IndexMetaData indexMetaData = currentState.metaData().getIndexSafe(index);
-                            if (indicesService.hasIndex(indexMetaData.getIndex()) == false) {
-                                // if the index does not exists we create it once, add all types to the mapper service and
-                                // close it later once we are done with mapping update
-                                indicesToClose.add(indexMetaData.getIndex());
-                                IndexService indexService = indicesService.createIndex(nodeServicesProvider, indexMetaData,
-                                    Collections.emptyList());
+            // precreate incoming indices;
+            for (PutMappingClusterStateUpdateRequest request : tasks) {
+                try {
+                    for (Index index : request.indices()) {
+                        final IndexMetaData indexMetaData = currentState.metaData().getIndexSafe(index);
+                        if (indicesService.hasIndex(indexMetaData.getIndex()) == false) {
+                            indicesService.verifyIndexMetadata(nodeServicesProvider, indexMetaData, (indexService) -> {
                                 // add mappings for all types, we need them for cross-type validation
                                 for (ObjectCursor<MappingMetaData> mapping : indexMetaData.getMappings().values()) {
                                     indexService.mapperService().merge(mapping.value.type(), mapping.value.source(),
                                         MapperService.MergeReason.MAPPING_RECOVERY, request.updateAllTypes());
                                 }
-                            }
+                            });
                         }
-                        currentState = applyRequest(currentState, request);
-                        builder.success(request);
-                    } catch (Throwable t) {
-                        builder.failure(request, t);
                     }
-                }
-                return builder.build(currentState);
-            } finally {
-                for (Index index : indicesToClose) {
-                    indicesService.removeIndex(index, "created for mapping processing");
+                    currentState = applyRequest(currentState, request);
+                    builder.success(request);
+                } catch (Throwable t) {
+                    builder.failure(request, t);
                 }
             }
+            return builder.build(currentState);
         }
 
         private ClusterState applyRequest(ClusterState currentState, PutMappingClusterStateUpdateRequest request) throws IOException {
