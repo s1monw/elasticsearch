@@ -19,8 +19,11 @@
 package org.elasticsearch.bootstrap;
 
 import org.apache.lucene.util.Constants;
+import org.elasticsearch.env.Environment;
 import org.elasticsearch.test.ESTestCase;
 
+import java.io.IOException;
+import java.nio.file.FileStore;
 import java.nio.file.Path;
 
 public class QuotactlTests extends ESTestCase {
@@ -35,8 +38,10 @@ public class QuotactlTests extends ESTestCase {
         assertTrue("failed to load quotactl library", Quotactl.isLoaded());
     }
 
-    public void testFoo() {
+    public void testFoo() throws IOException {
         Path tempDir = createTempDir();
-        assertEquals(-1, Quotactl.getAvaliableSpace(tempDir, 1000, 1024));
+        FileStore fileStore = Environment.getFileStore(tempDir);
+        logger.info("store name", fileStore.name());
+        assertEquals(-1, Quotactl.getAvaliableSpace(fileStore.name(), 1000, 1024));
     }
 }
