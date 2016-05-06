@@ -135,10 +135,10 @@ public class Quotactl {
         return null;
     }
 
-    public static long getAvaliableSpace(Path path, int user, long blockSize) {
+    public static long getAvaliableSpace(String blockDevice, int user, long blockSize) {
         try {
             dqblk quota = get_quota(
-                path.toString()
+                blockDevice
                 , user, USRQUOTA);
             return quota == null ? -1 : quota.dqb_bhardlimit * blockSize;
         } catch (IOException e) {
@@ -147,10 +147,10 @@ public class Quotactl {
         }
     }
 
-    public static long getUsedSpace(Path path, int user, long blockSize) {
+    public static long getUsedSpace(String blockDevice, int user, long blockSize) {
         try {
             dqblk quota = get_quota(
-                path.toString()
+                blockDevice
                 , user, USRQUOTA);
             return quota == null ? -1 : quota.dqb_curspace * blockSize;
         } catch (IOException e) {
