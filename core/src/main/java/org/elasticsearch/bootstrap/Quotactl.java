@@ -26,13 +26,9 @@ import org.apache.lucene.util.Constants;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 
-import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- */
 public class Quotactl {
 
     private static final ESLogger logger = Loggers.getLogger(Quotactl.class);
@@ -83,6 +79,7 @@ public class Quotactl {
     /** Access to non-standard Linux libc methods */
     interface LinuxLibrary extends Library {
         int quotactl(int cmd, String special, int id, Structure addr) throws LastErrorException;
+        int getuid();
     };
 
     /**
@@ -118,44 +115,48 @@ public class Quotactl {
                 "dqb_itime", "dqb_id"
             );
         }
-    };
 
-    public static dqblk get_quota(String blockDevice, int userOrGroupId, int type) throws IOException {
+        public long getHardLimitInBytes(long blocksize) {
+            if ((dqb_id & QIF_BLIMITS) != 0) {
+                return dqb_bhardlimit * blocksize;
+            }
+            return -1;
+        }
+
+        public long getSoftLimitInBytes(long blocksize) {
+            if ((dqb_id & QIF_BLIMITS) != 0) {
+                return dqb_bsoftlimit * blocksize;
+
+            }
+            return -1;
+        }
+
+        public long getAvaliableSpaceInBytes(long blocksize) {
+            if ((dqb_id & QIF_SPACE) != 0) {
+                return dqb_curspace * blocksize;
+
+            }
+            return -1;
+        }
+    }
+
+    public static dqblk get_quota(String blockDevice) {
         if (Constants.LINUX) {
             if (linux_libc == null) {
                 throw new UnsupportedOperationException("quotactl unavailable");
             }
             dqblk struct = new dqblk();
+            int userId = linux_libc.getuid();
             try {
-                linux_libc.quotactl(QCMD(Q_GETQUOTA, type), blockDevice, userOrGroupId, struct);
+                logger.info("GETQUOTA for user {} on device {}", userId, blockDevice);
+                linux_libc.quotactl(QCMD(Q_GETQUOTA, USRQUOTA), blockDevice, userId, struct);
             } catch (LastErrorException ex) {
-                throw new IOException("failed to fetch quota", ex);
+                if (ex.getErrorCode() != 3) { // unless the quota is not installed we log
+                    logger.warn("Failed to get quota", ex);
+                    throw ex;
+                }
             }
         }
         return null;
-    }
-
-    public static long getAvaliableSpace(String blockDevice, int user, long blockSize) {
-        try {
-            dqblk quota = get_quota(
-                blockDevice
-                , user, USRQUOTA);
-            return quota == null ? -1 : quota.dqb_bhardlimit * blockSize;
-        } catch (IOException e) {
-            logger.warn("Failed to get quota", e);
-            return -1;
-        }
-    }
-
-    public static long getUsedSpace(String blockDevice, int user, long blockSize) {
-        try {
-            dqblk quota = get_quota(
-                blockDevice
-                , user, USRQUOTA);
-            return quota == null ? -1 : quota.dqb_curspace * blockSize;
-        } catch (IOException e) {
-            logger.warn("Failed to get quota", e);
-            return -1;
-        }
     }
 }
