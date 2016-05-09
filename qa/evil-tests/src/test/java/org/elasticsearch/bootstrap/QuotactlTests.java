@@ -42,6 +42,7 @@ public class QuotactlTests extends ESTestCase {
         Path tempDir = createTempDir();
         FileStore fileStore = Environment.getFileStore(tempDir);
         logger.info("store name", fileStore.name());
-        assertEquals(-1, Quotactl.getAvaliableSpace(fileStore.name(), 1000, 1024));
+        Quotactl.dqblk quota = Quotactl.get_quota(fileStore.name());
+        assertNull(quota);
     }
 }
