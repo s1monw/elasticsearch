@@ -74,6 +74,7 @@ public final class ShardRouting implements Writeable, ToXContent {
         this.unassignedInfo = unassignedInfo;
         this.allocationId = allocationId;
         this.expectedShardSize = expectedShardSize;
+        assert !(state == ShardRoutingState.INITIALIZING && unassignedInfo == null) : "initializing shard must be created with meta";
         assert expectedShardSize == UNAVAILABLE_EXPECTED_SHARD_SIZE || state == ShardRoutingState.INITIALIZING || state == ShardRoutingState.RELOCATING : expectedShardSize + " state: " + state;
         assert expectedShardSize >= 0 || state != ShardRoutingState.INITIALIZING || state != ShardRoutingState.RELOCATING : expectedShardSize + " state: " + state;
         assert !(state == ShardRoutingState.UNASSIGNED && unassignedInfo == null) : "unassigned shard must be created with meta";
@@ -182,7 +183,11 @@ public final class ShardRouting implements Writeable, ToXContent {
      * source node.
      */
     public ShardRouting buildTargetRelocatingShard() {
-        assert relocating();
+        assert relocating() : "shard is not relocating";
+        assert unassignedInfo == null : "started shards don't have unassigned info";
+        assert currentNodeId != null;
+        assert relocatingNodeId != null;
+        final UnassignedInfo unassignedInfo = new UnassignedInfo(UnassignedInfo.Reason.RELOCATED, "shard is relocating");
         return new ShardRouting(shardId, relocatingNodeId, currentNodeId, restoreSource, primary, ShardRoutingState.INITIALIZING, unassignedInfo,
             AllocationId.newTargetRelocation(allocationId), expectedShardSize);
     }
@@ -354,6 +359,7 @@ public final class ShardRouting implements Writeable, ToXContent {
      * @param relocatingNodeId id of the node to relocate the shard
      */
     public ShardRouting relocate(String relocatingNodeId, long expectedShardSize) {
+        assert relocatingNodeId != null : "relocating nodeID must not be null";
         assert state == ShardRoutingState.STARTED : "current shard has to be started in order to be relocated " + this;
         return new ShardRouting(shardId, currentNodeId, relocatingNodeId, restoreSource, primary, ShardRoutingState.RELOCATING,
             null, AllocationId.newRelocation(allocationId), expectedShardSize);

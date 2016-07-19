@@ -106,6 +106,10 @@ public final class UnassignedInfo implements ToXContent, Writeable {
          */
         REALLOCATED_REPLICA,
         /**
+         * A marker for the target shard of a relocation.
+         */
+        RELOCATED,
+        /**
          * Unassigned as a result of a failed primary while the replica was initializing.
          */
         PRIMARY_FAILED
