@@ -101,6 +101,30 @@ public class AnalysisModuleTests extends ModuleTestCase {
         }
     }
 
+    public void testDefaultsAreCached() throws IOException {
+        Settings settings = Settings.builder()
+            .put(Environment.PATH_HOME_SETTING.getKey(), createTempDir().toString())
+            .put(IndexMetaData.SETTING_VERSION_CREATED, Version.CURRENT)
+            .build();
+
+        AnalysisRegistry newRegistry = getNewRegistry(settings);
+        AnalysisService analysisService = getAnalysisService(newRegistry, settings);
+        AnalysisService analysisService2 = getAnalysisService(newRegistry, settings);
+        assertSame(analysisService.tokenFilter("myfilter"), analysisService2.tokenFilter("myfilter"));
+    }
+
+    public void testNoCacheIfNotCurrentVersion() throws IOException {
+        Settings settings = Settings.builder()
+            .put(Environment.PATH_HOME_SETTING.getKey(), createTempDir().toString())
+            .put(IndexMetaData.SETTING_VERSION_CREATED, VersionUtils.getPreviousVersion())
+            .build();
+
+        AnalysisRegistry newRegistry = getNewRegistry(settings);
+        AnalysisService analysisService = getAnalysisService(newRegistry, settings);
+        AnalysisService analysisService2 = getAnalysisService(newRegistry, settings);
+        assertNotSame(analysisService.tokenFilter("myfilter"), analysisService2.tokenFilter("myfilter"));
+    }
+
     private Settings loadFromClasspath(String path) throws IOException {
         return Settings.builder().loadFromStream(path, getClass().getResourceAsStream(path))
                 .put(IndexMetaData.SETTING_VERSION_CREATED, Version.CURRENT)

@@ -22,6 +22,7 @@ package org.elasticsearch.common;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
@@ -50,9 +51,13 @@ public class NamedRegistry<T> {
     }
 
     public <P> void extractAndRegister(List<P> plugins, Function<P, Map<String, T>> lookup) {
+        extractAndRegister(plugins, lookup, (a,b) -> b);
+    }
+
+    public <P> void extractAndRegister(List<P> plugins, Function<P, Map<String, T>> lookup, BiFunction<String, T, T> processor) {
         for (P plugin : plugins) {
             for (Map.Entry<String, T> entry : lookup.apply(plugin).entrySet()) {
-                register(entry.getKey(), entry.getValue());
+                register(entry.getKey(), processor.apply(entry.getKey(), entry.getValue()));
             }
         }
     }

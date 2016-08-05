@@ -162,8 +162,10 @@ public final class AnalysisModule {
 
     private final HunspellService hunspellService;
     private final AnalysisRegistry analysisRegistry;
+    private final Environment environment;
 
     public AnalysisModule(Environment environment, List<AnalysisPlugin> plugins) throws IOException {
+        this.environment = environment;
         NamedRegistry<AnalysisProvider<CharFilterFactory>> charFilters = setupCharFilters(plugins);
         NamedRegistry<org.apache.lucene.analysis.hunspell.Dictionary> hunspellDictionaries = setupHunspellDictionaries(plugins);
         hunspellService = new HunspellService(environment.settings(), environment, hunspellDictionaries.getRegistry());
@@ -187,7 +189,8 @@ public final class AnalysisModule {
         charFilters.register("html_strip", HtmlStripCharFilterFactory::new);
         charFilters.register("pattern_replace", requriesAnalysisSettings(PatternReplaceCharFilterFactory::new));
         charFilters.register("mapping", requriesAnalysisSettings(MappingCharFilterFactory::new));
-        charFilters.extractAndRegister(plugins, AnalysisPlugin::getCharFilters);
+        charFilters.extractAndRegister(plugins, AnalysisPlugin::getCharFilters,
+            (key, value) -> new CachingAnalyzerProvider<>(key, value, environment));
         return charFilters;
     }
 
@@ -258,7 +261,8 @@ public final class AnalysisModule {
         tokenFilters.register("classic", ClassicFilterFactory::new);
         tokenFilters.register("decimal_digit", DecimalDigitFilterFactory::new);
         tokenFilters.register("fingerprint", FingerprintTokenFilterFactory::new);
-        tokenFilters.extractAndRegister(plugins, AnalysisPlugin::getTokenFilters);
+        tokenFilters.extractAndRegister(plugins, AnalysisPlugin::getTokenFilters,
+        (key, value) -> new CachingAnalyzerProvider<>(key, value, environment));
         return tokenFilters;
     }
 
@@ -279,7 +283,8 @@ public final class AnalysisModule {
         tokenizers.register("pattern", PatternTokenizerFactory::new);
         tokenizers.register("classic", ClassicTokenizerFactory::new);
         tokenizers.register("thai", ThaiTokenizerFactory::new);
-        tokenizers.extractAndRegister(plugins, AnalysisPlugin::getTokenizers);
+        tokenizers.extractAndRegister(plugins, AnalysisPlugin::getTokenizers,
+            (key, value) -> new CachingAnalyzerProvider<>(key, value, environment));
         return tokenizers;
     }
 
@@ -329,7 +334,8 @@ public final class AnalysisModule {
         analyzers.register("turkish", TurkishAnalyzerProvider::new);
         analyzers.register("thai", ThaiAnalyzerProvider::new);
         analyzers.register("fingerprint", FingerprintAnalyzerProvider::new);
-        analyzers.extractAndRegister(plugins, AnalysisPlugin::getAnalyzers);
+        analyzers.extractAndRegister(plugins, AnalysisPlugin::getAnalyzers,
+            (key, value) -> new CachingAnalyzerProvider<>(key, value, environment));
         return analyzers;
     }
 
@@ -386,6 +392,44 @@ public final class AnalysisModule {
          */
         default boolean requiresAnalysisSettings() {
             return false;
+        }
+    }
+
+    private static class CachingAnalyzerProvider<T> implements AnalysisProvider<T> {
+        private final AnalysisProvider<T> provider;
+        private final T cachedDefaultInstance;
+        private final String cachedName;
+
+        private CachingAnalyzerProvider(String name, AnalysisProvider<T> provider, Environment environment) {
+            this.provider = provider;
+            if (provider.requiresAnalysisSettings() == false) {
+                try {
+                    cachedDefaultInstance = provider.get(environment, name);
+                } catch (IOException e) {
+                    throw new IllegalStateException("can't get default analysis provider instance", e);
+                }
+            } else {
+                cachedDefaultInstance = null;
+            }
+            cachedName = name;
+        }
+
+        @Override
+        public T get(IndexSettings indexSettings, Environment environment, String name, Settings settings) throws IOException {
+            return provider.get(indexSettings, environment, name, settings);
+        }
+
+        @Override
+        public T get(Environment environment, String name) throws IOException {
+            if (cachedName.equals(name) && cachedDefaultInstance != null) {
+                return cachedDefaultInstance;
+            }
+            return provider.get(environment, name);
+        }
+
+        @Override
+        public boolean requiresAnalysisSettings() {
+            return provider.requiresAnalysisSettings();
         }
     }
 }

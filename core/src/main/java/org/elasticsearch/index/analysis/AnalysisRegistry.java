@@ -212,9 +212,11 @@ public final class AnalysisRegistry implements Closeable {
             AnalysisModule.AnalysisProvider<T> defaultProvider = defaultInstance.get(name);
             final T instance;
             if (defaultProvider == null) {
-                instance = provider.get(settings, environment, name, defaultSettings);
+                instance = Version.CURRENT == settings.getIndexVersionCreated()
+                    ? provider.get(environment, name) : provider.get(settings, environment, name, defaultSettings);
             } else {
-                instance = defaultProvider.get(settings, environment, name, defaultSettings);
+                instance = Version.CURRENT == settings.getIndexVersionCreated()
+                    ? provider.get(environment, name) : provider.get(settings, environment, name, defaultSettings);
             }
             factories.put(name, instance);
         }
