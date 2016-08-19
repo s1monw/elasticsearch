@@ -23,6 +23,7 @@ import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.OutputStreamDataOutput;
 import org.apache.lucene.util.BytesRef;
+import org.apache.lucene.util.BytesRefIterator;
 import org.apache.lucene.util.IOUtils;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.Channels;
@@ -37,7 +38,11 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class TranslogWriter extends BaseTranslogReader implements Closeable {
 
@@ -50,14 +55,10 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
     private final ChannelFactory channelFactory;
     /* the offset in bytes that was written when the file was last synced*/
     private volatile long lastSyncedOffset;
-    /* the number of translog operations written to this file */
-    private volatile int operationCounter;
     /* if we hit an exception that we can't recover from we assign it to this var and ship it with every AlreadyClosedException we throw */
     private volatile Exception tragedy;
     /* A buffered outputstream what writes to the writers channel */
-    private final OutputStream outputStream;
-    /* the total offset of this file including the bytes written to the file as well as into the buffer */
-    private volatile long totalOffset;
+    private final WriteBuffer buffer;
 
     protected final AtomicBoolean closed = new AtomicBoolean(false);
     // lock order synchronized(syncLock) -> synchronized(this)
@@ -67,9 +68,9 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
         super(generation, channel, path, channel.position());
         this.shardId = shardId;
         this.channelFactory = channelFactory;
-        this.outputStream = new BufferedChannelOutputStream(java.nio.channels.Channels.newOutputStream(channel), bufferSize.bytesAsInt());
+        OutputStream outputStream = new BufferedChannelOutputStream(java.nio.channels.Channels.newOutputStream(channel), bufferSize.bytesAsInt());
         this.lastSyncedOffset = channel.position();
-        totalOffset = lastSyncedOffset;
+        buffer = new WriteBuffer(outputStream, lastSyncedOffset);
     }
 
     static int getHeaderLength(String translogUUID) {
@@ -131,21 +132,9 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
     /**
      * add the given bytes to the translog and return the location they were written at
      */
-    public synchronized Translog.Location add(BytesReference data) throws IOException {
+    public Translog.Location add(BytesReference data) throws IOException {
         ensureOpen();
-        final long offset = totalOffset;
-        try {
-            data.writeTo(outputStream);
-        } catch (Exception ex) {
-            try {
-                closeWithTragicEvent(ex);
-            } catch (Exception inner) {
-                ex.addSuppressed(inner);
-            }
-            throw ex;
-        }
-        totalOffset += data.length();
-        operationCounter++;
+        final long offset = buffer.addToQueue(data);
         return new Translog.Location(generation, offset, data.length());
     }
 
@@ -163,17 +152,17 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
      * returns true if there are buffered ops
      */
     public boolean syncNeeded() {
-        return totalOffset != lastSyncedOffset;
+        return buffer.totalOffset != lastSyncedOffset;
     }
 
     @Override
     public int totalOperations() {
-        return operationCounter;
+        return buffer.operationCounter;
     }
 
     @Override
     public long sizeInBytes() {
-        return totalOffset;
+        return buffer.totalOffset;
     }
 
     /**
@@ -200,7 +189,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
                 if (closed.compareAndSet(false, true)) {
                     boolean success = false;
                     try {
-                        final TranslogReader reader = new TranslogReader(generation, channel, path, firstOperationOffset, getWrittenOffset(), operationCounter);
+                        final TranslogReader reader = new TranslogReader(generation, channel, path, firstOperationOffset, getWrittenOffset(), buffer.operationCounter);
                         success = true;
                         return reader;
                     } finally {
@@ -224,12 +213,13 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
         synchronized (syncLock) {
             synchronized (this) {
                 ensureOpen();
+                int numOperations = totalOperations();
                 try {
                     sync();
                 } catch (IOException e) {
                     throw new TranslogException(shardId, "exception while syncing before creating a snapshot", e);
                 }
-                return super.newSnapshot();
+                return new TranslogSnapshot(generation, channel, path, firstOperationOffset, sizeInBytes(), numOperations);
             }
         }
     }
@@ -249,28 +239,12 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
                 if (lastSyncedOffset < offset && syncNeeded()) {
                     // double checked locking - we don't want to fsync unless we have to and now that we have
                     // the lock we should check again since if this code is busy we might have fsynced enough already
-                    final long offsetToSync;
-                    final int opsCounter;
-                    synchronized (this) {
-                        ensureOpen();
-                        try {
-                            outputStream.flush();
-                            offsetToSync = totalOffset;
-                            opsCounter = operationCounter;
-                        } catch (Exception ex) {
-                            try {
-                                closeWithTragicEvent(ex);
-                            } catch (Exception inner) {
-                                ex.addSuppressed(inner);
-                            }
-                            throw ex;
-                        }
-                    }
+                    Counters counters = buffer.flush();
                     // now do the actual fsync outside of the synchronized block such that
                     // we can continue writing to the buffer etc.
                     try {
                         channel.force(false);
-                        writeCheckpoint(channelFactory, offsetToSync, opsCounter, path.getParent(), generation);
+                        writeCheckpoint(channelFactory, counters.totalOffset, counters.operationCounter, path.getParent(), generation);
                     } catch (Exception ex) {
                         try {
                             closeWithTragicEvent(ex);
@@ -279,8 +253,8 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
                         }
                         throw ex;
                     }
-                    assert lastSyncedOffset <= offsetToSync : "illegal state: " + lastSyncedOffset + " <= " + offsetToSync;
-                    lastSyncedOffset = offsetToSync; // write protected by syncLock
+                    assert lastSyncedOffset <= counters.totalOffset : "illegal state: " + lastSyncedOffset + " <= " + counters.totalOffset;
+                    lastSyncedOffset = counters.totalOffset; // write protected by syncLock
                     return true;
                 }
             }
@@ -297,7 +271,7 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
                 // which is not really important in production but some test can make most strict assumptions
                 // if we don't fail in this call unless absolutely necessary.
                 if (position + targetBuffer.remaining() > getWrittenOffset()) {
-                    outputStream.flush();
+                    buffer.flush();
                 }
             }
         }
@@ -358,6 +332,117 @@ public class TranslogWriter extends BaseTranslogReader implements Closeable {
             // the stream is intentionally not closed because
             // closing it will close the FileChannel
             throw new IllegalStateException("never close this stream");
+        }
+    }
+
+    private final class WriteBuffer {
+        private BytesReference[] buffer = new BytesReference[100];
+        private BytesReference[] spare = new BytesReference[100];
+        private int bufferPos = 0;
+        private final ReentrantLock lock = new ReentrantLock();
+        private final OutputStream stream;
+        /* the total offset of this file including the bytes written to the file as well as into the buffer */
+        private volatile long totalOffset;
+        /* the number of translog operations written to this file */
+        private volatile int operationCounter = 0;
+
+        WriteBuffer(OutputStream stream, long totalOffset) {
+            this.stream = stream;
+            this.totalOffset = totalOffset;
+        }
+
+        public long addToQueue(BytesReference value) throws IOException {
+            final long offset;
+            while(true) {
+                synchronized (this) {
+                    if (bufferPos < buffer.length) {
+                        offset = totalOffset;
+                        buffer[bufferPos++] = value;
+                        totalOffset += value.length();
+                        operationCounter++;
+                        break;
+                    }
+                }
+                flush();
+            }
+
+
+            while (lock.tryLock()) {
+                try {
+                    final BytesReference[] bytesReferences;
+                    final int length;
+                    synchronized (this) {
+                        if (bufferPos == 0) {
+                            break;
+                        }
+                        bytesReferences = buffer;
+                        buffer = spare;
+                        spare = bytesReferences;
+                        length = bufferPos;
+                        bufferPos = 0;
+                    }
+                    writeBytesReferences(bytesReferences, length);
+                } finally {
+                    lock.unlock();
+                }
+            }
+            return offset;
+        }
+
+        public Counters flush() throws IOException {
+            final Counters counters;
+            lock.lock();
+            try {
+                final BytesReference[] bytesReferences;
+                final int length;
+                synchronized (this) {
+                    counters = new Counters(operationCounter, totalOffset);
+                    bytesReferences = buffer;
+                    buffer = spare;
+                    spare = bytesReferences;
+                    length = bufferPos;
+                    bufferPos = 0;
+                }
+                writeBytesReferences(bytesReferences, length);
+            } finally {
+                lock.unlock();
+            }
+            try {
+                stream.flush();
+            } catch (Exception ex) {
+                try {
+                    closeWithTragicEvent(ex);
+                } catch (Exception inner) {
+                    ex.addSuppressed(inner);
+                }
+                throw ex;
+            }
+            return counters;
+        }
+
+        private void writeBytesReferences(BytesReference[] bytesReferences, int length) throws IOException {
+            for (int i = 0; i < length; i++) {
+                try {
+                    bytesReferences[i].writeTo(stream);
+                } catch (Exception ex) {
+                    try {
+                        closeWithTragicEvent(ex);
+                    } catch (Exception inner) {
+                        ex.addSuppressed(inner);
+                    }
+                    throw ex;
+                }
+            }
+        }
+    }
+
+    private static class Counters {
+        final int operationCounter;
+        final long totalOffset;
+
+        private Counters(int operationCounter, long totalOffset) {
+            this.operationCounter = operationCounter;
+            this.totalOffset = totalOffset;
         }
     }
 }
