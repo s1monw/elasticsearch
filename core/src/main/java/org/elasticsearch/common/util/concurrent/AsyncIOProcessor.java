@@ -20,6 +20,7 @@ package org.elasticsearch.common.util.concurrent;
 
 import org.elasticsearch.common.collect.Tuple;
 import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,9 +41,11 @@ public abstract class AsyncIOProcessor<Item> {
     private final ESLogger logger;
     private final ArrayBlockingQueue<Tuple<Item, Consumer<Exception>>> queue;
     private final Semaphore promiseSemaphore = new Semaphore(1);
+    private final ThreadPool threadPool;
 
-    protected AsyncIOProcessor(ESLogger logger, int queueSize) {
+    protected AsyncIOProcessor(ThreadPool threadPool, ESLogger logger, int queueSize) {
         this.logger = logger;
+        this.threadPool = threadPool;
         this.queue = new ArrayBlockingQueue<>(queueSize);
     }
 
@@ -72,27 +75,30 @@ public abstract class AsyncIOProcessor<Item> {
         // here we have to try to make the promise again otherwise there is a race when a thread puts an entry without making the promise
         // while we are draining that mean we might exit below too early in the while loop if the drainAndSync call is fast.
         if (promised || promiseSemaphore.tryAcquire()) {
-            final List<Tuple<Item, Consumer<Exception>>> candidates = new ArrayList<>();
-            try {
+            threadPool.executor(getExecutorName()).execute(() -> {
+                // we fork off to the FLUSH threadpool (default) here to ensure we hammer disks too hard
+                final List<Tuple<Item, Consumer<Exception>>> candidates = new ArrayList<>();
                 if (promised) {
                     // we are responsible for processing we don't need to add the tuple to the queue we can just add it to the candidates
                     candidates.add(itemTuple);
                 }
-                // since we made the promise to process we gotta do it here at least once
-                drainAndProcess(candidates);
-            } finally {
-                promiseSemaphore.release(); // now to ensure we are passing it on we release the promise so another thread can take over
-            }
-            while (queue.isEmpty() == false && promiseSemaphore.tryAcquire()) {
-                // yet if the queue is not empty AND nobody else has yet made the promise to take over we continue processing
-                try {
-                    drainAndProcess(candidates);
-                } finally {
-                    promiseSemaphore.release();
-                }
-            }
+                // fork it off and process
+                runAndFork(candidates);
+            });
         }
     }
+
+    private void runAndFork(final List<Tuple<Item, Consumer<Exception>>> candidates) {
+        try {
+            drainAndProcess(candidates);
+        } finally {
+            promiseSemaphore.release();
+        }
+        if (queue.isEmpty() == false && promiseSemaphore.tryAcquire()) {
+            threadPool.executor(getExecutorName()).execute(() -> runAndFork(candidates));
+        }
+    }
+
 
     private void drainAndProcess(List<Tuple<Item, Consumer<Exception>>> candidates) {
         queue.drainTo(candidates);
@@ -119,6 +125,10 @@ public abstract class AsyncIOProcessor<Item> {
                 logger.warn("failed to notify callback", ex);
             }
         }
+    }
+
+    protected String getExecutorName() {
+        return ThreadPool.Names.FLUSH;
     }
 
     /**

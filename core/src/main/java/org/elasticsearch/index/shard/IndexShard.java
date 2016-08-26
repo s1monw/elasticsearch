@@ -136,7 +136,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -223,6 +222,9 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     @Nullable
     private final RefreshListeners refreshListeners;
 
+    private final AsyncIOProcessor<Translog.Location> translogSyncProcessor;
+
+
     public IndexShard(ShardRouting shardRouting, IndexSettings indexSettings, ShardPath path, Store store, IndexCache indexCache,
                       MapperService mapperService, SimilarityService similarityService, IndexFieldDataService indexFieldDataService,
                       @Nullable EngineFactory engineFactory,
@@ -275,7 +277,23 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         searcherWrapper = indexSearcherWrapper;
         primaryTerm = indexSettings.getIndexMetaData().primaryTerm(shardId.id());
         refreshListeners = buildRefreshListeners();
+        translogSyncProcessor  = new AsyncIOProcessor<Translog.Location>(threadPool, logger, 1024) {
+            @Override
+            protected void write(List<Tuple<Translog.Location, Consumer<Exception>>> candidates) throws IOException {
+                try {
+                    final Engine engine = getEngine();
+                    engine.getTranslog().ensureSynced(candidates.stream().map(Tuple::v1));
+                } catch (EngineClosedException ex) {
+                    // that's fine since we already synced everything on engine close - this also is conform with the methods
+                    // documentation
+                } catch (IOException ex) { // if this fails we are in deep shit - fail the request
+                    logger.debug("failed to sync translog", ex);
+                    throw ex;
+                }
+            }
+        };
         persistMetadata(shardRouting, null);
+
     }
 
     public Store store() {
@@ -1624,22 +1642,6 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
     public int getActiveOperationsCount() {
         return indexShardOperationsLock.getActiveOperationsCount(); // refCount is incremented on successful acquire and decremented on close
     }
-
-    private final AsyncIOProcessor<Translog.Location> translogSyncProcessor = new AsyncIOProcessor<Translog.Location>(logger, 1024) {
-        @Override
-        protected void write(List<Tuple<Translog.Location, Consumer<Exception>>> candidates) throws IOException {
-                try {
-                    final Engine engine = getEngine();
-                    engine.getTranslog().ensureSynced(candidates.stream().map(Tuple::v1));
-                } catch (EngineClosedException ex) {
-                    // that's fine since we already synced everything on engine close - this also is conform with the methods
-                    // documentation
-                } catch (IOException ex) { // if this fails we are in deep shit - fail the request
-                    logger.debug("failed to sync translog", ex);
-                    throw ex;
-                }
-        }
-    };
 
     /**
      * Syncs the given location with the underlying storage unless already synced. This method might return immediately without
