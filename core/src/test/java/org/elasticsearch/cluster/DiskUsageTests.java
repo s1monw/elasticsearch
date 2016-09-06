@@ -26,20 +26,19 @@ import org.elasticsearch.action.admin.indices.stats.ShardStats;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.cluster.node.DiscoveryNode;
-import org.elasticsearch.cluster.routing.RecoverySource;
 import org.elasticsearch.cluster.routing.RecoverySource.PeerRecoverySource;
 import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingHelper;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.common.collect.ImmutableOpenMap;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.shard.ShardPath;
 import org.elasticsearch.index.store.StoreStats;
 import org.elasticsearch.monitor.fs.FsInfo;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -200,11 +199,11 @@ public class DiskUsageTests extends ESTestCase {
                 new FsInfo.Path("/most", "/dev/sda", 100, 90, 80),
         };
         List<NodeStats> nodeStats = Arrays.asList(
-                new NodeStats(new DiscoveryNode("node_1", LocalTransportAddress.buildUnique(), emptyMap(), emptySet(), Version.CURRENT), 0,
+                new NodeStats(new DiscoveryNode("node_1", MockTcpTransport.buildFakeLocalAddress(), emptyMap(), emptySet(), Version.CURRENT), 0,
                         null,null,null,null,null,new FsInfo(0, null, node1FSInfo), null,null,null,null,null, null),
-                new NodeStats(new DiscoveryNode("node_2", LocalTransportAddress.buildUnique(), emptyMap(), emptySet(), Version.CURRENT), 0,
+                new NodeStats(new DiscoveryNode("node_2", MockTcpTransport.buildFakeLocalAddress(), emptyMap(), emptySet(), Version.CURRENT), 0,
                         null,null,null,null,null, new FsInfo(0, null, node2FSInfo), null,null,null,null,null, null),
-                new NodeStats(new DiscoveryNode("node_3", LocalTransportAddress.buildUnique(), emptyMap(), emptySet(), Version.CURRENT), 0,
+                new NodeStats(new DiscoveryNode("node_3", MockTcpTransport.buildFakeLocalAddress(), emptyMap(), emptySet(), Version.CURRENT), 0,
                         null,null,null,null,null, new FsInfo(0, null, node3FSInfo), null,null,null,null,null, null)
         );
         InternalClusterInfoService.fillDiskUsagePerNode(logger, nodeStats, newLeastAvaiableUsages, newMostAvaiableUsages);
@@ -241,11 +240,11 @@ public class DiskUsageTests extends ESTestCase {
                 new FsInfo.Path("/least", "/dev/sda", 10, -8, 0),
         };
         List<NodeStats> nodeStats = Arrays.asList(
-                new NodeStats(new DiscoveryNode("node_1", LocalTransportAddress.buildUnique(), emptyMap(), emptySet(), Version.CURRENT), 0,
+                new NodeStats(new DiscoveryNode("node_1", MockTcpTransport.buildFakeLocalAddress(), emptyMap(), emptySet(), Version.CURRENT), 0,
                         null,null,null,null,null,new FsInfo(0, null, node1FSInfo), null,null,null,null,null, null),
-                new NodeStats(new DiscoveryNode("node_2", LocalTransportAddress.buildUnique(), emptyMap(), emptySet(), Version.CURRENT), 0,
+                new NodeStats(new DiscoveryNode("node_2", MockTcpTransport.buildFakeLocalAddress(), emptyMap(), emptySet(), Version.CURRENT), 0,
                         null,null,null,null,null, new FsInfo(0, null, node2FSInfo), null,null,null,null,null, null),
-                new NodeStats(new DiscoveryNode("node_3", LocalTransportAddress.buildUnique(), emptyMap(), emptySet(), Version.CURRENT), 0,
+                new NodeStats(new DiscoveryNode("node_3", MockTcpTransport.buildFakeLocalAddress(), emptyMap(), emptySet(), Version.CURRENT), 0,
                         null,null,null,null,null, new FsInfo(0, null, node3FSInfo), null,null,null,null,null, null)
         );
         InternalClusterInfoService.fillDiskUsagePerNode(logger, nodeStats, newLeastAvailableUsages, newMostAvailableUsages);

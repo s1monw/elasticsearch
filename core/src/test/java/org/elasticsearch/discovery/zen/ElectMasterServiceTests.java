@@ -22,9 +22,9 @@ package org.elasticsearch.discovery.zen;
 import org.elasticsearch.Version;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.discovery.zen.elect.ElectMasterService;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,7 +46,7 @@ public class ElectMasterServiceTests extends ESTestCase {
             if (randomBoolean()) {
                 roles.add(DiscoveryNode.Role.MASTER);
             }
-            DiscoveryNode node = new DiscoveryNode("n_" + i, "n_" + i, LocalTransportAddress.buildUnique(), Collections.emptyMap(),
+            DiscoveryNode node = new DiscoveryNode("n_" + i, "n_" + i, MockTcpTransport.buildFakeLocalAddress(), Collections.emptyMap(),
                     roles, Version.CURRENT);
             nodes.add(node);
         }

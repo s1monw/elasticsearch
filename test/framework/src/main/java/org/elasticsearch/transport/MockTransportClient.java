@@ -24,18 +24,29 @@ import org.elasticsearch.plugins.Plugin;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 
 @SuppressWarnings({"unchecked","varargs"})
 public class MockTransportClient extends TransportClient {
-    private static final Settings DEFAULT_SETTINGS = Settings.builder().put("transport.type.default", "local").build();
+    private static final Settings DEFAULT_SETTINGS = Settings.builder().put("transport.type.default",
+        MockTcpTransportPlugin.MOCK_TCP_TRANSPORT_NAME).build();
 
 
     public MockTransportClient(Settings settings, Class<? extends Plugin>... plugins) {
-        super(settings, DEFAULT_SETTINGS, Arrays.asList(plugins));
+        this(settings, Arrays.asList(plugins));
     }
 
     public MockTransportClient(Settings settings, Collection<Class<? extends Plugin>> plugins) {
-        super(settings, DEFAULT_SETTINGS, plugins);
+        super(settings, DEFAULT_SETTINGS, addMockTransport(plugins));
+    }
+
+    private static Collection<Class<? extends Plugin>> addMockTransport(Collection<Class<? extends Plugin>> incoming) {
+        if (incoming.contains(MockTcpTransportPlugin.class) == false) {
+            HashSet<Class<? extends Plugin>> set = new HashSet<>(incoming);
+            set.add(MockTcpTransportPlugin.class);
+            return set;
+        }
+        return incoming;
     }
 
 }

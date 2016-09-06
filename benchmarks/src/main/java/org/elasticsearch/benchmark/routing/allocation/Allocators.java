@@ -31,16 +31,12 @@ import org.elasticsearch.cluster.routing.allocation.decider.AllocationDecider;
 import org.elasticsearch.cluster.routing.allocation.decider.AllocationDeciders;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.gateway.GatewayAllocator;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 
 public final class Allocators {
@@ -94,7 +90,7 @@ public final class Allocators {
     }
 
     public static DiscoveryNode newNode(String nodeId, Map<String, String> attributes) {
-        return new DiscoveryNode("", nodeId, LocalTransportAddress.buildUnique(), attributes, Sets.newHashSet(DiscoveryNode.Role.MASTER,
+        return new DiscoveryNode("", nodeId, MockTcpTransport.buildUniqueFakeAddress(), attributes, Sets.newHashSet(DiscoveryNode.Role.MASTER,
             DiscoveryNode.Role.DATA), Version.CURRENT);
     }
 }

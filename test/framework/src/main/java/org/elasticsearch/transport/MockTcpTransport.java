@@ -28,8 +28,9 @@ import org.elasticsearch.common.io.stream.InputStreamStreamInput;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.network.NetworkService;
+import org.elasticsearch.common.network.NetworkUtils;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.common.util.CancellableThreads;
@@ -43,6 +44,7 @@ import java.io.BufferedOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -57,6 +59,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -85,6 +88,30 @@ public class MockTcpTransport extends TcpTransport<MockTcpTransport.MockChannel>
         // using the ES thread factory here is crucial for tests otherwise disruption tests won't block that thread
         executor = Executors.newCachedThreadPool(EsExecutors.daemonThreadFactory(settings, Transports.TEST_MOCK_TRANSPORT_THREAD_PREFIX));
         this.mockVersion = mockVersion;
+    }
+
+    private static final AtomicInteger transportAddressPortGenerator = new AtomicInteger(Short.MAX_VALUE * 3);
+
+    /**
+     * generates a new fake address based on the current loopback address with an increasing port
+     */
+    public static TransportAddress buildFakeLocalAddress() {
+        int port;
+        while ((port = transportAddressPortGenerator.incrementAndGet()) > 0xFFFF) {
+            transportAddressPortGenerator.compareAndSet(port, 0);
+        }
+        return buildFakeLocalAddress(port);
+    }
+
+    public static TransportAddress buildFakeLocalAddress(int port) {
+        final InetAddress[] loopbackAddresses;
+        try {
+            loopbackAddresses = NetworkUtils.getLoopbackAddresses();
+        } catch (SocketException e) {
+            throw new AssertionError(e);
+        }
+        return new TransportAddress(loopbackAddresses[0], port);
+
     }
 
     @Override
@@ -184,7 +211,7 @@ public class MockTcpTransport extends TcpTransport<MockTcpTransport.MockChannel>
                     }
                 }
             };
-            InetSocketAddress address = ((InetSocketTransportAddress) node.getAddress()).address();
+            InetSocketAddress address = ((TransportAddress) node.getAddress()).address();
             // we just use a single connections
             configureSocket(socket);
             socket.connect(address, (int) TCP_CONNECT_TIMEOUT.get(settings).millis());

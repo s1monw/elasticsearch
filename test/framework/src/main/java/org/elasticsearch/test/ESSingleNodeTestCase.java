@@ -45,6 +45,8 @@ import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.MockTcpTransport;
+import org.elasticsearch.transport.MockTcpTransportPlugin;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -55,6 +57,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertAcked;
 import static org.hamcrest.Matchers.equalTo;
@@ -179,11 +182,17 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
             .put(EsExecutors.PROCESSORS_SETTING.getKey(), 1) // limit the number of threads created
             .put(NetworkModule.HTTP_ENABLED.getKey(), false)
             .put("discovery.type", "local")
-            .put("transport.type", "local")
+            .put("transport.type", MockTcpTransportPlugin.MOCK_TCP_TRANSPORT_NAME)
             .put(Node.NODE_DATA_SETTING.getKey(), true)
             .put(nodeSettings()) // allow test cases to provide their own settings or override these
             .build();
-        Node build = new MockNode(settings, getPlugins());
+        Collection<Class<? extends Plugin>> plugins = getPlugins();
+        if (plugins.contains(MockTcpTransportPlugin.class) == false) {
+            HashSet<Class<? extends Plugin>> newPlugins = new HashSet<>(plugins);
+            newPlugins.add(MockTcpTransportPlugin.class);
+            plugins = newPlugins;
+        }
+        Node build = new MockNode(settings, plugins);
         build.start();
         return build;
     }

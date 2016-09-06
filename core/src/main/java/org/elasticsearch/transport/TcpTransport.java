@@ -53,9 +53,8 @@ import org.elasticsearch.common.network.NetworkUtils;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.common.transport.PortsRange;
 import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.transport.PortsRange;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.BigArrays;
@@ -506,7 +505,7 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
 
     @Override
     public boolean addressSupported(Class<? extends TransportAddress> address) {
-        return InetSocketTransportAddress.class.equals(address);
+        return TransportAddress.class.equals(address);
     }
 
     @Override
@@ -640,7 +639,7 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
         for (int i = 0; i < boundAddresses.size(); i++) {
             InetSocketAddress boundAddress = boundAddresses.get(i);
             boundAddressesHostStrings[i] = boundAddress.getHostString();
-            transportBoundAddresses[i] = new InetSocketTransportAddress(boundAddress);
+            transportBoundAddresses[i] = new TransportAddress(boundAddress);
         }
 
         final String[] publishHosts;
@@ -658,7 +657,7 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
         }
 
         final int publishPort = resolvePublishPort(name, settings, profileSettings, boundAddresses, publishInetAddress);
-        final TransportAddress publishAddress = new InetSocketTransportAddress(new InetSocketAddress(publishInetAddress, publishPort));
+        final TransportAddress publishAddress = new TransportAddress(new InetSocketAddress(publishInetAddress, publishPort));
         return new BoundTransportAddress(transportBoundAddresses, publishAddress);
     }
 
@@ -706,7 +705,8 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
 
     @Override
     public TransportAddress[] addressesFromString(String address, int perAddressLimit) throws Exception {
-        return parse(address, settings.get("transport.profiles.default.port", TransportSettings.PORT.get(settings)), perAddressLimit);
+        return parse(address, settings.get("transport.profiles.default.port", TransportSettings.PORT.get(settings)), perAddressLimit,
+            this::getAllByName);
     }
 
     // this code is a take on guava's HostAndPort, like a HostAndPortRange
@@ -714,9 +714,13 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
     // pattern for validating ipv6 bracket addresses.
     // not perfect, but PortsRange should take care of any port range validation, not a regex
     private static final Pattern BRACKET_PATTERN = Pattern.compile("^\\[(.*:.*)\\](?::([\\d\\-]*))?$");
+    static TransportAddress[] parse(String hostPortString, String defaultPortRange, int perAddressLimit) throws UnknownHostException {
+        return parse(hostPortString, defaultPortRange, perAddressLimit, InetAddress::getAllByName);
+    }
 
     /** parse a hostname+port range spec into its equivalent addresses */
-    static TransportAddress[] parse(String hostPortString, String defaultPortRange, int perAddressLimit) throws UnknownHostException {
+    private static TransportAddress[] parse(String hostPortString, String defaultPortRange, int perAddressLimit, NameLookup lookup)
+        throws UnknownHostException {
         Objects.requireNonNull(hostPortString);
         String host;
         String portString = null;
@@ -751,16 +755,24 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
         }
 
         // generate address for each port in the range
-        Set<InetAddress> addresses = new HashSet<>(Arrays.asList(InetAddress.getAllByName(host)));
+        Set<InetAddress> addresses = new HashSet<>(Arrays.asList(lookup.getAllByName(host)));
         List<TransportAddress> transportAddresses = new ArrayList<>();
         int[] ports = new PortsRange(portString).ports();
         int limit = Math.min(ports.length, perAddressLimit);
         for (int i = 0; i < limit; i++) {
             for (InetAddress address : addresses) {
-                transportAddresses.add(new InetSocketTransportAddress(address, ports[i]));
+                transportAddresses.add(new TransportAddress(address, ports[i]));
             }
         }
         return transportAddresses.toArray(new TransportAddress[transportAddresses.size()]);
+    }
+
+    private interface NameLookup {
+        InetAddress[] getAllByName(String host) throws UnknownHostException;
+    }
+
+    protected InetAddress[] getAllByName(String host) throws UnknownHostException {
+        return InetAddress.getAllByName(host);
     }
 
     @Override
@@ -967,7 +979,7 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
         try (BytesStreamOutput stream = new BytesStreamOutput()) {
             stream.setVersion(nodeVersion);
             RemoteTransportException tx = new RemoteTransportException(
-                nodeName(), new InetSocketTransportAddress(getLocalAddress(channel)), action, error);
+                nodeName(), new TransportAddress(getLocalAddress(channel)), action, error);
             threadPool.getThreadContext().writeTo(stream);
             stream.writeException(tx);
             byte status = 0;
@@ -1233,7 +1245,7 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
 
     private void handleResponse(InetSocketAddress remoteAddress, final StreamInput stream, final TransportResponseHandler handler) {
         final TransportResponse response = handler.newInstance();
-        response.remoteAddress(new InetSocketTransportAddress(remoteAddress));
+        response.remoteAddress(new TransportAddress(remoteAddress));
         try {
             response.readFrom(stream);
         } catch (Exception e) {
@@ -1299,7 +1311,7 @@ public abstract class TcpTransport<Channel> extends AbstractLifecycleComponent i
             transportChannel = new TcpTransportChannel<>(this, channel, transportName, action, requestId, version, profileName,
                 messageLengthBytes);
             final TransportRequest request = reg.newRequest();
-            request.remoteAddress(new InetSocketTransportAddress(remoteAddress));
+            request.remoteAddress(new TransportAddress(remoteAddress));
             request.readFrom(stream);
             // in case we throw an exception, i.e. when the limit is hit, we don't want to verify
             validateRequest(stream, requestId, action);

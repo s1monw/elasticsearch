@@ -34,12 +34,13 @@ import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.ConnectTransportException;
+import org.elasticsearch.transport.MockTcpTransport;
+import org.elasticsearch.transport.MockTcpTransportPlugin;
 import org.elasticsearch.transport.MockTransportClient;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportException;
@@ -61,7 +62,7 @@ import static org.hamcrest.Matchers.is;
  */
 public class TransportClientHeadersTests extends AbstractClientHeadersTestCase {
 
-    private static final LocalTransportAddress address = new LocalTransportAddress("test");
+    private static final TransportAddress address = MockTcpTransport.buildFakeLocalAddress(0);
 
     @Override
     protected Client buildClient(Settings headersSettings, GenericAction[] testedActions) {
@@ -70,7 +71,7 @@ public class TransportClientHeadersTests extends AbstractClientHeadersTestCase {
                 .put("cluster.name", "cluster1")
                 .put("node.name", "transport_client_" + this.getTestName())
                 .put(headersSettings)
-                .build(), InternalTransportService.TestPlugin.class);
+                .build(), InternalTransportService.TestPlugin.class, MockTcpTransportPlugin.class);
 
         client.addTransportAddress(address);
         return client;
@@ -95,7 +96,7 @@ public class TransportClientHeadersTests extends AbstractClientHeadersTestCase {
             }
 
             assertThat(client.connectedNodes().size(), is(1));
-            assertThat(client.connectedNodes().get(0).getAddress(), is((TransportAddress) address));
+            assertEquals(client.connectedNodes().get(0).getAddress(), address);
         }
     }
 

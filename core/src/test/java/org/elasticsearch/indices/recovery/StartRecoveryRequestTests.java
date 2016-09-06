@@ -23,10 +23,10 @@ import org.elasticsearch.Version;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.io.stream.InputStreamStreamInput;
 import org.elasticsearch.common.io.stream.OutputStreamStreamOutput;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -43,8 +43,8 @@ public class StartRecoveryRequestTests extends ESTestCase {
         Version targetNodeVersion = randomVersion(random());
         StartRecoveryRequest outRequest = new StartRecoveryRequest(
                 new ShardId("test", "_na_", 0),
-                new DiscoveryNode("a", new LocalTransportAddress("1"), emptyMap(), emptySet(), targetNodeVersion),
-                new DiscoveryNode("b", new LocalTransportAddress("1"), emptyMap(), emptySet(), targetNodeVersion),
+                new DiscoveryNode("a", MockTcpTransport.buildFakeLocalAddress(0), emptyMap(), emptySet(), targetNodeVersion),
+                new DiscoveryNode("b", MockTcpTransport.buildFakeLocalAddress(1), emptyMap(), emptySet(), targetNodeVersion),
                 Store.MetadataSnapshot.EMPTY,
                 randomBoolean(),
                 1L

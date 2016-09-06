@@ -25,16 +25,16 @@ import org.elasticsearch.action.admin.cluster.node.liveness.TransportLivenessAct
 import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportResponse;
-import org.elasticsearch.transport.TransportResponseHandler;
 import org.elasticsearch.transport.TransportService;
 
 import java.io.Closeable;
@@ -104,7 +104,7 @@ public class TransportClientNodesServiceTests extends ESTestCase {
                     new TransportClientNodesService(settings, transportService, threadPool);
             this.nodesCount = randomIntBetween(1, 10);
             for (int i = 0; i < nodesCount; i++) {
-                transportClientNodesService.addTransportAddresses(new LocalTransportAddress("node" + i));
+                transportClientNodesService.addTransportAddresses(MockTcpTransport.buildFakeLocalAddress(i));
             }
             transport.endConnectMode();
         }
@@ -124,7 +124,7 @@ public class TransportClientNodesServiceTests extends ESTestCase {
                     LivenessResponse livenessResponse = new LivenessResponse(clusterName,
                             new DiscoveryNode(node.getName(), node.getId(), node.getEphemeralId(), "liveness-hostname" + node.getId(),
                                     "liveness-hostaddress" + node.getId(),
-                                    new LocalTransportAddress("liveness-address-" + node.getId()), node.getAttributes(), node.getRoles(),
+                                    MockTcpTransport.buildFakeLocalAddress(0xFFFF), node.getAttributes(), node.getRoles(),
                                     node.getVersion()));
                     handler.handleResponse((T)livenessResponse);
                 }
@@ -243,10 +243,10 @@ public class TransportClientNodesServiceTests extends ESTestCase {
                 for (DiscoveryNode discoveryNode : iteration.transportClientNodesService.connectedNodes()) {
                     assertThat(discoveryNode.getHostName(), startsWith("liveness-"));
                     assertThat(discoveryNode.getHostAddress(), startsWith("liveness-"));
-                    assertThat(discoveryNode.getAddress(), instanceOf(LocalTransportAddress.class));
-                    LocalTransportAddress localTransportAddress = (LocalTransportAddress) discoveryNode.getAddress();
+                    assertThat(discoveryNode.getAddress(), instanceOf(TransportAddress.class));
+                    TransportAddress localTransportAddress = (TransportAddress) discoveryNode.getAddress();
                     //the original listed transport address is kept rather than the one returned from the liveness api
-                    assertThat(localTransportAddress.id(), startsWith("node"));
+                    assertNotEquals(localTransportAddress.getPort(), 0xffff);
                 }
             }
         }

@@ -37,13 +37,16 @@ import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.component.AbstractComponent;
+import org.elasticsearch.common.network.NetworkUtils;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.discovery.DiscoverySettings;
 import org.elasticsearch.discovery.zen.elect.ElectMasterService;
 import org.elasticsearch.discovery.zen.membership.MembershipAction;
 
+import java.net.InetAddress;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -384,10 +387,20 @@ public class NodeJoinController extends AbstractComponent {
         }
     }
 
+    private static TransportAddress getFakeAddress(int port) {
+        final InetAddress[] loopbackAddresses;
+        try {
+            loopbackAddresses = NetworkUtils.getLoopbackAddresses();
+        } catch (SocketException e) {
+            throw new AssertionError(e);
+        }
+        return new TransportAddress(loopbackAddresses[0], port);
+    }
+
     /**
      * a task indicated that the current node should become master, if no current master is known
      */
-    private static final DiscoveryNode BECOME_MASTER_TASK = new DiscoveryNode("_BECOME_MASTER_TASK_", LocalTransportAddress.buildUnique(),
+    private static final DiscoveryNode BECOME_MASTER_TASK = new DiscoveryNode("_BECOME_MASTER_TASK_", getFakeAddress(0),
         Collections.emptyMap(), Collections.emptySet(), Version.CURRENT) {
         @Override
         public String toString() {
@@ -400,7 +413,7 @@ public class NodeJoinController extends AbstractComponent {
      * it may be use in combination with {@link #BECOME_MASTER_TASK}
      */
     private static final DiscoveryNode FINISH_ELECTION_TASK = new DiscoveryNode("_FINISH_ELECTION_",
-        LocalTransportAddress.buildUnique(), Collections.emptyMap(), Collections.emptySet(), Version.CURRENT) {
+        getFakeAddress(0), Collections.emptyMap(), Collections.emptySet(), Version.CURRENT) {
             @Override
             public String toString() {
                 return ""; // this is not really task , so don't log anything about it...

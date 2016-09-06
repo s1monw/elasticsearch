@@ -42,12 +42,12 @@ import org.elasticsearch.cluster.routing.allocation.FailedRerouteAllocation.Fail
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.util.set.Sets;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.indices.recovery.PeerRecoveryTargetService;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.ArrayList;
@@ -323,7 +323,7 @@ public class IndicesClusterStateServiceRandomUpdatesTests extends AbstractIndice
         for (DiscoveryNode.Role mustHaveRole : mustHaveRoles) {
             roles.add(mustHaveRole);
         }
-        return new DiscoveryNode("node_" + randomAsciiOfLength(8), LocalTransportAddress.buildUnique(), Collections.emptyMap(), roles,
+        return new DiscoveryNode("node_" + randomAsciiOfLength(8), MockTcpTransport.buildFakeLocalAddress(), Collections.emptyMap(), roles,
             Version.CURRENT);
     }
 

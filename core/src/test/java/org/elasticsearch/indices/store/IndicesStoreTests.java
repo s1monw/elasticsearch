@@ -32,11 +32,11 @@ import org.elasticsearch.cluster.routing.TestShardRouting;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.TransportService;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -86,7 +86,7 @@ public class IndicesStoreTests extends ESTestCase {
 
     @Before
     public void before() {
-        localNode = new DiscoveryNode("abc", new LocalTransportAddress("abc"), emptyMap(), emptySet(), Version.CURRENT);
+        localNode = new DiscoveryNode("abc", MockTcpTransport.buildFakeLocalAddress(0), emptyMap(), emptySet(), Version.CURRENT);
         clusterService = createClusterService(threadPool);
         indicesStore = new IndicesStore(Settings.EMPTY, null, clusterService, new TransportService(clusterService.getSettings(), null, null), null);
     }
@@ -142,7 +142,7 @@ public class IndicesStoreTests extends ESTestCase {
         ClusterState.Builder clusterState = ClusterState.builder(new ClusterName("test"));
         clusterState.metaData(MetaData.builder().put(IndexMetaData.builder("test").settings(settings(Version.CURRENT)).numberOfShards(numShards).numberOfReplicas(numReplicas)));
         clusterState.nodes(DiscoveryNodes.builder().localNodeId(localNode.getId()).add(localNode).add(new DiscoveryNode("xyz",
-                new LocalTransportAddress("xyz"), emptyMap(), emptySet(), Version.CURRENT)));
+            MockTcpTransport.buildFakeLocalAddress(1), emptyMap(), emptySet(), Version.CURRENT)));
         IndexShardRoutingTable.Builder routingTable = new IndexShardRoutingTable.Builder(new ShardId("test", "_na_", 1));
         int localShardId = randomInt(numShards - 1);
         for (int i = 0; i < numShards; i++) {
@@ -187,7 +187,7 @@ public class IndicesStoreTests extends ESTestCase {
         ClusterState.Builder clusterState = ClusterState.builder(new ClusterName("test"));
         clusterState.metaData(MetaData.builder().put(IndexMetaData.builder("test").settings(settings(Version.CURRENT)).numberOfShards(numShards).numberOfReplicas(numReplicas)));
         clusterState.nodes(DiscoveryNodes.builder().localNodeId(localNode.getId()).add(localNode).add(new DiscoveryNode("xyz",
-                new LocalTransportAddress("xyz"), emptyMap(), emptySet(), nodeVersion)));
+            MockTcpTransport.buildFakeLocalAddress(2), emptyMap(), emptySet(), nodeVersion)));
         IndexShardRoutingTable.Builder routingTable = new IndexShardRoutingTable.Builder(new ShardId("test", "_na_", 1));
         for (int i = 0; i < numShards; i++) {
             routingTable.addShard(TestShardRouting.newShardRouting("test", i, "xyz", null, true, ShardRoutingState.STARTED));
@@ -210,8 +210,8 @@ public class IndicesStoreTests extends ESTestCase {
 
         clusterState.nodes(DiscoveryNodes.builder().localNodeId(localNode.getId())
                 .add(localNode)
-                .add(new DiscoveryNode("xyz", new LocalTransportAddress("xyz"), emptyMap(), emptySet(), Version.CURRENT))
-                .add(new DiscoveryNode("def", new LocalTransportAddress("def"), emptyMap(), emptySet(), nodeVersion) // <-- only set relocating, since we're testing that in this test
+                .add(new DiscoveryNode("xyz", MockTcpTransport.buildFakeLocalAddress(1), emptyMap(), emptySet(), Version.CURRENT))
+                .add(new DiscoveryNode("def", MockTcpTransport.buildFakeLocalAddress(2), emptyMap(), emptySet(), nodeVersion) // <-- only set relocating, since we're testing that in this test
                 ));
         IndexShardRoutingTable.Builder routingTable = new IndexShardRoutingTable.Builder(new ShardId("test", "_na_", 1));
         for (int i = 0; i < numShards; i++) {

@@ -34,8 +34,7 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.Priority;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.common.transport.LocalTransportAddress;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -53,6 +52,7 @@ import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.BytesTransportRequest;
 import org.elasticsearch.transport.EmptyTransportResponseHandler;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportResponse;
 import org.elasticsearch.transport.TransportService;
@@ -210,7 +210,7 @@ public class ZenDiscoveryIT extends ESIntegTestCase {
         assert node != null;
 
         DiscoveryNodes.Builder nodes = DiscoveryNodes.builder(state.nodes())
-                .add(new DiscoveryNode("abc", new LocalTransportAddress("abc"), emptyMap(),
+                .add(new DiscoveryNode("abc", MockTcpTransport.buildFakeLocalAddress(0), emptyMap(),
                         emptySet(), Version.CURRENT)).masterNodeId("abc");
         ClusterState.Builder builder = ClusterState.builder(state);
         builder.nodes(nodes);
@@ -300,7 +300,7 @@ public class ZenDiscoveryIT extends ESIntegTestCase {
         String nodeName = internalCluster().startNode(nodeSettings);
         ZenDiscovery zenDiscovery = (ZenDiscovery) internalCluster().getInstance(Discovery.class, nodeName);
         ClusterService clusterService = internalCluster().getInstance(ClusterService.class, nodeName);
-        DiscoveryNode node = new DiscoveryNode("_node_id", new InetSocketTransportAddress(InetAddress.getByName("0.0.0.0"), 0),
+        DiscoveryNode node = new DiscoveryNode("_node_id", new TransportAddress(InetAddress.getByName("0.0.0.0"), 0),
                 emptyMap(), emptySet(), previousMajorVersion);
         final AtomicReference<IllegalStateException> holder = new AtomicReference<>();
         zenDiscovery.handleJoinRequest(node, clusterService.state(), new MembershipAction.JoinCallback() {
@@ -322,10 +322,10 @@ public class ZenDiscoveryIT extends ESIntegTestCase {
     public void testJoinElectedMaster_incompatibleMinVersion() {
         ElectMasterService electMasterService = new ElectMasterService(Settings.EMPTY);
 
-        DiscoveryNode node = new DiscoveryNode("_node_id", new LocalTransportAddress("_id"), emptyMap(),
+        DiscoveryNode node = new DiscoveryNode("_node_id", MockTcpTransport.buildFakeLocalAddress(0), emptyMap(),
                 Collections.singleton(DiscoveryNode.Role.MASTER), Version.CURRENT);
         assertThat(electMasterService.electMaster(Collections.singletonList(node)), sameInstance(node));
-        node = new DiscoveryNode("_node_id", new LocalTransportAddress("_id"), emptyMap(), emptySet(), previousMajorVersion);
+        node = new DiscoveryNode("_node_id", MockTcpTransport.buildFakeLocalAddress(0), emptyMap(), emptySet(), previousMajorVersion);
         assertThat("Can't join master because version " + previousMajorVersion
                 + " is lower than the minimum compatable version " + Version.CURRENT + " can support",
                 electMasterService.electMaster(Collections.singletonList(node)), nullValue());

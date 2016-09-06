@@ -38,7 +38,6 @@ import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.BaseFuture;
@@ -51,6 +50,7 @@ import org.elasticsearch.test.VersionUtils;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -428,7 +428,7 @@ public class NodeJoinControllerTests extends ESTestCase {
     public void testNewClusterStateOnExistingNodeJoin() throws InterruptedException, ExecutionException {
         ClusterState state = clusterService.state();
         final DiscoveryNodes.Builder nodesBuilder = DiscoveryNodes.builder(state.nodes());
-        final DiscoveryNode other_node = new DiscoveryNode("other_node", LocalTransportAddress.buildUnique(),
+        final DiscoveryNode other_node = new DiscoveryNode("other_node", MockTcpTransport.buildFakeLocalAddress(),
             emptyMap(), emptySet(), Version.CURRENT);
         nodesBuilder.add(other_node);
         setState(clusterService, ClusterState.builder(state).nodes(nodesBuilder));
@@ -558,7 +558,7 @@ public class NodeJoinControllerTests extends ESTestCase {
         final DiscoveryNode other_node = new DiscoveryNode(
             randomBoolean() ? existing.getName() : "other_name",
             existing.getId(),
-            randomBoolean() ? existing.getAddress() : LocalTransportAddress.buildUnique(),
+            randomBoolean() ? existing.getAddress() : MockTcpTransport.buildFakeLocalAddress(),
             randomBoolean() ? existing.getAttributes() : Collections.singletonMap("attr", "other"),
             randomBoolean() ? existing.getRoles() : new HashSet<>(randomSubsetOf(Arrays.asList(DiscoveryNode.Role.values()))),
             randomBoolean() ? existing.getVersion() : VersionUtils.randomVersion(random()));
@@ -586,7 +586,7 @@ public class NodeJoinControllerTests extends ESTestCase {
      */
     public void testElectionBasedOnConflictingNodes() throws InterruptedException, ExecutionException {
         final DiscoveryNode masterNode = clusterService.localNode();
-        final DiscoveryNode otherNode = new DiscoveryNode("other_node", LocalTransportAddress.buildUnique(), emptyMap(),
+        final DiscoveryNode otherNode = new DiscoveryNode("other_node", MockTcpTransport.buildFakeLocalAddress(), emptyMap(),
             EnumSet.allOf(DiscoveryNode.Role.class), Version.CURRENT);
         // simulate master going down with stale nodes in it's cluster state (for example when min master nodes is set to 2)
         // also add some shards to that node
@@ -630,7 +630,7 @@ public class NodeJoinControllerTests extends ESTestCase {
         setState(clusterService, stateBuilder.build());
 
         final DiscoveryNode restartedNode = new DiscoveryNode(otherNode.getId(),
-            randomBoolean() ? otherNode.getAddress() : LocalTransportAddress.buildUnique(), otherNode.getAttributes(),
+            randomBoolean() ? otherNode.getAddress() : MockTcpTransport.buildFakeLocalAddress(), otherNode.getAttributes(),
             otherNode.getRoles(), Version.CURRENT);
 
         nodeJoinController.startElectionContext();
@@ -670,7 +670,7 @@ public class NodeJoinControllerTests extends ESTestCase {
         ClusterState state = clusterService.state();
         final DiscoveryNodes.Builder nodesBuilder = DiscoveryNodes.builder(state.nodes());
         for (int i = 0;i< count;i++) {
-            final DiscoveryNode node = new DiscoveryNode("node_" + state.nodes().getSize() + i, LocalTransportAddress.buildUnique(),
+            final DiscoveryNode node = new DiscoveryNode("node_" + state.nodes().getSize() + i, MockTcpTransport.buildFakeLocalAddress(),
                 emptyMap(), new HashSet<>(randomSubsetOf(Arrays.asList(DiscoveryNode.Role.values()))), Version.CURRENT);
             nodesBuilder.add(node);
         }
@@ -753,6 +753,6 @@ public class NodeJoinControllerTests extends ESTestCase {
             roles.add(DiscoveryNode.Role.MASTER);
         }
         final String prefix = master ? "master_" : "data_";
-        return new DiscoveryNode(prefix + i, i + "", new LocalTransportAddress("test_" + i), emptyMap(), roles, Version.CURRENT);
+        return new DiscoveryNode(prefix + i, i + "",MockTcpTransport.buildFakeLocalAddress(i), emptyMap(), roles, Version.CURRENT);
     }
 }

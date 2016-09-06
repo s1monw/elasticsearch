@@ -50,7 +50,6 @@ import org.elasticsearch.cluster.routing.TestShardRouting;
 import org.elasticsearch.common.collect.Iterators;
 import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.util.BigArrays;
 import org.elasticsearch.env.NodeEnvironment;
@@ -82,6 +81,7 @@ import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.TransportResponse;
 
 import java.io.IOException;
@@ -202,7 +202,7 @@ public abstract class ESIndexLevelReplicationTestCase extends ESTestCase {
     }
 
     protected DiscoveryNode getDiscoveryNode(String id) {
-        return new DiscoveryNode(id, id, new LocalTransportAddress(id), Collections.emptyMap(),
+        return new DiscoveryNode(id, id, MockTcpTransport.buildFakeLocalAddress(), Collections.emptyMap(),
             Collections.singleton(DiscoveryNode.Role.DATA), Version.CURRENT);
     }
 

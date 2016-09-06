@@ -37,13 +37,13 @@ import org.elasticsearch.cluster.routing.allocation.decider.Decision;
 import org.elasticsearch.cluster.routing.allocation.decider.SameShardAllocationDecider;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.gateway.AsyncShardFetch;
 import org.elasticsearch.gateway.GatewayAllocator;
 import org.elasticsearch.gateway.ReplicaShardAllocator;
 import org.elasticsearch.indices.store.TransportNodesListShardStoreMetaData;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.gateway.NoopGatewayAllocator;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -109,19 +109,19 @@ public abstract class ESAllocationTestCase extends ESTestCase {
     }
 
     protected static DiscoveryNode newNode(String nodeName, String nodeId, Map<String, String> attributes) {
-        return new DiscoveryNode(nodeName, nodeId, LocalTransportAddress.buildUnique(), attributes, MASTER_DATA_ROLES, Version.CURRENT);
+        return new DiscoveryNode(nodeName, nodeId, MockTcpTransport.buildFakeLocalAddress(), attributes, MASTER_DATA_ROLES, Version.CURRENT);
     }
 
     protected static DiscoveryNode newNode(String nodeId, Map<String, String> attributes) {
-        return new DiscoveryNode(nodeId, LocalTransportAddress.buildUnique(), attributes, MASTER_DATA_ROLES, Version.CURRENT);
+        return new DiscoveryNode(nodeId, MockTcpTransport.buildFakeLocalAddress(), attributes, MASTER_DATA_ROLES, Version.CURRENT);
     }
 
     protected static DiscoveryNode newNode(String nodeId, Set<DiscoveryNode.Role> roles) {
-        return new DiscoveryNode(nodeId, LocalTransportAddress.buildUnique(), emptyMap(), roles, Version.CURRENT);
+        return new DiscoveryNode(nodeId, MockTcpTransport.buildFakeLocalAddress(), emptyMap(), roles, Version.CURRENT);
     }
 
     protected static DiscoveryNode newNode(String nodeId, Version version) {
-        return new DiscoveryNode(nodeId, LocalTransportAddress.buildUnique(), emptyMap(), MASTER_DATA_ROLES, version);
+        return new DiscoveryNode(nodeId, MockTcpTransport.buildFakeLocalAddress(), emptyMap(), MASTER_DATA_ROLES, version);
     }
 
     protected  static ClusterState startRandomInitializingShard(ClusterState clusterState, AllocationService strategy) {

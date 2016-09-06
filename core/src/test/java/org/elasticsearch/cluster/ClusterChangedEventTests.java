@@ -30,10 +30,10 @@ import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.RoutingTable;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -320,7 +320,7 @@ public class ClusterChangedEventTests extends ESTestCase {
 
     // Create a new DiscoveryNode
     private static DiscoveryNode newNode(final String nodeId, Set<DiscoveryNode.Role> roles) {
-        return new DiscoveryNode(nodeId, nodeId, nodeId, "host", "host_address", new LocalTransportAddress("_test_" + nodeId),
+        return new DiscoveryNode(nodeId, nodeId, nodeId, "host", "host_address", MockTcpTransport.buildFakeLocalAddress(),
             Collections.emptyMap(), roles, Version.CURRENT);
     }
 

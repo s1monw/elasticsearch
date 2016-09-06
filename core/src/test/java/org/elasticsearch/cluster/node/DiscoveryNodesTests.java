@@ -21,8 +21,8 @@ package org.elasticsearch.cluster.node;
 
 import com.carrotsearch.randomizedtesting.generators.RandomPicks;
 import org.elasticsearch.Version;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -194,7 +194,7 @@ public class DiscoveryNodesTests extends ESTestCase {
     }
 
     private static DiscoveryNode newNode(int nodeId, Map<String, String> attributes, Set<DiscoveryNode.Role> roles) {
-        return new DiscoveryNode("name_" + nodeId, "node_" + nodeId, LocalTransportAddress.buildUnique(), attributes, roles,
+        return new DiscoveryNode("name_" + nodeId, "node_" + nodeId, MockTcpTransport.buildFakeLocalAddress(), attributes, roles,
             Version.CURRENT);
     }
 

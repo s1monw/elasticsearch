@@ -28,7 +28,6 @@ import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
@@ -41,6 +40,7 @@ import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.RestResponse;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.junit.Before;
 
 public class HttpServerTests extends ESTestCase {
@@ -142,7 +142,7 @@ public class HttpServerTests extends ESTestCase {
 
         @Override
         public BoundTransportAddress boundAddress() {
-            LocalTransportAddress transportAddress = new LocalTransportAddress("1");
+            TransportAddress transportAddress = MockTcpTransport.buildFakeLocalAddress();
             return new BoundTransportAddress(new TransportAddress[] {transportAddress} ,transportAddress);
         }
 

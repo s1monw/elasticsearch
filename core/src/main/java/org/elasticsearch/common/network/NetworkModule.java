@@ -43,7 +43,6 @@ import org.elasticsearch.tasks.RawTaskStatus;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportService;
-import org.elasticsearch.transport.local.LocalTransport;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,7 +55,6 @@ public class NetworkModule extends AbstractModule {
     public static final String TRANSPORT_TYPE_KEY = "transport.type";
     public static final String TRANSPORT_SERVICE_TYPE_KEY = "transport.service.type";
     public static final String HTTP_TYPE_KEY = "http.type";
-    public static final String LOCAL_TRANSPORT = "local";
     public static final String HTTP_TYPE_DEFAULT_KEY = "http.type.default";
     public static final String TRANSPORT_TYPE_DEFAULT_KEY = "transport.type.default";
 
@@ -90,7 +88,6 @@ public class NetworkModule extends AbstractModule {
         this.settings = settings;
         this.transportClient = transportClient;
         registerTransportService("default", TransportService.class);
-        registerTransport(LOCAL_TRANSPORT, LocalTransport.class);
         namedWriteables.add(new NamedWriteableRegistry.Entry(Task.Status.class, ReplicationTask.Status.NAME, ReplicationTask.Status::new));
         namedWriteables.add(new NamedWriteableRegistry.Entry(Task.Status.class, RawTaskStatus.NAME, RawTaskStatus::new));
         registerBuiltinAllocationCommands();

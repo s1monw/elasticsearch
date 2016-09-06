@@ -21,6 +21,9 @@ package org.elasticsearch.test.transport;
 
 import org.elasticsearch.Version;
 import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.util.BigArrays;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.TransportService;
 
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -33,7 +36,6 @@ import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.network.NetworkService;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
-import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.ConcurrentCollections;
@@ -49,9 +51,10 @@ import org.elasticsearch.transport.TransportException;
 import org.elasticsearch.transport.TransportRequest;
 import org.elasticsearch.transport.TransportRequestOptions;
 import org.elasticsearch.transport.TransportServiceAdapter;
-import org.elasticsearch.transport.local.LocalTransport;
 
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -89,12 +92,16 @@ public class MockTransportService extends TransportService {
         }
     }
 
-    public static MockTransportService local(Settings settings, Version version, ThreadPool threadPool) {
-        NamedWriteableRegistry namedWriteableRegistry = new NamedWriteableRegistry(Collections.emptyList());
-        Transport transport = new LocalTransport(settings, threadPool, namedWriteableRegistry, new NoneCircuitBreakerService()) {
+    public static MockTransportService local(Settings settings, Version version, ThreadPool threadPool, Map<String, InetAddress[]> dnsCache) {
+        MockTcpTransport transport = new MockTcpTransport(Settings.EMPTY, threadPool, BigArrays.NON_RECYCLING_INSTANCE
+            , new NoneCircuitBreakerService(), new NamedWriteableRegistry(Collections.emptyList()),
+            new NetworkService(Settings.EMPTY, Collections.emptyList()), version) {
             @Override
-            protected Version getVersion() {
-                return version;
+            protected InetAddress[] getAllByName(String host) throws UnknownHostException {
+                if (dnsCache.containsKey(host)) {
+                    return dnsCache.get(host);
+                }
+                return super.getAllByName(host);
             }
         };
         return new MockTransportService(settings, transport, threadPool);

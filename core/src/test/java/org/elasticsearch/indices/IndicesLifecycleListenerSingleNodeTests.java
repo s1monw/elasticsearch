@@ -26,7 +26,6 @@ import org.elasticsearch.cluster.routing.ShardRouting;
 import org.elasticsearch.cluster.routing.ShardRoutingHelper;
 import org.elasticsearch.cluster.routing.UnassignedInfo;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.NodeServicesProvider;
@@ -35,6 +34,7 @@ import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.test.ESSingleNodeTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -106,7 +106,7 @@ public class IndicesLifecycleListenerSingleNodeTests extends ESSingleNodeTestCas
             newRouting = ShardRoutingHelper.initialize(newRouting, nodeId);
             IndexShard shard = index.createShard(newRouting);
             shard.updateRoutingEntry(newRouting);
-            final DiscoveryNode localNode = new DiscoveryNode("foo", LocalTransportAddress.buildUnique(),
+            final DiscoveryNode localNode = new DiscoveryNode("foo", MockTcpTransport.buildFakeLocalAddress(),
                     emptyMap(), emptySet(), Version.CURRENT);
             shard.markAsRecovering("store", new RecoveryState(newRouting, localNode, null));
             shard.recoverFromStore();

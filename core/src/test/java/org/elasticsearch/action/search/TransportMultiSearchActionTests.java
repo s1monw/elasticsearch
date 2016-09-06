@@ -31,10 +31,10 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.tasks.TaskManager;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.TransportService;
 
 import java.util.Collections;
@@ -113,12 +113,12 @@ public class TransportMultiSearchActionTests extends ESTestCase {
         int numDataNodes = randomIntBetween(1, 10);
         DiscoveryNodes.Builder builder = DiscoveryNodes.builder();
         for (int i = 0; i < numDataNodes; i++) {
-            builder.add(new DiscoveryNode("_id" + i, new LocalTransportAddress("_id" + i), Collections.emptyMap(),
+            builder.add(new DiscoveryNode("_id" + i, MockTcpTransport.buildFakeLocalAddress(i), Collections.emptyMap(),
                     Collections.singleton(DiscoveryNode.Role.DATA), Version.CURRENT));
         }
-        builder.add(new DiscoveryNode("master", new LocalTransportAddress("mater"), Collections.emptyMap(),
+        builder.add(new DiscoveryNode("master", MockTcpTransport.buildFakeLocalAddress(numDataNodes), Collections.emptyMap(),
                 Collections.singleton(DiscoveryNode.Role.MASTER), Version.CURRENT));
-        builder.add(new DiscoveryNode("ingest", new LocalTransportAddress("ingest"), Collections.emptyMap(),
+        builder.add(new DiscoveryNode("ingest", MockTcpTransport.buildFakeLocalAddress(numDataNodes+1), Collections.emptyMap(),
                 Collections.singleton(DiscoveryNode.Role.INGEST), Version.CURRENT));
 
         ClusterState state = ClusterState.builder(new ClusterName("_name")).nodes(builder).build();

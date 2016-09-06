@@ -27,7 +27,6 @@ import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.BoundTransportAddress;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.xcontent.ToXContent;
@@ -43,6 +42,7 @@ import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.VersionUtils;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPoolInfo;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.TransportInfo;
 
 import java.io.IOException;
@@ -106,7 +106,7 @@ public class NodeInfoStreamingTests extends ESTestCase {
 
     private static NodeInfo createNodeInfo() {
         Build build = Build.CURRENT;
-        DiscoveryNode node = new DiscoveryNode("test_node", LocalTransportAddress.buildUnique(),
+        DiscoveryNode node = new DiscoveryNode("test_node", MockTcpTransport.buildFakeLocalAddress(),
                 emptyMap(), emptySet(), VersionUtils.randomVersion(random()));
         Settings settings = randomBoolean() ? null : Settings.builder().put("test", "setting").build();
         OsInfo osInfo = null;
@@ -133,7 +133,7 @@ public class NodeInfoStreamingTests extends ESTestCase {
         }
         Map<String, BoundTransportAddress> profileAddresses = new HashMap<>();
         BoundTransportAddress dummyBoundTransportAddress = new BoundTransportAddress(
-                new TransportAddress[]{LocalTransportAddress.buildUnique()}, LocalTransportAddress.buildUnique());
+                new TransportAddress[]{MockTcpTransport.buildFakeLocalAddress()}, MockTcpTransport.buildFakeLocalAddress());
         profileAddresses.put("test_address", dummyBoundTransportAddress);
         TransportInfo transport = randomBoolean() ? null : new TransportInfo(dummyBoundTransportAddress, profileAddresses);
         HttpInfo httpInfo = randomBoolean() ? null : new HttpInfo(dummyBoundTransportAddress, randomLong());

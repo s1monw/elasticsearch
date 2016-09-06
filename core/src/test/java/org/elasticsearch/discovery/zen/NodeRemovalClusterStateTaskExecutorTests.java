@@ -27,9 +27,9 @@ import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.cluster.routing.allocation.AllocationService;
 import org.elasticsearch.cluster.routing.allocation.RoutingAllocation;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.discovery.zen.elect.ElectMasterService;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -179,7 +179,7 @@ public class NodeRemovalClusterStateTaskExecutorTests extends ESTestCase {
     }
 
     private DiscoveryNode node(final int id) {
-        return new DiscoveryNode(Integer.toString(id), LocalTransportAddress.buildUnique(), Version.CURRENT);
+        return new DiscoveryNode(Integer.toString(id), MockTcpTransport.buildFakeLocalAddress(), Version.CURRENT);
     }
 
 }

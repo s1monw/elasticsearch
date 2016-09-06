@@ -25,9 +25,9 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.cluster.node.DiscoveryNodes;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.discovery.zen.publish.PendingClusterStatesQueue.ClusterStateContext;
 import org.elasticsearch.test.ESTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -237,7 +237,7 @@ public class PendingClusterStatesQueueTests extends ESTestCase {
             ClusterState state = lastClusterStatePerMaster[masterIndex];
             if (state == null) {
                 state = ClusterState.builder(ClusterName.CLUSTER_NAME_SETTING.getDefault(Settings.EMPTY)).nodes(DiscoveryNodes.builder()
-                                .add(new DiscoveryNode(masters[masterIndex], LocalTransportAddress.buildUnique(),
+                                .add(new DiscoveryNode(masters[masterIndex], MockTcpTransport.buildFakeLocalAddress(),
                                         emptyMap(), emptySet(),Version.CURRENT)).masterNodeId(masters[masterIndex]).build()
                 ).build();
             } else {

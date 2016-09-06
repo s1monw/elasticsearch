@@ -33,7 +33,7 @@ import org.elasticsearch.rest.BaseRestHandler;
 import org.elasticsearch.rest.RestChannel;
 import org.elasticsearch.rest.RestRequest;
 import org.elasticsearch.rest.action.cat.AbstractCatAction;
-import org.elasticsearch.test.transport.AssertingLocalTransport;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportService;
 
@@ -47,9 +47,9 @@ public class NetworkModuleTests extends ModuleTestCase {
         }
     }
 
-    static class FakeTransport extends AssertingLocalTransport {
+    static class FakeTransport extends MockTcpTransport {
         public FakeTransport() {
-            super(null, null, null, null);
+            super(null, null, null, null, null, null, null);
         }
     }
 

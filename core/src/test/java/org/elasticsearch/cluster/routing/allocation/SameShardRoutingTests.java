@@ -33,8 +33,8 @@ import org.elasticsearch.cluster.routing.ShardRoutingState;
 import org.elasticsearch.cluster.routing.allocation.decider.SameShardAllocationDecider;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.cluster.ESAllocationTestCase;
+import org.elasticsearch.transport.MockTcpTransport;
 
 import static java.util.Collections.emptyMap;
 import static org.elasticsearch.cluster.routing.ShardRoutingState.INITIALIZING;
@@ -63,9 +63,9 @@ public class SameShardRoutingTests extends ESAllocationTestCase {
         logger.info("--> adding two nodes with the same host");
         clusterState = ClusterState.builder(clusterState).nodes(
                 DiscoveryNodes.builder()
-                .add(new DiscoveryNode("node1", "node1", "node1", "test1", "test1", LocalTransportAddress.buildUnique(), emptyMap(),
+                .add(new DiscoveryNode("node1", "node1", "node1", "test1", "test1", MockTcpTransport.buildFakeLocalAddress(), emptyMap(),
                         MASTER_DATA_ROLES, Version.CURRENT))
-                .add(new DiscoveryNode("node2", "node2", "node2", "test1", "test1", LocalTransportAddress.buildUnique(), emptyMap(),
+                .add(new DiscoveryNode("node2", "node2", "node2", "test1", "test1", MockTcpTransport.buildFakeLocalAddress(), emptyMap(),
                         MASTER_DATA_ROLES, Version.CURRENT))).build();
         RoutingAllocation.Result routingResult = strategy.reroute(clusterState, "reroute");
         clusterState = ClusterState.builder(clusterState).routingResult(routingResult).build();
@@ -81,7 +81,7 @@ public class SameShardRoutingTests extends ESAllocationTestCase {
 
         logger.info("--> add another node, with a different host, replicas will be allocating");
         clusterState = ClusterState.builder(clusterState).nodes(DiscoveryNodes.builder(clusterState.nodes())
-                .add(new DiscoveryNode("node3", "node3", "node3", "test2", "test2", LocalTransportAddress.buildUnique(), emptyMap(),
+                .add(new DiscoveryNode("node3", "node3", "node3", "test2", "test2", MockTcpTransport.buildFakeLocalAddress(), emptyMap(),
                         MASTER_DATA_ROLES, Version.CURRENT))).build();
         routingResult = strategy.reroute(clusterState, "reroute");
         clusterState = ClusterState.builder(clusterState).routingResult(routingResult).build();

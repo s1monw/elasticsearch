@@ -23,10 +23,8 @@ import com.amazonaws.services.ec2.model.Tag;
 import org.elasticsearch.Version;
 import org.elasticsearch.cloud.aws.AwsEc2Service;
 import org.elasticsearch.cloud.aws.AwsEc2Service.DISCOVERY_EC2;
-import org.elasticsearch.cluster.ClusterName;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.LocalTransportAddress;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.test.ESTestCase;
 import org.elasticsearch.test.transport.MockTransportService;
@@ -37,8 +35,12 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
@@ -51,6 +53,7 @@ public class Ec2DiscoveryTests extends ESTestCase {
 
     protected static ThreadPool threadPool;
     protected MockTransportService transportService;
+    private final Map<String, InetAddress[]> dnsCache = new ConcurrentHashMap<>();
 
     @BeforeClass
     public static void createThreadPool() {
@@ -67,7 +70,7 @@ public class Ec2DiscoveryTests extends ESTestCase {
 
     @Before
     public void createTransportService() {
-        transportService = MockTransportService.local(Settings.EMPTY, Version.CURRENT, threadPool);
+        transportService = MockTransportService.local(Settings.EMPTY, Version.CURRENT, threadPool, dnsCache);
     }
 
     protected List<DiscoveryNode> buildDynamicNodes(Settings nodeSettings, int nodes) {
@@ -101,7 +104,7 @@ public class Ec2DiscoveryTests extends ESTestCase {
         int node = 1;
         for (DiscoveryNode discoveryNode : discoveryNodes) {
             TransportAddress address = discoveryNode.getAddress();
-            TransportAddress expected = new LocalTransportAddress(AmazonEC2Mock.PREFIX_PRIVATE_IP + node++);
+            TransportAddress expected = getAddress(AmazonEC2Mock.PREFIX_PRIVATE_IP , Integer.toString(node++), "");
             assertThat(address.sameHost(expected), is(true));
         }
     }
@@ -117,16 +120,21 @@ public class Ec2DiscoveryTests extends ESTestCase {
         int node = 1;
         for (DiscoveryNode discoveryNode : discoveryNodes) {
             TransportAddress address = discoveryNode.getAddress();
-            TransportAddress expected = new LocalTransportAddress(AmazonEC2Mock.PREFIX_PUBLIC_IP + node++);
+            TransportAddress expected = getAddress(AmazonEC2Mock.PREFIX_PUBLIC_IP , Integer.toString(node++), "");
             assertThat(address.sameHost(expected), is(true));
         }
     }
 
-    public void testPrivateDns() throws InterruptedException {
+    public void testPrivateDns() throws InterruptedException, UnknownHostException {
         int nodes = randomInt(10);
         Settings nodeSettings = Settings.builder()
                 .put(DISCOVERY_EC2.HOST_TYPE_SETTING.getKey(), "private_dns")
                 .build();
+        for (int i = 0; i < nodes; i++) {
+            String instanceId = "node" + (i+1);
+            dnsCache.put(AmazonEC2Mock.PREFIX_PRIVATE_DNS + instanceId + AmazonEC2Mock.SUFFIX_PRIVATE_DNS,
+                InetAddress.getAllByName("0.0.0." + (i+1)));
+        }
         List<DiscoveryNode> discoveryNodes = buildDynamicNodes(nodeSettings, nodes);
         assertThat(discoveryNodes, hasSize(nodes));
         // We check that we are using here expected address
@@ -134,14 +142,19 @@ public class Ec2DiscoveryTests extends ESTestCase {
         for (DiscoveryNode discoveryNode : discoveryNodes) {
             String instanceId = "node" + node++;
             TransportAddress address = discoveryNode.getAddress();
-            TransportAddress expected = new LocalTransportAddress(
-                    AmazonEC2Mock.PREFIX_PRIVATE_DNS + instanceId + AmazonEC2Mock.SUFFIX_PRIVATE_DNS);
+            TransportAddress expected = getAddress(
+                    AmazonEC2Mock.PREFIX_PRIVATE_DNS, instanceId, AmazonEC2Mock.SUFFIX_PRIVATE_DNS);
             assertThat(address.sameHost(expected), is(true));
         }
     }
 
-    public void testPublicDns() throws InterruptedException {
+    public void testPublicDns() throws InterruptedException, UnknownHostException {
         int nodes = randomInt(10);
+        for (int i = 0; i < nodes; i++) {
+            String instanceId = "node" + (i+1);
+            dnsCache.put(AmazonEC2Mock.PREFIX_PUBLIC_DNS + instanceId + AmazonEC2Mock.SUFFIX_PUBLIC_DNS,
+                InetAddress.getAllByName("0.0.0." + (i+1)));
+        }
         Settings nodeSettings = Settings.builder()
                 .put(DISCOVERY_EC2.HOST_TYPE_SETTING.getKey(), "public_dns")
                 .build();
@@ -152,8 +165,7 @@ public class Ec2DiscoveryTests extends ESTestCase {
         for (DiscoveryNode discoveryNode : discoveryNodes) {
             String instanceId = "node" + node++;
             TransportAddress address = discoveryNode.getAddress();
-            TransportAddress expected = new LocalTransportAddress(
-                    AmazonEC2Mock.PREFIX_PUBLIC_DNS + instanceId + AmazonEC2Mock.SUFFIX_PUBLIC_DNS);
+            TransportAddress expected = getAddress(AmazonEC2Mock.PREFIX_PUBLIC_DNS, instanceId, AmazonEC2Mock.SUFFIX_PUBLIC_DNS);
             assertThat(address.sameHost(expected), is(true));
         }
     }
@@ -268,5 +280,18 @@ public class Ec2DiscoveryTests extends ESTestCase {
             provider.buildDynamicNodes();
         }
         assertThat(provider.fetchCount, is(2));
+    }
+
+    private TransportAddress getAddress(String prefix, String id, String suffix) {
+        return  new TransportAddress(dnsCache.computeIfAbsent(
+            prefix + id + suffix,
+            (s) -> {
+                try {
+                    return InetAddress.getAllByName(s);
+                } catch (UnknownHostException e) {
+                    throw new AssertionError(e);
+                }
+            }
+        )[0], 9300);
     }
 }
