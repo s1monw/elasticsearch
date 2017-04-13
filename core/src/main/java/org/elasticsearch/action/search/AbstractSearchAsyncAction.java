@@ -68,14 +68,14 @@ abstract class AbstractSearchAsyncAction<Result extends SearchPhaseResult> exten
     private final SetOnce<AtomicArray<ShardSearchFailure>> shardFailures = new SetOnce<>();
     private final Object shardFailuresMutex = new Object();
     private final AtomicInteger successfulOps = new AtomicInteger();
-    private final TransportSearchAction.SearchTimeProvider timeProvider;
+    private final SearchTimeProvider timeProvider;
 
 
     protected AbstractSearchAsyncAction(String name, Logger logger, SearchTransportService searchTransportService,
                                         Function<String, Transport.Connection> nodeIdToConnection,
                                         Map<String, AliasFilter> aliasFilter, Map<String, Float> concreteIndexBoosts,
                                         Executor executor, SearchRequest request,
-                                        ActionListener<SearchResponse> listener, GroupShardsIterator shardsIts, TransportSearchAction.SearchTimeProvider timeProvider,
+                                        ActionListener<SearchResponse> listener, GroupShardsIterator shardsIts, SearchTimeProvider timeProvider,
                                         long clusterStateVersion, SearchTask task, SearchPhaseResults<Result> resultConsumer) {
         super(name, request, shardsIts, logger);
         this.timeProvider = timeProvider;

@@ -209,4 +209,13 @@ public abstract class TransportAction<Request extends ActionRequest, Response ex
             }
         }
     }
+
+    @FunctionalInterface
+    public interface ActionRunnable<Request extends ActionRequest, Response extends ActionResponse> {
+        void execute(Task task, Request request, ActionListener<Response> listener);
+
+        default void execute(Request request, ActionListener<Response> listener) {
+            execute(request, listener);
+        }
+    }
 }

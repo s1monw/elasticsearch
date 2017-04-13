@@ -48,7 +48,7 @@ final class SearchQueryThenFetchAsyncAction
             final SearchRequest request,
             final ActionListener<SearchResponse> listener,
             final GroupShardsIterator shardsIts,
-            final TransportSearchAction.SearchTimeProvider timeProvider,
+            final SearchTimeProvider timeProvider,
             long clusterStateVersion,
             SearchTask task) {
         super(

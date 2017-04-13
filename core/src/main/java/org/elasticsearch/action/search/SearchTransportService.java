@@ -92,6 +92,10 @@ public class SearchTransportService extends AbstractLifecycleComponent {
         }
     }
 
+    ThreadPool getThreadPool() {
+        return transportService.getThreadPool();
+    }
+
     public void sendFreeContext(Transport.Connection connection, final long contextId, SearchRequest request) {
         transportService.sendRequest(connection, FREE_CONTEXT_ACTION_NAME, new SearchFreeContextRequest(request, contextId),
             TransportRequestOptions.EMPTY, new ActionListenerResponseHandler<>(new ActionListener<SearchFreeContextResponse>() {

@@ -47,7 +47,7 @@ final class SearchDfsQueryThenFetchAsyncAction extends AbstractSearchAsyncAction
             final SearchRequest request,
             final ActionListener<SearchResponse> listener,
             final GroupShardsIterator shardsIts,
-            final TransportSearchAction.SearchTimeProvider timeProvider,
+            final SearchTimeProvider timeProvider,
             final long clusterStateVersion,
             final SearchTask task) {
         super(
