@@ -26,6 +26,7 @@ import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.analysis.miscellaneous.PerFieldAnalyzerWrapper;
 import org.apache.lucene.analysis.reverse.ReverseStringFilter;
 import org.apache.lucene.analysis.shingle.ShingleFilter;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.analysis.standard.StandardTokenizer;
 import org.apache.lucene.analysis.synonym.SolrSynonymParser;
 import org.apache.lucene.analysis.synonym.SynonymFilter;
@@ -43,11 +44,9 @@ import org.apache.lucene.util.BytesRef;
 import org.elasticsearch.search.suggest.phrase.NoisyChannelSpellChecker.Result;
 import org.elasticsearch.test.ESTestCase;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.StringReader;
-import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -283,8 +282,8 @@ public class NoisyChannelSpellCheckerTests extends ESTestCase {
         assertThat(corrections.length, equalTo(1));
         assertThat(corrections[0].join(new BytesRef(" ")).utf8ToString(), equalTo("american ace"));
 
-        corrections = suggester.getCorrections(wrapper, new BytesRef("american cae"), forward, 1, 1, ir, "body", wordScorer, 1, 2).corrections;
-        assertThat(corrections.length, equalTo(0)); // only use forward with constant prefix
+        corrections = suggester.getCorrections(wrapper, new BytesRef("american cae"), forward, 1, 4, ir, "body", wordScorer, 1.1f, 2).corrections;
+        assertThat(Arrays.toString(corrections), corrections.length, equalTo(0)); // only use forward with constant prefix
 
         corrections = suggester.getCorrections(wrapper, new BytesRef("america cae"), generator, 2, 1, ir, "body", wordScorer, 1, 2).corrections;
         assertThat(corrections.length, equalTo(1));
@@ -309,6 +308,27 @@ public class NoisyChannelSpellCheckerTests extends ESTestCase {
         corrections = suggester.getCorrections(wrapper, new BytesRef("Quazar II"), generator, 1, 1, ir, "body", wordScorer, 1, 2).corrections;
         assertThat(corrections.length, equalTo(1));
         assertThat(corrections[0].join(new BytesRef(" ")).utf8ToString(), equalTo("quasar ii"));
+    }
+
+    public void testSuggestPerfectMatchByDefault() throws IOException {
+        RAMDirectory dir = new RAMDirectory();
+        IndexWriterConfig conf = new IndexWriterConfig(new StandardAnalyzer());
+        IndexWriter writer = new IndexWriter(dir, conf);
+        Document doc = new Document();
+        doc.add(new Field("body", "foobarbaz", TextField.TYPE_NOT_STORED));
+        writer.addDocument(doc);
+
+        DirectoryReader ir = DirectoryReader.open(writer);
+        WordScorer wordScorer = new StupidBackoffScorer(ir, MultiFields.getTerms(ir, "body"), "body", 0.85d, new BytesRef(" "), 0.4);
+
+        NoisyChannelSpellChecker suggester = new NoisyChannelSpellChecker();
+        DirectSpellChecker spellchecker = new DirectSpellChecker();
+        spellchecker.setMinQueryLength(1);
+        DirectCandidateGenerator generator = new DirectCandidateGenerator(spellchecker, "body", SuggestMode.SUGGEST_ALWAYS, ir, 0.95, 5);
+        Correction[] corrections = suggester.getCorrections(new StandardAnalyzer(), new BytesRef("foobarbaz"), generator, 1, 1, ir, "body",
+            wordScorer, 1, 3).corrections;
+        assertEquals(1, corrections.length);
+        assertEquals("foobarbaz", corrections[0].candidates[0].term.utf8ToString());
     }
 
     public void testTrigram() throws IOException {
@@ -373,9 +393,8 @@ public class NoisyChannelSpellCheckerTests extends ESTestCase {
         assertThat(corrections.length, equalTo(1));
         assertThat(corrections[0].join(new BytesRef(" ")).utf8ToString(), equalTo("american ace"));
 
-        corrections = suggester.getCorrections(wrapper, new BytesRef("american ame"), generator, 1, 1, ir, "body", wordScorer, 1, 1).corrections;
+        corrections = suggester.getCorrections(wrapper, new BytesRef("american ame"), generator, 1, 1, ir, "body", wordScorer, 1.1f, 1).corrections;
         assertThat(corrections.length, equalTo(0));
-//        assertThat(corrections[0].join(new BytesRef(" ")).utf8ToString(), equalTo("american ape"));
 
         wordScorer = new LinearInterpolatingScorer(ir, MultiFields.getTerms(ir, "body_ngram"), "body_ngram", 0.85d, new BytesRef(" "), 0.5, 0.4, 0.1);
         corrections = suggester.getCorrections(wrapper, new BytesRef("Xor the Got-Jewel"), generator, 0.5f, 4, ir, "body", wordScorer, 0, 3).corrections;
