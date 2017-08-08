@@ -75,6 +75,7 @@ import org.elasticsearch.gateway.MetaStateService;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexModule;
 import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.index.IndexPlugin;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.analysis.AnalysisRegistry;
@@ -465,8 +466,7 @@ public class IndicesService extends AbstractLifecycleComponent
      */
     public synchronized MapperService createIndexMapperService(IndexMetaData indexMetaData) throws IOException {
         final IndexSettings idxSettings = new IndexSettings(indexMetaData, this.settings, indexScopeSetting);
-        final IndexModule indexModule = new IndexModule(idxSettings, analysisRegistry);
-        pluginsService.onIndexModule(indexModule);
+        final IndexModule indexModule = new IndexModule(idxSettings, analysisRegistry, pluginsService.filterPlugins(IndexPlugin.class));
         return indexModule.newIndexMapperService(xContentRegistry, mapperRegistry, scriptService);
     }
 

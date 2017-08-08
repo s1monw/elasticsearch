@@ -119,6 +119,12 @@ public final class IndexModule {
     private final List<IndexingOperationListener> indexOperationListeners = new ArrayList<>();
     private final AtomicBoolean frozen = new AtomicBoolean(false);
 
+    public IndexModule(IndexSettings settings, AnalysisRegistry reg, List<IndexPlugin> plugins) {
+        for (IndexPlugin p : plugins) {
+            p.getListeners();
+        }
+    }
+
     public IndexModule(IndexSettings indexSettings, AnalysisRegistry analysisRegistry) {
         this.indexSettings = indexSettings;
         this.analysisRegistry = analysisRegistry;

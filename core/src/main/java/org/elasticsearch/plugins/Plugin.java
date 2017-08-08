@@ -146,7 +146,7 @@ public abstract class Plugin implements Closeable {
      * Called before a new index is created on a node. The given module can be used to register index-level
      * extensions.
      */
-    public void onIndexModule(IndexModule indexModule) {}
+    public final void onIndexModule(IndexModule indexModule) {}
 
     /**
      * Returns a list of additional {@link Setting} definitions for this plugin.
@@ -324,4 +324,6 @@ public abstract class Plugin implements Closeable {
      */
     @Deprecated
     public final void onModule(DiscoveryModule module) {}
+
+
 }
