@@ -119,4 +119,10 @@ public class SimpleNetty4TransportTests extends AbstractSimpleTransportTestCase 
         assertEquals("Failed to bind to ["+ port + "]", bindTransportException.getMessage());
     }
 
+    @Override
+    protected void closeConnectionChannel(Transport transport, Transport.Connection connection) throws IOException {
+        Netty4Transport t = (Netty4Transport) transport;
+        TcpTransport.NodeChannels channels = (TcpTransport.NodeChannels) connection;
+        t.closeChannels(channels.getChannels().subList(0, randomIntBetween(1, channels.getChannels().size())), true, false);
+    }
 }

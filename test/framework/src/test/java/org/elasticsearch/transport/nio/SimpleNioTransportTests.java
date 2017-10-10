@@ -35,6 +35,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.AbstractSimpleTransportTestCase;
 import org.elasticsearch.transport.BindTransportException;
 import org.elasticsearch.transport.ConnectTransportException;
+import org.elasticsearch.transport.MockTcpTransport;
 import org.elasticsearch.transport.TcpTransport;
 import org.elasticsearch.transport.Transport;
 import org.elasticsearch.transport.TransportService;
@@ -129,5 +130,12 @@ public class SimpleNioTransportTests extends AbstractSimpleTransportTestCase {
             }
         });
         assertEquals("Failed to bind to ["+ port + "]", bindTransportException.getMessage());
+    }
+
+    @Override
+    protected void closeConnectionChannel(Transport transport, Transport.Connection connection) throws IOException {
+        NioTransport t = (NioTransport) transport;
+        TcpTransport.NodeChannels channels = (TcpTransport.NodeChannels) connection;
+        t.closeChannels(channels.getChannels().subList(0, randomIntBetween(1, channels.getChannels().size())), true, false);
     }
 }

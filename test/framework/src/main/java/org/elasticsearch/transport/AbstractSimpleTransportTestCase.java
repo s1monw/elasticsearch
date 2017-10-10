@@ -53,6 +53,7 @@ import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.junit.After;
 import org.junit.Before;
+import sun.rmi.transport.tcp.TCPTransport;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -2612,4 +2613,31 @@ public abstract class AbstractSimpleTransportTestCase extends ESTestCase {
         assertEquals(new HashSet<>(Arrays.asList("default", "test")), profileSettings.stream().map(s -> s.profileName).collect(Collectors
             .toSet()));
     }
+
+    public void testChannelCloseWhileConnecting() throws IOException {
+        try (MockTransportService serviceC = build(Settings.builder().put("name", "TS_TEST").build(), version0, null, true)) {
+            serviceC.setExecutorName(ThreadPool.Names.SAME); // make sure stuff is executed in a blocking fashion
+            serviceC.addConnectionListener(new TransportConnectionListener() {
+                @Override
+                public void onConnectionOpened(Transport.Connection connection) {
+                    try {
+                        closeConnectionChannel(serviceC.getOriginalTransport(), connection);
+                    } catch (IOException e) {
+                        throw new AssertionError(e);
+                    }
+                }
+            });
+            ConnectionProfile.Builder builder = new ConnectionProfile.Builder();
+            builder.addConnections(1,
+                TransportRequestOptions.Type.BULK,
+                TransportRequestOptions.Type.PING,
+                TransportRequestOptions.Type.RECOVERY,
+                TransportRequestOptions.Type.REG,
+                TransportRequestOptions.Type.STATE);
+            ConnectTransportException e = expectThrows(ConnectTransportException.class, () -> serviceC.openConnection(nodeA, builder.build()));
+            assertTrue(e.getMessage(), e.getMessage().contains("a channel closed while connecting"));
+        }
+    }
+
+    protected abstract void closeConnectionChannel(Transport transport, Transport.Connection connection) throws IOException;
 }

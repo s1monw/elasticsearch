@@ -63,6 +63,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -232,7 +233,7 @@ public class TransportService extends AbstractLifecycleComponent {
                 if (holderToNotify != null) {
                     // callback that an exception happened, but on a different thread since we don't
                     // want handlers to worry about stack overflows
-                    threadPool.generic().execute(new AbstractRunnable() {
+                    getExecutorService().execute(new AbstractRunnable() {
                         @Override
                         public void onRejection(Exception e) {
                             // if we get rejected during node shutdown we don't wanna bubble it up
@@ -879,7 +880,7 @@ public class TransportService extends AbstractLifecycleComponent {
         // connectToNode(); connection is completed successfully
         // addConnectionListener(); this listener shouldn't be called
         final Stream<TransportConnectionListener> listenersToNotify = TransportService.this.connectionListeners.stream();
-        threadPool.generic().execute(() -> listenersToNotify.forEach(listener -> listener.onNodeConnected(node)));
+        getExecutorService().execute(() -> listenersToNotify.forEach(listener -> listener.onNodeConnected(node)));
     }
 
     void onConnectionOpened(Transport.Connection connection) {
@@ -887,12 +888,16 @@ public class TransportService extends AbstractLifecycleComponent {
         // connectToNode(); connection is completed successfully
         // addConnectionListener(); this listener shouldn't be called
         final Stream<TransportConnectionListener> listenersToNotify = TransportService.this.connectionListeners.stream();
-        threadPool.generic().execute(() -> listenersToNotify.forEach(listener -> listener.onConnectionOpened(connection)));
+        getExecutorService().execute(() -> listenersToNotify.forEach(listener -> listener.onConnectionOpened(connection)));
+    }
+
+    protected ExecutorService getExecutorService() {
+        return threadPool.generic();
     }
 
     public void onNodeDisconnected(final DiscoveryNode node) {
         try {
-            threadPool.generic().execute( () -> {
+            getExecutorService().execute( () -> {
                 for (final TransportConnectionListener connectionListener : connectionListeners) {
                     connectionListener.onNodeDisconnected(node);
                 }
@@ -911,7 +916,7 @@ public class TransportService extends AbstractLifecycleComponent {
                     if (holderToNotify != null) {
                         // callback that an exception happened, but on a different thread since we don't
                         // want handlers to worry about stack overflows
-                        threadPool.generic().execute(() -> holderToNotify.handler().handleException(new NodeDisconnectedException(
+                        getExecutorService().execute(() -> holderToNotify.handler().handleException(new NodeDisconnectedException(
                             connection.getNode(), holderToNotify.action())));
                     }
                 }

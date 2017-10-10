@@ -72,6 +72,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
@@ -791,6 +792,13 @@ public final class MockTransportService extends TransportService {
         return transport;
     }
 
+    public static Transport.Connection unwrap(Transport.Connection connection) {
+        while (connection instanceof FilteredConnection) {
+            connection = ((FilteredConnection) connection).connection;
+        }
+        return connection;
+    }
+
     @Override
     public Transport.Connection openConnection(DiscoveryNode node, ConnectionProfile profile) throws IOException {
         FilteredConnection filteredConnection = new FilteredConnection(super.openConnection(node, profile)) {
@@ -833,5 +841,17 @@ public final class MockTransportService extends TransportService {
 
     public DiscoveryNode getLocalDiscoNode() {
         return this.getLocalNode();
+    }
+
+
+    private volatile String executorName;
+
+    public void setExecutorName(String executorName) {
+        this.executorName = executorName;
+    }
+
+    @Override
+    protected ExecutorService getExecutorService() {
+        return executorName == null ? super.getExecutorService() : getThreadPool().executor(executorName);
     }
 }
