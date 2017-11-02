@@ -29,7 +29,8 @@ import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.DocumentMapperParser;
 import org.elasticsearch.index.mapper.MapperParsingException;
 import org.elasticsearch.index.mapper.ParsedDocument;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 
@@ -42,7 +43,7 @@ import java.util.Collection;
 public class IndexFieldMapperTests extends ESSingleNodeTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(InternalSettingsPlugin.class);
     }
 

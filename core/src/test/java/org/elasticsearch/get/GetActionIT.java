@@ -38,7 +38,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 
@@ -62,7 +63,7 @@ import static org.hamcrest.Matchers.startsWith;
 public class GetActionIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Collections.singleton(InternalSettingsPlugin.class);
     }
 

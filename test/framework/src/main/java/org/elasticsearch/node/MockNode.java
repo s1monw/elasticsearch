@@ -34,7 +34,8 @@ import org.elasticsearch.env.Environment;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.indices.recovery.RecoverySettings;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.MockSearchService;
 import org.elasticsearch.search.SearchService;
@@ -59,17 +60,17 @@ import java.util.function.Function;
  * </ul>
  */
 public class MockNode extends Node {
-    private final Collection<Class<? extends Plugin>> classpathPlugins;
+    private final Collection<Class<? extends PluginProvider>> classpathPlugins;
 
-    public MockNode(Settings settings, Collection<Class<? extends Plugin>> classpathPlugins) {
+    public MockNode(Settings settings, Collection<Class<? extends PluginProvider>> classpathPlugins) {
         this(settings, classpathPlugins, null);
     }
 
-    public MockNode(Settings settings, Collection<Class<? extends Plugin>> classpathPlugins, Path configPath) {
+    public MockNode(Settings settings, Collection<Class<? extends PluginProvider>> classpathPlugins, Path configPath) {
         this(InternalSettingsPreparer.prepareEnvironment(settings, null, Collections.emptyMap(), configPath), classpathPlugins);
     }
 
-    public MockNode(Environment environment, Collection<Class<? extends Plugin>> classpathPlugins) {
+    public MockNode(Environment environment, Collection<Class<? extends PluginProvider>> classpathPlugins) {
         super(environment, classpathPlugins);
         this.classpathPlugins = classpathPlugins;
     }
@@ -77,7 +78,7 @@ public class MockNode extends Node {
     /**
      * The classpath plugins this node was constructed with.
      */
-    public Collection<Class<? extends Plugin>> getClasspathPlugins() {
+    public Collection<Class<? extends PluginProvider>> getClasspathPlugins() {
         return classpathPlugins;
     }
 

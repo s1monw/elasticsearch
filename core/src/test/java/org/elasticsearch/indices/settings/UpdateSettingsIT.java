@@ -30,6 +30,8 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.engine.VersionConflictEngineException;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 
 import java.util.Arrays;
@@ -78,7 +80,7 @@ public class UpdateSettingsIT extends ESIntegTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(DummySettingPlugin.class, FinalSettingPlugin.class);
     }
 

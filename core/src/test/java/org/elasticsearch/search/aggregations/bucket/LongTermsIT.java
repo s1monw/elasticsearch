@@ -24,7 +24,8 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.aggregations.AggregationTestScriptsPlugin;
@@ -73,7 +74,7 @@ import static org.hamcrest.core.IsNull.notNullValue;
 public class LongTermsIT extends AbstractTermsTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Collections.singleton(CustomScriptPlugin.class);
     }
 

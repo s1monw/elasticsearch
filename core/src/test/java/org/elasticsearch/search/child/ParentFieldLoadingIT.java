@@ -35,7 +35,7 @@ import org.elasticsearch.index.MergePolicyConfig;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 
@@ -51,7 +51,7 @@ import static org.hamcrest.Matchers.greaterThan;
 public class ParentFieldLoadingIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(InternalSettingsPlugin.class); // uses index.merge.enabled
     }
 

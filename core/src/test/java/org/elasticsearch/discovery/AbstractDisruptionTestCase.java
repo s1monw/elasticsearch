@@ -31,7 +31,8 @@ import org.elasticsearch.discovery.zen.FaultDetection;
 import org.elasticsearch.discovery.zen.UnicastZenPing;
 import org.elasticsearch.discovery.zen.ZenPing;
 import org.elasticsearch.env.NodeEnvironment;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.discovery.ClusterDiscoveryConfiguration;
 import org.elasticsearch.test.discovery.TestZenDiscovery;
@@ -146,7 +147,7 @@ public abstract class AbstractDisruptionTestCase extends ESIntegTestCase {
             .build();
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(MockTransportService.TestPlugin.class);
     }
 

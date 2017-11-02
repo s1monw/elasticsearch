@@ -28,6 +28,7 @@ import org.elasticsearch.common.lucene.search.function.CombineFunction;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.ScriptPlugin;
 import org.elasticsearch.script.ExplainableSearchScript;
 import org.elasticsearch.script.Script;
@@ -119,7 +120,7 @@ public class ExplainableScriptIT extends ESIntegTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(ExplainableScriptPlugin.class);
     }
 

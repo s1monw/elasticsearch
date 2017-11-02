@@ -33,7 +33,7 @@ import org.elasticsearch.index.mapper.ParsedDocument;
 import org.elasticsearch.index.mapper.SourceToParse;
 import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.indices.mapper.MapperRegistry;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.junit.Before;
@@ -65,7 +65,7 @@ public class Murmur3FieldMapperTests extends ESSingleNodeTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(InternalSettingsPlugin.class);
     }
 

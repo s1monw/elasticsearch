@@ -33,7 +33,8 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.store.MockFSDirectoryService;
@@ -49,7 +50,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertNoFa
 public class SearchWithRandomIOExceptionsIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(MockFSIndexStore.TestPlugin.class);
     }
 

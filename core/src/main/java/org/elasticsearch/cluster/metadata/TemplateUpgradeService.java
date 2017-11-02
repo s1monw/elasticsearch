@@ -46,7 +46,7 @@ import org.elasticsearch.common.xcontent.XContentHelper;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.gateway.GatewayService;
 import org.elasticsearch.indices.IndexTemplateMissingException;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;

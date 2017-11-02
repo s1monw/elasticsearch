@@ -38,7 +38,11 @@ public class PercolatorPlugin extends Plugin implements MapperPlugin, SearchPlug
 
     private final Settings settings;
 
-    public PercolatorPlugin(Settings settings) {
+    public PercolatorPlugin() {
+        this(Settings.EMPTY);
+    }
+
+    private PercolatorPlugin(Settings settings) {
         this.settings = settings;
     }
 

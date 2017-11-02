@@ -41,7 +41,7 @@ import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest;
 import org.elasticsearch.common.compress.CompressedXContent;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
 import org.elasticsearch.index.mapper.MapperService;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.MockScriptEngine;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.script.Script;
@@ -67,7 +67,7 @@ import static org.hamcrest.Matchers.instanceOf;
 public class TermsSetQueryBuilderTests extends AbstractQueryTestCase<TermsSetQueryBuilder> {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singleton(CustomScriptPlugin.class);
     }
 

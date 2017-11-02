@@ -35,7 +35,7 @@ import org.elasticsearch.client.Requests;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.VersionType;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptException;
@@ -65,7 +65,7 @@ import static org.hamcrest.Matchers.nullValue;
 public class BulkWithUpdatesIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(InternalSettingsPlugin.class, CustomScriptPlugin.class);
     }
 

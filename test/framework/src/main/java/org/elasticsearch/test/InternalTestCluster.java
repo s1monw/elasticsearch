@@ -90,7 +90,8 @@ import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeService;
 import org.elasticsearch.node.NodeValidationException;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.SearchService;
 import org.elasticsearch.tasks.TaskInfo;
@@ -233,7 +234,7 @@ public final class InternalTestCluster extends TestCluster {
 
     private final boolean autoManageMinMasterNodes;
 
-    private final Collection<Class<? extends Plugin>> mockPlugins;
+    private final Collection<Class<? extends PluginProvider>> mockPlugins;
 
     /**
      * All nodes started by the cluster will have their name set to nodePrefix followed by a positive number
@@ -247,7 +248,7 @@ public final class InternalTestCluster extends TestCluster {
     public InternalTestCluster(long clusterSeed, Path baseDir,
                                boolean randomlyAddDedicatedMasters,
                                boolean autoManageMinMasterNodes, int minNumDataNodes, int maxNumDataNodes, String clusterName, NodeConfigurationSource nodeConfigurationSource, int numClientNodes,
-                               boolean enableHttpPipelining, String nodePrefix, Collection<Class<? extends Plugin>> mockPlugins, Function<Client, Client> clientWrapper) {
+                               boolean enableHttpPipelining, String nodePrefix, Collection<Class<? extends PluginProvider>> mockPlugins, Function<Client, Client> clientWrapper) {
         super(clusterSeed);
         this.autoManageMinMasterNodes = autoManageMinMasterNodes;
         this.clientWrapper = clientWrapper;
@@ -383,8 +384,8 @@ public final class InternalTestCluster extends TestCluster {
         return builder.build();
     }
 
-    public Collection<Class<? extends Plugin>> getPlugins() {
-        Set<Class<? extends Plugin>> plugins = new HashSet<>(nodeConfigurationSource.nodePlugins());
+    public Collection<Class<? extends PluginProvider>> getPlugins() {
+        Set<Class<? extends PluginProvider>> plugins = new HashSet<>(nodeConfigurationSource.nodePlugins());
         plugins.addAll(mockPlugins);
         return plugins;
     }
@@ -584,7 +585,7 @@ public final class InternalTestCluster extends TestCluster {
         assert Thread.holdsLock(this);
         ensureOpen();
         settings = getSettings(nodeId, seed, settings);
-        Collection<Class<? extends Plugin>> plugins = getPlugins();
+        Collection<Class<? extends PluginProvider>> plugins = getPlugins();
         String name = buildNodeName(nodeId, settings);
         if (reuseExisting && nodes.containsKey(name)) {
             return nodes.get(name);
@@ -938,7 +939,7 @@ public final class InternalTestCluster extends TestCluster {
                 throw new IllegalStateException(DISCOVERY_ZEN_MINIMUM_MASTER_NODES_SETTING.getKey() +
                     " is not configured after restart of [" + name + "]");
             }
-            Collection<Class<? extends Plugin>> plugins = node.getClasspathPlugins();
+            Collection<Class<? extends PluginProvider>> plugins = node.getClasspathPlugins();
             node = new MockNode(finalSettings, plugins);
             markNodeDataDirsAsNotEligableForWipe(node);
         }
@@ -960,9 +961,9 @@ public final class InternalTestCluster extends TestCluster {
         private final boolean sniff;
         private final Settings settings;
         private final Path baseDir;
-        private final Collection<Class<? extends Plugin>> plugins;
+        private final Collection<Class<? extends PluginProvider>> plugins;
 
-        TransportClientFactory(boolean sniff, Settings settings, Path baseDir, Collection<Class<? extends Plugin>> plugins) {
+        TransportClientFactory(boolean sniff, Settings settings, Path baseDir, Collection<Class<? extends PluginProvider>> plugins) {
             this.sniff = sniff;
             this.settings = settings != null ? settings : Settings.EMPTY;
             this.baseDir = baseDir;

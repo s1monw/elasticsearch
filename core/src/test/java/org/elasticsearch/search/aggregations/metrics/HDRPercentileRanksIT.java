@@ -21,7 +21,8 @@ package org.elasticsearch.search.aggregations.metrics;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.aggregations.AggregationTestScriptsPlugin;
@@ -63,7 +64,7 @@ import static org.hamcrest.Matchers.sameInstance;
 public class HDRPercentileRanksIT extends AbstractNumericTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Collections.singleton(AggregationTestScriptsPlugin.class);
     }
 

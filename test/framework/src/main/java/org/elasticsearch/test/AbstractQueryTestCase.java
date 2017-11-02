@@ -87,7 +87,8 @@ import org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache;
 import org.elasticsearch.indices.mapper.MapperRegistry;
 import org.elasticsearch.node.InternalSettingsPreparer;
 import org.elasticsearch.plugins.MapperPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.plugins.ScriptPlugin;
 import org.elasticsearch.plugins.SearchPlugin;
@@ -167,7 +168,7 @@ public abstract class AbstractQueryTestCase<QB extends AbstractQueryBuilder<QB>>
         return currentTypes;
     }
 
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.emptyList();
     }
 
@@ -1024,10 +1025,12 @@ public abstract class AbstractQueryTestCase<QB extends AbstractQueryBuilder<QB>>
         private final long nowInMillis = randomNonNegativeLong();
 
         ServiceHolder(Settings nodeSettings, Settings indexSettings,
-                      Collection<Class<? extends Plugin>> plugins, AbstractQueryTestCase<?> testCase) throws IOException {
+                      Collection<Class<? extends PluginProvider>> plugins, AbstractQueryTestCase<?> testCase) throws IOException {
             Environment env = InternalSettingsPreparer.prepareEnvironment(nodeSettings, null);
-            PluginsService pluginsService;
-            pluginsService = new PluginsService(nodeSettings, null, env.modulesFile(), env.pluginsFile(), plugins);
+
+            final PluginsService.PluginLoader loader = new PluginsService.PluginLoader(nodeSettings,
+                env.modulesFile(), env.pluginsFile(), plugins);
+            final PluginsService pluginsService = new PluginsService(env, loader.getPluginProvider(), loader.info());
 
             client = (Client) Proxy.newProxyInstance(
                     Client.class.getClassLoader(),

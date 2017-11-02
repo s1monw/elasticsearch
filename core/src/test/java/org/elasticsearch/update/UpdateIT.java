@@ -50,7 +50,7 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.MergePolicyConfig;
 import org.elasticsearch.index.engine.DocumentMissingException;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
@@ -135,7 +135,7 @@ public class UpdateIT extends ESIntegTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(UpdateScriptsPlugin.class, InternalSettingsPlugin.class);
     }
 

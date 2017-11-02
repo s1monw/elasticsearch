@@ -45,6 +45,8 @@ import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.index.query.WrapperQueryBuilder;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder.FilterFunctionBuilder;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.SearchPlugin;
 import org.elasticsearch.script.MockScriptEngine;
 import org.elasticsearch.script.Script;
@@ -86,7 +88,7 @@ public class FunctionScoreQueryBuilderTests extends AbstractQueryTestCase<Functi
         ExponentialDecayFunctionBuilder.NAME, LinearDecayFunctionBuilder.NAME, GaussDecayFunctionBuilder.NAME};
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singleton(TestPlugin.class);
     }
 

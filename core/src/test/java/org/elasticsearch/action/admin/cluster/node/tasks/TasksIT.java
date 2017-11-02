@@ -51,7 +51,7 @@ import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.tasks.Task;
 import org.elasticsearch.tasks.TaskId;
@@ -111,19 +111,19 @@ public class TasksIT extends ESIntegTestCase {
     private Map<Tuple<String, String>, RecordingTaskManagerListener> listeners = new HashMap<>();
 
     @Override
-    protected Collection<Class<? extends Plugin>> getMockPlugins() {
-        Collection<Class<? extends Plugin>> mockPlugins = new ArrayList<>(super.getMockPlugins());
+    protected Collection<Class<? extends PluginProvider>> getMockPlugins() {
+        Collection<Class<? extends PluginProvider>> mockPlugins = new ArrayList<>(super.getMockPlugins());
         mockPlugins.remove(MockTransportService.TestPlugin.class);
         return mockPlugins;
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(MockTransportService.TestPlugin.class, TestTaskPlugin.class);
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> transportClientPlugins() {
+    protected Collection<Class<? extends PluginProvider>> transportClientPlugins() {
         return nodePlugins();
     }
 

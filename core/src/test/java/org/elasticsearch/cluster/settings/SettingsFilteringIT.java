@@ -27,6 +27,7 @@ import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.SettingsModule;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 
@@ -43,7 +44,7 @@ import static org.hamcrest.Matchers.nullValue;
 public class SettingsFilteringIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(SettingsFilteringPlugin.class);
     }
 
@@ -54,7 +55,7 @@ public class SettingsFilteringIT extends ESIntegTestCase {
             Setting.boolSetting("some.other.node.setting", false, Property.NodeScope);
 
         @Override
-        public Settings additionalSettings() {
+        public Settings getAdditionalSettings() {
             return Settings.builder().put("some.node.setting", true).put("some.other.node.setting", true).build();
         }
 

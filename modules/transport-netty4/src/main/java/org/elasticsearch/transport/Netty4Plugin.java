@@ -31,6 +31,7 @@ import org.elasticsearch.http.netty4.Netty4HttpServerTransport;
 import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.netty4.Netty4Transport;
 import org.elasticsearch.transport.netty4.Netty4Utils;
@@ -65,7 +66,7 @@ public class Netty4Plugin extends Plugin implements NetworkPlugin {
     }
 
     @Override
-    public Settings additionalSettings() {
+    public Settings getAdditionalSettings() {
         return Settings.builder()
                 // here we set the netty4 transport and http transport as the default. This is a set once setting
                 // ie. if another plugin does that as well the server will fail - only one default network can exist!

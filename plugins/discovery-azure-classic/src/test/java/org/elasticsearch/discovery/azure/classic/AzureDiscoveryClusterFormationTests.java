@@ -81,7 +81,7 @@ public class AzureDiscoveryClusterFormationTests extends ESIntegTestCase {
     private static Path logDir;
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(AzureDiscoveryPlugin.class, TestPlugin.class);
     }
 

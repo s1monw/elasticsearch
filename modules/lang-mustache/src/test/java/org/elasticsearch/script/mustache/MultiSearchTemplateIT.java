@@ -22,7 +22,7 @@ package org.elasticsearch.script.mustache;
 import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.index.IndexNotFoundException;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.test.ESIntegTestCase;
 
@@ -42,7 +42,7 @@ import static org.hamcrest.core.Is.is;
 public class MultiSearchTemplateIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Collections.singleton(MustachePlugin.class);
     }
 

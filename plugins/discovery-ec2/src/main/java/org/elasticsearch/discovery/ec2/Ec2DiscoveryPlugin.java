@@ -82,11 +82,13 @@ public class Ec2DiscoveryPlugin extends Plugin implements DiscoveryPlugin, Close
     // stashed when created in order to properly close
     private final SetOnce<AwsEc2ServiceImpl> ec2Service = new SetOnce<>();
 
-    public Ec2DiscoveryPlugin(Settings settings) {
-        this.settings = settings;
+    Ec2DiscoveryPlugin() {
+        this(Settings.EMPTY);
     }
 
-
+    Ec2DiscoveryPlugin(Settings settings) {
+        this.settings = settings;
+    }
 
     @Override
     public NetworkService.CustomNameResolver getCustomNameResolver(Settings settings) {
@@ -127,7 +129,7 @@ public class Ec2DiscoveryPlugin extends Plugin implements DiscoveryPlugin, Close
     }
 
     @Override
-    public Settings additionalSettings() {
+    public Settings getAdditionalSettings() {
         Settings.Builder builder = Settings.builder();
 
         // Adds a node attribute for the ec2 availability zone

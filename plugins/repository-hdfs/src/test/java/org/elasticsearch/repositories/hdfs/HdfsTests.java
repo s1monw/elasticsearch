@@ -30,7 +30,7 @@ import org.elasticsearch.action.admin.cluster.snapshots.restore.RestoreSnapshotR
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.snapshots.SnapshotState;
 import org.elasticsearch.test.ESSingleNodeTestCase;
@@ -39,7 +39,7 @@ import org.elasticsearch.test.ESSingleNodeTestCase;
 public class HdfsTests extends ESSingleNodeTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(HdfsPlugin.class);
     }
 

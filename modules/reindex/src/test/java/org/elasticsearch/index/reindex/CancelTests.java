@@ -34,6 +34,7 @@ import org.elasticsearch.index.shard.IndexingOperationListener;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.ingest.IngestTestPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.tasks.TaskInfo;
 import org.elasticsearch.test.junit.annotations.TestLogging;
 import org.hamcrest.Matcher;
@@ -68,8 +69,8 @@ public class CancelTests extends ReindexTestCase {
     private static final Semaphore ALLOWED_OPERATIONS = new Semaphore(0);
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
-        Collection<Class<? extends Plugin>> plugins = new ArrayList<>(super.nodePlugins());
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
+        Collection<Class<? extends PluginProvider>> plugins = new ArrayList<>(super.nodePlugins());
         plugins.add(IngestTestPlugin.class);
         plugins.add(ReindexCancellationPlugin.class);
         return plugins;

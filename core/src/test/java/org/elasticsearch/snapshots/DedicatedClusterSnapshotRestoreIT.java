@@ -63,6 +63,7 @@ import org.elasticsearch.env.Environment;
 import org.elasticsearch.indices.recovery.RecoveryState;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.repositories.RepositoryMissingException;
 import org.elasticsearch.rest.AbstractRestChannel;
 import org.elasticsearch.rest.RestController;
@@ -147,7 +148,7 @@ public class DedicatedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTest
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(MockRepository.Plugin.class, TestCustomMetaDataPlugin.class);
     }
 

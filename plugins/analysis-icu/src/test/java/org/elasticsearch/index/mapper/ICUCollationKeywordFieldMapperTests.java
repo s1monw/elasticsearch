@@ -36,7 +36,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.MapperService.MergeReason;
 import org.elasticsearch.plugin.analysis.icu.AnalysisICUPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.junit.Before;
@@ -50,7 +50,7 @@ public class ICUCollationKeywordFieldMapperTests extends ESSingleNodeTestCase {
     private static final String FIELD_TYPE = "icu_collation_keyword";
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Arrays.asList(AnalysisICUPlugin.class, InternalSettingsPlugin.class);
     }
 

@@ -36,7 +36,7 @@ import org.elasticsearch.index.mapper.ParsedDocument;
 import org.elasticsearch.index.mapper.SourceToParse;
 import org.elasticsearch.index.mapper.MappedFieldType;
 import org.elasticsearch.plugin.mapper.MapperSizePlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 
@@ -48,7 +48,7 @@ import org.apache.lucene.index.IndexableField;
 
 public class SizeMappingTests extends ESSingleNodeTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(MapperSizePlugin.class, InternalSettingsPlugin.class);
     }
 

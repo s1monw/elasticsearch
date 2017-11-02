@@ -77,7 +77,7 @@ public class GceDiscoverTests extends ESIntegTestCase {
     private static Path logDir;
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(GceDiscoveryPlugin.class, TestPlugin.class);
     }
 

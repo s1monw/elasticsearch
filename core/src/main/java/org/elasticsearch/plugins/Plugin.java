@@ -52,9 +52,12 @@ import org.elasticsearch.watcher.ResourceWatcherService;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.UnaryOperator;
 
@@ -77,7 +80,82 @@ import java.util.function.UnaryOperator;
  * methods should cause any extensions of {@linkplain Plugin} that used the pre-5.x style extension syntax to fail to build and point the
  * plugin author at the new extension syntax. We hope that these make the process of upgrading a plugin from 2.x to 5.x only mildly painful.
  */
-public abstract class Plugin implements Closeable {
+public abstract class Plugin implements Closeable, PluginProvider {
+
+
+    @Override
+    public Plugin createPlugin(Environment settings) {
+        Class<? extends Plugin> pluginClass = this.getClass();
+        final Constructor<?>[] constructors = pluginClass.getConstructors();
+        if (constructors.length == 0) {
+            throw new IllegalStateException("no public constructor for [" + pluginClass.getName() + "]");
+        }
+
+        if (constructors.length > 1) {
+            throw new IllegalStateException("no unique public constructor for [" + pluginClass.getName() + "]");
+        }
+
+        final Constructor<?> constructor = constructors[0];
+        if (constructor.getParameterCount() > 2) {
+            throw new IllegalStateException(signatureMessage(pluginClass));
+        }
+
+        final Class[] parameterTypes = constructor.getParameterTypes();
+        try {
+            if (constructor.getParameterCount() == 1 && parameterTypes[0] == Environment.class) {
+                return (Plugin)constructor.newInstance(settings);
+            } else if (constructor.getParameterCount() == 1 && parameterTypes[0] == Settings.class) {
+                return (Plugin)constructor.newInstance(settings.settings());
+            } else if (constructor.getParameterCount() == 0) {
+                return this;
+            } else {
+                throw new IllegalStateException(signatureMessage(pluginClass));
+            }
+        } catch (final ReflectiveOperationException e) {
+            throw new IllegalStateException("failed to load plugin class [" + pluginClass.getName() + "]", e);
+        }
+    }
+
+    @Override
+    public Plugin createPlugin(Settings settings) {
+        Class<? extends Plugin> pluginClass = this.getClass();
+        final Constructor<?>[] constructors = pluginClass.getConstructors();
+        if (constructors.length == 0) {
+            throw new IllegalStateException("no public constructor for [" + pluginClass.getName() + "]");
+        }
+
+        if (constructors.length > 1) {
+            throw new IllegalStateException("no unique public constructor for [" + pluginClass.getName() + "]");
+        }
+
+        final Constructor<?> constructor = constructors[0];
+        if (constructor.getParameterCount() > 2) {
+            throw new IllegalStateException(signatureMessage(pluginClass));
+        }
+
+        final Class[] parameterTypes = constructor.getParameterTypes();
+        try {
+           if (constructor.getParameterCount() == 1 && parameterTypes[0] == Settings.class) {
+                return (Plugin)constructor.newInstance(settings);
+            } else if (constructor.getParameterCount() == 0) {
+                return this;
+            } else {
+                throw new IllegalStateException(signatureMessage(pluginClass));
+            }
+        } catch (final ReflectiveOperationException e) {
+            throw new IllegalStateException("failed to load plugin class [" + pluginClass.getName() + "]", e);
+        }
+    }
+
+    private String signatureMessage(final Class<? extends Plugin> clazz) {
+        return String.format(
+            Locale.ROOT,
+            "no public constructor of correct signature for [%s]; must be [%s], [%s], or [%s]",
+            clazz.getName(),
+            "(org.elasticsearch.common.settings.Settings,java.nio.file.Path)",
+            "(org.elasticsearch.common.settings.Settings)",
+            "()");
+    }
 
     /**
      * Node level guice modules.
@@ -121,8 +199,10 @@ public abstract class Plugin implements Closeable {
     /**
      * Additional node settings loaded by the plugin. Note that settings that are explicit in the nodes settings can't be
      * overwritten with the additional settings. These settings added if they don't exist.
+     * @deprecated
      */
-    public Settings additionalSettings() {
+    @Deprecated
+    public final Settings additionalSettings() {
         return Settings.Builder.EMPTY_SETTINGS;
     }
 

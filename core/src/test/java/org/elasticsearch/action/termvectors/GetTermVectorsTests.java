@@ -39,6 +39,7 @@ import org.elasticsearch.index.analysis.TokenFilterFactory;
 import org.elasticsearch.indices.analysis.AnalysisModule;
 import org.elasticsearch.plugins.AnalysisPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 
 import java.io.IOException;
@@ -57,7 +58,7 @@ import static org.hamcrest.Matchers.nullValue;
 public class GetTermVectorsTests extends ESSingleNodeTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singleton(MockPayloadAnalyzerPlugin.class);
     }
 

@@ -47,7 +47,11 @@ public final class AssertingTransportInterceptor implements TransportInterceptor
 
         private final Settings settings;
 
-        public TestPlugin(Settings settings) {
+        TestPlugin() {
+            this(Settings.EMPTY);
+        }
+
+        TestPlugin(Settings settings) {
             this.settings = settings;
         }
 

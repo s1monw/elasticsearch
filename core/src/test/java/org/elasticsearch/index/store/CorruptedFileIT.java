@@ -62,7 +62,8 @@ import org.elasticsearch.indices.recovery.PeerRecoveryTargetService;
 import org.elasticsearch.indices.recovery.RecoveryFileChunkRequest;
 import org.elasticsearch.monitor.fs.FsInfo;
 import org.elasticsearch.node.Node;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.snapshots.SnapshotState;
 import org.elasticsearch.test.CorruptionUtils;
 import org.elasticsearch.test.ESIntegTestCase;
@@ -123,7 +124,7 @@ public class CorruptedFileIT extends ESIntegTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(MockTransportService.TestPlugin.class, MockIndexEventListener.TestPlugin.class, MockFSIndexStore.TestPlugin.class,
             InternalSettingsPlugin.class);  // uses index.version.created
     }

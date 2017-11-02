@@ -25,7 +25,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.join.ParentJoinPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.test.InternalSettingsPlugin;
 
@@ -62,8 +62,8 @@ public class ReindexParentChildTests extends ReindexTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
-        final List<Class<? extends Plugin>> plugins = new ArrayList<>(super.nodePlugins());
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
+        final List<Class<? extends PluginProvider>> plugins = new ArrayList<>(super.nodePlugins());
         plugins.add(ParentJoinPlugin.class);
         plugins.add(InternalSettingsPlugin.class);
         plugins.add(CustomScriptPlugin.class);
@@ -71,7 +71,7 @@ public class ReindexParentChildTests extends ReindexTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> transportClientPlugins() {
+    protected Collection<Class<? extends PluginProvider>> transportClientPlugins() {
         return nodePlugins();
     }
 

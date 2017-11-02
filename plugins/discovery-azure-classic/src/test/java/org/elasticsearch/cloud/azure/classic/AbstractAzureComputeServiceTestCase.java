@@ -23,7 +23,7 @@ import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.elasticsearch.cloud.azure.classic.management.AzureComputeService.Discovery;
 import org.elasticsearch.cloud.azure.classic.management.AzureComputeService.Management;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 
 import java.util.Arrays;
@@ -54,7 +54,7 @@ public abstract class AbstractAzureComputeServiceTestCase extends ESIntegTestCas
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(mockPlugin);
     }
 

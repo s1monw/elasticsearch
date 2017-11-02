@@ -73,7 +73,7 @@ import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.DocumentMapper;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.mapper.ParseContext;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.junit.After;
 import org.junit.Before;
@@ -104,7 +104,7 @@ public class CandidateQueryTests extends ESSingleNodeTestCase {
     private PercolateQuery.QueryStore queryStore;
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singleton(PercolatorPlugin.class);
     }
 

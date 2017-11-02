@@ -44,6 +44,8 @@ import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.plugins.ClusterPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.hamcrest.CollectionAssertions;
 import org.junit.Before;
@@ -69,7 +71,7 @@ import static org.hamcrest.Matchers.is;
 public class SimpleClusterStateIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Collections.singletonList(PrivateCustomPlugin.class);
     }
 

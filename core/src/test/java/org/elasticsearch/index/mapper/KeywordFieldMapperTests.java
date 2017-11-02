@@ -34,6 +34,7 @@ import org.elasticsearch.index.analysis.PreConfiguredTokenFilter;
 import org.elasticsearch.index.mapper.MapperService.MergeReason;
 import org.elasticsearch.plugins.AnalysisPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.junit.Before;
@@ -59,7 +60,7 @@ public class KeywordFieldMapperTests extends ESSingleNodeTestCase {
     };
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(InternalSettingsPlugin.class, MockAnalysisPlugin.class);
     }
 

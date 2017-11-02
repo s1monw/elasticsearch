@@ -43,6 +43,7 @@ import org.elasticsearch.env.Environment;
 import org.elasticsearch.env.NodeEnvironment;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.tasks.Task;
@@ -68,7 +69,7 @@ public class ReindexFromRemoteWithAuthTests extends ESSingleNodeTestCase {
     private TransportAddress address;
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Arrays.asList(
             Netty4Plugin.class,
             ReindexFromRemoteWithAuthTests.TestPlugin.class,

@@ -94,7 +94,7 @@ public class ContextAndHeaderTransportIT extends HttpSmokeTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         ArrayList<Class<? extends Plugin>> plugins = new ArrayList<>(super.nodePlugins());
         plugins.add(ActionLoggingPlugin.class);
         plugins.add(CustomHeadersPlugin.class);

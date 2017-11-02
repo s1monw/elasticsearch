@@ -24,7 +24,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.engine.Segment;
 import org.elasticsearch.index.MergePolicyConfig;
 import org.elasticsearch.indices.IndexClosedException;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.junit.Before;
@@ -37,7 +37,7 @@ import static org.hamcrest.Matchers.is;
 public class IndicesSegmentsRequestTests extends ESSingleNodeTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(InternalSettingsPlugin.class);
     }
 

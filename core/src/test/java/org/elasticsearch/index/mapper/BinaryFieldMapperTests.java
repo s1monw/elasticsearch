@@ -31,7 +31,7 @@ import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.elasticsearch.test.VersionUtils;
@@ -48,7 +48,7 @@ import static org.hamcrest.Matchers.instanceOf;
 public class BinaryFieldMapperTests extends ESSingleNodeTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(InternalSettingsPlugin.class);
     }
 
@@ -93,7 +93,7 @@ public class BinaryFieldMapperTests extends ESSingleNodeTestCase {
         assertTrue(CompressorFactory.isCompressed(new BytesArray(binaryValue2)));
 
         for (byte[] value : Arrays.asList(binaryValue1, binaryValue2)) {
-            ParsedDocument doc = mapper.parse(SourceToParse.source("test", "type", "id", 
+            ParsedDocument doc = mapper.parse(SourceToParse.source("test", "type", "id",
                     XContentFactory.jsonBuilder().startObject().field("field", value).endObject().bytes(),
                     XContentType.JSON));
             BytesRef indexedValue = doc.rootDoc().getBinaryValue("field");

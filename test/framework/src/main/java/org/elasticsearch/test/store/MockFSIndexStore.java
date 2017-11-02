@@ -50,7 +50,7 @@ public class MockFSIndexStore extends IndexStore {
 
     public static class TestPlugin extends Plugin {
         @Override
-        public Settings additionalSettings() {
+        public Settings getAdditionalSettings() {
             return Settings.builder().put(IndexModule.INDEX_STORE_TYPE_SETTING.getKey(), "mock").build();
         }
 

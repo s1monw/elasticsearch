@@ -25,7 +25,7 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.junit.Before;
@@ -48,7 +48,7 @@ import static org.hamcrest.Matchers.equalTo;
 public class SearchTemplateIT extends ESSingleNodeTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singleton(MustachePlugin.class);
     }
 

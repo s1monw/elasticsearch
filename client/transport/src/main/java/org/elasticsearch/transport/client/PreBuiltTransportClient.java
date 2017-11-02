@@ -28,7 +28,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.reindex.ReindexPlugin;
 import org.elasticsearch.join.ParentJoinPlugin;
 import org.elasticsearch.percolator.PercolatorPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.mustache.MustachePlugin;
 import org.elasticsearch.transport.Netty4Plugin;
 
@@ -81,7 +81,7 @@ public class PreBuiltTransportClient extends TransportClient {
         }
     }
 
-    private static final Collection<Class<? extends Plugin>> PRE_INSTALLED_PLUGINS =
+    private static final Collection<Class<? extends PluginProvider>> PRE_INSTALLED_PLUGINS =
         Collections.unmodifiableList(
             Arrays.asList(
                 Netty4Plugin.class,
@@ -97,7 +97,7 @@ public class PreBuiltTransportClient extends TransportClient {
      * @param plugins  an optional array of additional plugins to run with this client
      */
     @SafeVarargs
-    public PreBuiltTransportClient(Settings settings, Class<? extends Plugin>... plugins) {
+    public PreBuiltTransportClient(Settings settings, Class<? extends PluginProvider>... plugins) {
         this(settings, Arrays.asList(plugins));
     }
 
@@ -107,7 +107,7 @@ public class PreBuiltTransportClient extends TransportClient {
      * @param settings the settings passed to this transport client
      * @param plugins  a collection of additional plugins to run with this client
      */
-    public PreBuiltTransportClient(Settings settings, Collection<Class<? extends Plugin>> plugins) {
+    public PreBuiltTransportClient(Settings settings, Collection<Class<? extends PluginProvider>> plugins) {
         this(settings, plugins, null);
     }
 
@@ -120,7 +120,7 @@ public class PreBuiltTransportClient extends TransportClient {
      */
     public PreBuiltTransportClient(
         Settings settings,
-        Collection<Class<? extends Plugin>> plugins,
+        Collection<Class<? extends PluginProvider>> plugins,
         HostFailureListener hostFailureListener) {
         super(settings, Settings.EMPTY, addPlugins(plugins, PRE_INSTALLED_PLUGINS), hostFailureListener);
     }

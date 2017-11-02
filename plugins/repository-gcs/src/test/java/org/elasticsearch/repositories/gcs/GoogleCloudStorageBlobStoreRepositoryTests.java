@@ -26,7 +26,7 @@ import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.repositories.blobstore.ESBlobStoreRepositoryIntegTestCase;
 import org.junit.BeforeClass;
 
@@ -47,7 +47,7 @@ public class GoogleCloudStorageBlobStoreRepositoryTests extends ESBlobStoreRepos
     private static final AtomicReference<Storage> storage = new AtomicReference<>();
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(MockGoogleCloudStoragePlugin.class);
     }
 

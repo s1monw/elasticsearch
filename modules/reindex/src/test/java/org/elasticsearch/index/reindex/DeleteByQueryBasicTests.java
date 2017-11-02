@@ -25,7 +25,7 @@ import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.test.InternalSettingsPlugin;
 
@@ -47,8 +47,8 @@ import static org.hamcrest.Matchers.hasSize;
 
 public class DeleteByQueryBasicTests extends ReindexTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
-        List<Class<? extends Plugin>> plugins = new ArrayList<>(super.nodePlugins());
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
+        List<Class<? extends PluginProvider>> plugins = new ArrayList<>(super.nodePlugins());
         plugins.add(InternalSettingsPlugin.class);
         return plugins;
     }

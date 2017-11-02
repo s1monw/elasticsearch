@@ -80,7 +80,7 @@ import org.elasticsearch.indices.TermsLookup;
 import org.elasticsearch.join.ParentJoinPlugin;
 import org.elasticsearch.join.query.HasChildQueryBuilder;
 import org.elasticsearch.join.query.HasParentQueryBuilder;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.test.ESSingleNodeTestCase;
@@ -124,7 +124,7 @@ public class PercolatorFieldMapperTests extends ESSingleNodeTestCase {
     private PercolatorFieldMapper.FieldType fieldType;
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(InternalSettingsPlugin.class, PercolatorPlugin.class, FoolMeScriptPlugin.class, ParentJoinPlugin.class);
     }
 

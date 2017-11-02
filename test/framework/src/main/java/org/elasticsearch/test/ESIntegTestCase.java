@@ -130,6 +130,8 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.store.IndicesStore;
 import org.elasticsearch.node.NodeMocksPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.MockSearchService;
@@ -1727,14 +1729,14 @@ public abstract class ESIntegTestCase extends ESTestCase {
     /**
      * Returns a collection of plugins that should be loaded on each node.
      */
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Collections.emptyList();
     }
 
     /**
      * Returns a collection of plugins that should be loaded when creating a transport client.
      */
-    protected Collection<Class<? extends Plugin>> transportClientPlugins() {
+    protected Collection<Class<? extends PluginProvider>> transportClientPlugins() {
         return Collections.emptyList();
     }
 
@@ -1800,10 +1802,10 @@ public abstract class ESIntegTestCase extends ESTestCase {
             minNumDataNodes = getMinNumDataNodes();
             maxNumDataNodes = getMaxNumDataNodes();
         }
-        Collection<Class<? extends Plugin>> mockPlugins = getMockPlugins();
+        Collection<Class<? extends PluginProvider>> mockPlugins = getMockPlugins();
         final NodeConfigurationSource nodeConfigurationSource = getNodeConfigSource();
         if (addMockTransportService()) {
-            ArrayList<Class<? extends Plugin>> mocks = new ArrayList<>(mockPlugins);
+            ArrayList<Class<? extends PluginProvider>> mocks = new ArrayList<>(mockPlugins);
             // add both mock plugins - local and tcp if they are not there
             // we do this in case somebody overrides getMockPlugins and misses to call super
             if (mockPlugins.contains(getTestTransportPlugin()) == false) {
@@ -1838,7 +1840,7 @@ public abstract class ESIntegTestCase extends ESTestCase {
             }
 
             @Override
-            public Collection<Class<? extends Plugin>> nodePlugins() {
+            public Collection<Class<? extends PluginProvider>> nodePlugins() {
                 return ESIntegTestCase.this.nodePlugins();
             }
 
@@ -1849,8 +1851,8 @@ public abstract class ESIntegTestCase extends ESTestCase {
             }
 
             @Override
-            public Collection<Class<? extends Plugin>> transportClientPlugins() {
-                Collection<Class<? extends Plugin>> plugins = ESIntegTestCase.this.transportClientPlugins();
+            public Collection<Class<? extends PluginProvider>> transportClientPlugins() {
+                Collection<Class<? extends PluginProvider>> plugins = ESIntegTestCase.this.transportClientPlugins();
                 if (plugins.contains(getTestTransportPlugin()) == false) {
                     plugins = new ArrayList<>(plugins);
                     plugins.add(getTestTransportPlugin());
@@ -1887,8 +1889,8 @@ public abstract class ESIntegTestCase extends ESTestCase {
     }
 
     /** Return the mock plugins the cluster should use */
-    protected Collection<Class<? extends Plugin>> getMockPlugins() {
-        final ArrayList<Class<? extends Plugin>> mocks = new ArrayList<>();
+    protected Collection<Class<? extends PluginProvider>> getMockPlugins() {
+        final ArrayList<Class<? extends PluginProvider>> mocks = new ArrayList<>();
         if (MOCK_MODULES_ENABLED && randomBoolean()) { // sometimes run without those completely
             if (randomBoolean() && addMockTransportService()) {
                 mocks.add(MockTransportService.TestPlugin.class);

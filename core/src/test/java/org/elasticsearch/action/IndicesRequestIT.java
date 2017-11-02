@@ -84,6 +84,7 @@ import org.elasticsearch.common.util.concurrent.ThreadContext;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.script.Script;
@@ -145,7 +146,7 @@ public class IndicesRequestIT extends ESIntegTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(InterceptingTransportService.TestPlugin.class, CustomScriptPlugin.class);
     }
 

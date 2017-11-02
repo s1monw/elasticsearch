@@ -53,6 +53,8 @@ import org.elasticsearch.index.similarity.BM25SimilarityProvider;
 import org.elasticsearch.indices.IndicesService.ShardDeletionCheckResult;
 import org.elasticsearch.plugins.MapperPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.IndexSettingsModule;
 
@@ -87,8 +89,8 @@ public class IndicesServiceTests extends ESSingleNodeTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
-        ArrayList<Class<? extends Plugin>> plugins = new ArrayList<>(super.getPlugins());
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
+        ArrayList<Class<? extends PluginProvider>> plugins = new ArrayList<>(super.getPlugins());
         plugins.add(TestPlugin.class);
         return plugins;
     }

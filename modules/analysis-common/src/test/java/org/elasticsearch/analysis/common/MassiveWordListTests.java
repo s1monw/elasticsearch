@@ -20,7 +20,7 @@
 package org.elasticsearch.analysis.common;
 
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 
 import java.util.Collection;
@@ -29,7 +29,7 @@ import java.util.Collections;
 public class MassiveWordListTests extends ESSingleNodeTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singleton(CommonAnalysisPlugin.class);
     }
 

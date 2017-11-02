@@ -22,7 +22,8 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.transport.nio.NioTransportPlugin;
 
 import java.util.ArrayList;
@@ -35,20 +36,20 @@ public class MockTransportClient extends TransportClient {
         MockTcpTransportPlugin.MOCK_TCP_TRANSPORT_NAME).build();
 
 
-    public MockTransportClient(Settings settings, Class<? extends Plugin>... plugins) {
+    public MockTransportClient(Settings settings, Class<? extends PluginProvider>... plugins) {
         this(settings, Arrays.asList(plugins));
     }
 
-    public MockTransportClient(Settings settings, Collection<Class<? extends Plugin>> plugins) {
+    public MockTransportClient(Settings settings, Collection<Class<? extends PluginProvider>> plugins) {
         this(settings, plugins, null);
     }
 
-    public MockTransportClient(Settings settings, Collection<Class<? extends Plugin>> plugins, HostFailureListener listener) {
+    public MockTransportClient(Settings settings, Collection<Class<? extends PluginProvider>> plugins, HostFailureListener listener) {
         super(settings, DEFAULT_SETTINGS, addMockTransportIfMissing(settings, plugins), listener);
     }
 
-    private static Collection<Class<? extends Plugin>> addMockTransportIfMissing(Settings settings,
-                                                                                 Collection<Class<? extends Plugin>> plugins) {
+    private static Collection<Class<? extends PluginProvider>> addMockTransportIfMissing(Settings settings,
+                                                                                 Collection<Class<? extends PluginProvider>> plugins) {
         boolean settingExists = NetworkModule.TRANSPORT_TYPE_SETTING.exists(settings);
         String transportType = NetworkModule.TRANSPORT_TYPE_SETTING.get(settings);
         if (settingExists == false || MockTcpTransportPlugin.MOCK_TCP_TRANSPORT_NAME.equals(transportType)) {

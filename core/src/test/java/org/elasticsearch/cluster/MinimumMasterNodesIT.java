@@ -30,7 +30,8 @@ import org.elasticsearch.discovery.DiscoverySettings;
 import org.elasticsearch.discovery.zen.ElectMasterService;
 import org.elasticsearch.discovery.zen.ZenDiscovery;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
@@ -65,8 +66,8 @@ import static org.hamcrest.Matchers.nullValue;
 public class MinimumMasterNodesIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
-        final HashSet<Class<? extends Plugin>> classes = new HashSet<>(super.nodePlugins());
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
+        final HashSet<Class<? extends PluginProvider>> classes = new HashSet<>(super.nodePlugins());
         classes.add(MockTransportService.TestPlugin.class);
         return classes;
     }

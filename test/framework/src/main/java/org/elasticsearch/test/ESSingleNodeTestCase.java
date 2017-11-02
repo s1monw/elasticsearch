@@ -45,7 +45,8 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.node.MockNode;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeValidationException;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.test.discovery.TestZenDiscovery;
@@ -144,14 +145,14 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
     }
 
     /** The plugin classes that should be added to the node. */
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.emptyList();
     }
 
     /** Helper method to create list of plugins without specifying generic types. */
     @SafeVarargs
     @SuppressWarnings("varargs") // due to type erasure, the varargs type is non-reifiable, which causes this warning
-    protected final Collection<Class<? extends Plugin>> pluginList(Class<? extends Plugin>... plugins) {
+    protected final Collection<Class<? extends PluginProvider>> pluginList(Class<? extends PluginProvider>... plugins) {
         return Arrays.asList(plugins);
     }
 
@@ -178,7 +179,7 @@ public abstract class ESSingleNodeTestCase extends ESTestCase {
             .put(NodeEnvironment.NODE_ID_SEED_SETTING.getKey(), random().nextLong())
             .put(nodeSettings()) // allow test cases to provide their own settings or override these
             .build();
-        Collection<Class<? extends Plugin>> plugins = getPlugins();
+        Collection<Class<? extends PluginProvider>> plugins = getPlugins();
         if (plugins.contains(getTestTransportPlugin()) == false) {
             plugins = new ArrayList<>(plugins);
             plugins.add(getTestTransportPlugin());

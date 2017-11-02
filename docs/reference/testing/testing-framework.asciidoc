@@ -170,7 +170,7 @@ As elasticsearch is using JUnit 4, using the `@Before` and `@After` annotations 
 [source,java]
 -----------------------------------------
 @Override
-protected Collection<Class<? extends Plugin>> nodePlugins() {
+protected Collection<Class<? extends PluginProvider>> nodePlugins() {
   return Arrays.asList(CustomSuggesterPlugin.class);
 }
 -----------------------------------------

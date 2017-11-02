@@ -37,9 +37,6 @@ import java.util.Map;
 
 public class ParentJoinPlugin extends Plugin implements SearchPlugin, MapperPlugin {
 
-    public ParentJoinPlugin() {
-    }
-
     @Override
     public List<QuerySpec<?>> getQueries() {
         return Arrays.asList(

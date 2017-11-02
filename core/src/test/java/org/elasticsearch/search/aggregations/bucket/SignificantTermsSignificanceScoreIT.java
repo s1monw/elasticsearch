@@ -32,6 +32,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.QueryShardException;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.SearchPlugin;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.script.Script;
@@ -87,12 +88,12 @@ public class SignificantTermsSignificanceScoreIT extends ESIntegTestCase {
     static final String CLASS_FIELD = "class";
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(CustomSignificanceHeuristicPlugin.class);
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> transportClientPlugins() {
+    protected Collection<Class<? extends PluginProvider>> transportClientPlugins() {
         return Arrays.asList(CustomSignificanceHeuristicPlugin.class);
     }
 

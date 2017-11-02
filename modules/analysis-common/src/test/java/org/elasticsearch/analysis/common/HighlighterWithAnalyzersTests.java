@@ -22,7 +22,7 @@ package org.elasticsearch.analysis.common;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.Operator;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
 import org.elasticsearch.test.ESIntegTestCase;
 
@@ -40,7 +40,7 @@ import static org.hamcrest.Matchers.startsWith;
 
 public class HighlighterWithAnalyzersTests extends ESIntegTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(CommonAnalysisPlugin.class);
     }
 

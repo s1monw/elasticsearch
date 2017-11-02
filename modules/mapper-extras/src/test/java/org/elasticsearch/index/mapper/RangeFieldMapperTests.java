@@ -27,7 +27,7 @@ import org.elasticsearch.common.xcontent.ToXContent;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.InternalSettingsPlugin;
 
 import java.io.IOException;
@@ -47,7 +47,7 @@ import static org.hamcrest.Matchers.containsString;
 public class RangeFieldMapperTests extends AbstractNumericFieldMapperTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(InternalSettingsPlugin.class, MapperExtrasPlugin.class);
     }
 

@@ -26,7 +26,7 @@ import org.apache.lucene.search.Query;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryShardContext;
 import org.elasticsearch.indices.IndicesService;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.junit.Before;
 
@@ -40,12 +40,12 @@ import static org.hamcrest.Matchers.instanceOf;
 
 public class CustomQueryParserIT extends ESIntegTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(DummyQueryParserPlugin.class);
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> transportClientPlugins() {
+    protected Collection<Class<? extends PluginProvider>> transportClientPlugins() {
         return Arrays.asList(DummyQueryParserPlugin.class);
     }
 

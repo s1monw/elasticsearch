@@ -21,7 +21,7 @@ package org.elasticsearch.index.mapper;
 
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.mapper.MapperExtrasPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 
 import java.util.Collection;
@@ -34,7 +34,7 @@ import static org.elasticsearch.test.StreamsUtils.copyToBytesFromClasspath;
  */
 public class BWCTemplateTests extends ESSingleNodeTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(MapperExtrasPlugin.class);
     }
 

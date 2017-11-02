@@ -29,7 +29,7 @@ import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.transport.MockTcpTransportPlugin;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.elasticsearch.transport.nio.NioTransportPlugin;

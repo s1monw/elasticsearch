@@ -27,7 +27,7 @@ import org.elasticsearch.common.geo.GeoPoint;
 import org.elasticsearch.common.geo.GeoUtils;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.search.SearchHit;
@@ -65,7 +65,7 @@ public class SimpleSortIT extends ESIntegTestCase {
     private static final String DOUBLE_APOSTROPHE = "\u0027\u0027";
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(CustomScriptPlugin.class, InternalSettingsPlugin.class);
     }
 

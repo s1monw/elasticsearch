@@ -28,7 +28,7 @@ import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.InnerHitBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.MockScriptEngine;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.script.Script;
@@ -72,7 +72,7 @@ import static org.hamcrest.Matchers.nullValue;
 public class InnerHitsIT extends ParentChildTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         ArrayList<Class<? extends Plugin>> plugins = new ArrayList<>(super.nodePlugins());
         plugins.add(CustomScriptPlugin.class);
         return plugins;

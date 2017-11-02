@@ -30,7 +30,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.IndexService;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.elasticsearch.test.transport.MockTransportService;
@@ -54,7 +54,7 @@ import static org.hamcrest.Matchers.equalTo;
 public class GlobalCheckpointSyncIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Stream.concat(
                 super.nodePlugins().stream(),
                 Stream.of(InternalSettingsPlugin.class, MockTransportService.TestPlugin.class))

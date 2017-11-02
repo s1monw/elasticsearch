@@ -161,7 +161,7 @@ public class TribeIntegrationTests extends ESIntegTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         ArrayList<Class<? extends Plugin>> plugins = new ArrayList<>();
         plugins.addAll(getMockPlugins());
         plugins.add(MockTribePlugin.class);

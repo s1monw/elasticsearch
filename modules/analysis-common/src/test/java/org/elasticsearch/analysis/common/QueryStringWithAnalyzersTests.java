@@ -22,7 +22,7 @@ package org.elasticsearch.analysis.common;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.Operator;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 
 import java.util.Arrays;
@@ -34,7 +34,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitC
 
 public class QueryStringWithAnalyzersTests extends ESIntegTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(CommonAnalysisPlugin.class);
     }
 

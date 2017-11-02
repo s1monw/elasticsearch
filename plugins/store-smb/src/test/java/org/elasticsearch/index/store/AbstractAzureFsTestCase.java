@@ -21,7 +21,7 @@ package org.elasticsearch.index.store;
 
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.plugin.store.smb.SMBStorePlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 
 import java.util.Arrays;
@@ -31,7 +31,7 @@ import static org.hamcrest.Matchers.is;
 
 public abstract  class AbstractAzureFsTestCase extends ESIntegTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(SMBStorePlugin.class);
     }
 

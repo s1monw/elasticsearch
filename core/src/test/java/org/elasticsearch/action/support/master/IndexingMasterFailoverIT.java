@@ -25,7 +25,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.discovery.DiscoverySettings;
 import org.elasticsearch.discovery.zen.ElectMasterService;
 import org.elasticsearch.discovery.zen.FaultDetection;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.discovery.TestZenDiscovery;
 import org.elasticsearch.test.disruption.NetworkDisruption;
@@ -48,8 +48,8 @@ import static org.hamcrest.Matchers.equalTo;
 public class IndexingMasterFailoverIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
-        final HashSet<Class<? extends Plugin>> classes = new HashSet<>(super.nodePlugins());
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
+        final HashSet<Class<? extends PluginProvider>> classes = new HashSet<>(super.nodePlugins());
         classes.add(MockTransportService.TestPlugin.class);
         return classes;
     }

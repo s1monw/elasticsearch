@@ -19,7 +19,8 @@
 package org.elasticsearch.test;
 
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 
 import java.nio.file.Path;
 import java.util.Collection;
@@ -52,7 +53,7 @@ public abstract class NodeConfigurationSource {
     public abstract Path nodeConfigPath(int nodeOrdinal);
 
     /** Returns plugins that should be loaded on the node */
-    public Collection<Class<? extends Plugin>> nodePlugins() {
+    public Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Collections.emptyList();
     }
 
@@ -61,7 +62,7 @@ public abstract class NodeConfigurationSource {
     }
 
     /** Returns plugins that should be loaded in the transport client */
-    public Collection<Class<? extends Plugin>> transportClientPlugins() {
+    public Collection<Class<? extends PluginProvider>> transportClientPlugins() {
         return Collections.emptyList();
     }
 

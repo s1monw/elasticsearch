@@ -34,7 +34,8 @@ import org.elasticsearch.common.network.NetworkModule;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.env.Environment;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.transport.MockTcpTransportPlugin;
 import org.elasticsearch.transport.MockTransportClient;
 import org.elasticsearch.transport.nio.NioTransportPlugin;
@@ -72,7 +73,7 @@ public final class ExternalTestCluster extends TestCluster {
     private final int numDataNodes;
     private final int numMasterAndDataNodes;
 
-    public ExternalTestCluster(Path tempDir, Settings additionalSettings, Collection<Class<? extends Plugin>> pluginClasses,
+    public ExternalTestCluster(Path tempDir, Settings additionalSettings, Collection<Class<? extends PluginProvider>> pluginClasses,
                                TransportAddress... transportAddresses) {
         super(0);
         Settings.Builder clientSettingsBuilder = Settings.builder()

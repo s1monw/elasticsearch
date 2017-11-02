@@ -64,7 +64,7 @@ public class Netty4TransportIT extends ESNetty4IntegTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         List<Class<? extends Plugin>> list = new ArrayList<>();
         list.add(ExceptionThrowingNetty4Transport.TestPlugin.class);
         list.addAll(super.nodePlugins());

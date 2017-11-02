@@ -33,7 +33,8 @@ import org.elasticsearch.index.engine.Engine;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.translog.Translog;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.elasticsearch.threadpool.ThreadPool;
@@ -52,7 +53,7 @@ import static org.hamcrest.core.IsEqual.equalTo;
 public class IndexServiceTests extends ESSingleNodeTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singleton(InternalSettingsPlugin.class);
     }
 

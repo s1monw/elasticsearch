@@ -40,7 +40,7 @@ import org.elasticsearch.index.MockEngineFactoryPlugin;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.engine.MockEngineSupport;
@@ -64,13 +64,13 @@ import static org.hamcrest.Matchers.equalTo;
  */
 public class RandomExceptionCircuitBreakerIT extends ESIntegTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(RandomExceptionDirectoryReaderWrapper.TestPlugin.class);
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> getMockPlugins() {
-        Set<Class<? extends Plugin>> mocks = new HashSet<>(super.getMockPlugins());
+    protected Collection<Class<? extends PluginProvider>> getMockPlugins() {
+        Set<Class<? extends PluginProvider>> mocks = new HashSet<>(super.getMockPlugins());
         mocks.remove(MockEngineFactoryPlugin.class);
         return mocks;
     }

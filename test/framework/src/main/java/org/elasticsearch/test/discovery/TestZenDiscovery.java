@@ -52,10 +52,15 @@ public class TestZenDiscovery extends ZenDiscovery {
 
     /** A plugin which installs mock discovery and configures it to be used. */
     public static class TestPlugin extends Plugin implements DiscoveryPlugin {
+
         protected final Settings settings;
-        public TestPlugin(Settings settings) {
+
+        public TestPlugin() { this(Settings.EMPTY);}
+
+        private TestPlugin(Settings settings) {
             this.settings = settings;
         }
+
         @Override
         public Map<String, Supplier<Discovery>> getDiscoveryTypes(ThreadPool threadPool, TransportService transportService,
                                                                   NamedWriteableRegistry namedWriteableRegistry,
@@ -73,7 +78,7 @@ public class TestZenDiscovery extends ZenDiscovery {
         }
 
         @Override
-        public Settings additionalSettings() {
+        public Settings getAdditionalSettings() {
             return Settings.builder().put(DiscoveryModule.DISCOVERY_TYPE_SETTING.getKey(), "test-zen").build();
         }
     }

@@ -23,7 +23,7 @@ import org.elasticsearch.action.ActionFuture;
 import org.elasticsearch.action.admin.cluster.snapshots.delete.DeleteSnapshotResponse;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.snapshots.mockstore.MockRepository;
 
@@ -49,7 +49,7 @@ public class MinThreadsSnapshotRestoreIT extends AbstractSnapshotIntegTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Collections.singleton(MockRepository.Plugin.class);
     }
 

@@ -31,6 +31,7 @@ import org.elasticsearch.index.query.functionscore.DecayFunctionBuilder;
 import org.elasticsearch.index.query.functionscore.DecayFunctionParser;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionParser;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.SearchPlugin;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.test.ESIntegTestCase;
@@ -55,12 +56,12 @@ import static org.hamcrest.Matchers.equalTo;
 @ClusterScope(scope = Scope.SUITE, supportsDedicatedMasters = false, numDataNodes = 1)
 public class FunctionScorePluginIT extends ESIntegTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(CustomDistanceScorePlugin.class);
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> transportClientPlugins() {
+    protected Collection<Class<? extends PluginProvider>> transportClientPlugins() {
         return Arrays.asList(CustomDistanceScorePlugin.class);
     }
 

@@ -24,7 +24,8 @@ import org.elasticsearch.index.fielddata.ScriptDocValues;
 import org.elasticsearch.index.mapper.SeqNoFieldMapper;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.index.query.functionscore.RandomScoreFunctionBuilder;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.MockScriptPlugin;
 import org.elasticsearch.script.ScoreAccessor;
 import org.elasticsearch.script.Script;
@@ -60,7 +61,7 @@ import static org.hamcrest.Matchers.nullValue;
 public class RandomScoreFunctionIT extends ESIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(CustomScriptPlugin.class);
     }
 

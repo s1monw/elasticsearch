@@ -20,7 +20,7 @@
 package org.elasticsearch.join.aggregations;
 
 import org.elasticsearch.join.ParentJoinPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.search.aggregations.BaseAggregationTestCase;
 
 import java.util.Collection;
@@ -29,7 +29,7 @@ import java.util.Collections;
 public class ChildrenTests extends BaseAggregationTestCase<ChildrenAggregationBuilder> {
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singleton(ParentJoinPlugin.class);
     }
 

@@ -31,7 +31,7 @@ import org.elasticsearch.common.settings.MockSecureSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.discovery.DiscoveryModule;
 import org.elasticsearch.mocksocket.MockHttpServer;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -67,7 +67,7 @@ public class Ec2DiscoveryClusterFormationTests extends ESIntegTestCase {
     private static Path logDir;
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(Ec2DiscoveryPlugin.class);
     }
 

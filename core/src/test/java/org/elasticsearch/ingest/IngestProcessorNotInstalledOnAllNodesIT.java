@@ -24,7 +24,8 @@ import org.elasticsearch.action.ingest.WritePipelineResponse;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.node.NodeService;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 
 import java.io.IOException;
@@ -57,7 +58,7 @@ public class IngestProcessorNotInstalledOnAllNodesIT extends ESIntegTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return installPlugin ? Arrays.asList(IngestTestPlugin.class) : Collections.emptyList();
     }
 

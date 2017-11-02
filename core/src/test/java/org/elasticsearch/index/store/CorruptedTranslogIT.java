@@ -37,7 +37,8 @@ import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.MockEngineFactoryPlugin;
 import org.elasticsearch.monitor.fs.FsInfo;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.engine.MockEngineSupport;
 import org.elasticsearch.test.transport.MockTransportService;
@@ -67,7 +68,7 @@ import static org.hamcrest.Matchers.notNullValue;
 @ESIntegTestCase.ClusterScope(scope= ESIntegTestCase.Scope.SUITE, numDataNodes = 0)
 public class CorruptedTranslogIT extends ESIntegTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(MockTransportService.TestPlugin.class, MockEngineFactoryPlugin.class);
     }
 

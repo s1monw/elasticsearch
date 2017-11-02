@@ -28,6 +28,7 @@ import org.elasticsearch.index.reindex.ReindexPlugin;
 import org.elasticsearch.join.ParentJoinPlugin;
 import org.elasticsearch.percolator.PercolatorPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.mustache.MustachePlugin;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.junit.Test;

@@ -72,7 +72,8 @@ import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.InvalidIndexNameException;
 import org.elasticsearch.ingest.IngestTestPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.repositories.IndexId;
 import org.elasticsearch.repositories.RepositoriesService;
 import org.elasticsearch.repositories.RepositoryData;
@@ -129,7 +130,7 @@ import static org.hamcrest.Matchers.startsWith;
 public class SharedClusterSnapshotRestoreIT extends AbstractSnapshotIntegTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(IngestTestPlugin.class,
             StoredScriptsIT.CustomScriptPlugin.class,
             MockRepository.Plugin.class);

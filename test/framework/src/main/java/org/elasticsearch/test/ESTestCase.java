@@ -91,7 +91,8 @@ import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.indices.analysis.AnalysisModule;
 import org.elasticsearch.plugins.AnalysisPlugin;
 import org.elasticsearch.plugins.MapperPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.ScriptPlugin;
 import org.elasticsearch.script.MockScriptEngine;
 import org.elasticsearch.script.Script;
@@ -897,7 +898,7 @@ public abstract class ESTestCase extends LuceneTestCase {
         return useNio ? NioTransportPlugin.NIO_TRANSPORT_NAME : MockTcpTransportPlugin.MOCK_TCP_TRANSPORT_NAME;
     }
 
-    public static Class<? extends Plugin> getTestTransportPlugin() {
+    public static Class<? extends PluginProvider> getTestTransportPlugin() {
         return useNio ? NioTransportPlugin.class : MockTcpTransportPlugin.class;
     }
 

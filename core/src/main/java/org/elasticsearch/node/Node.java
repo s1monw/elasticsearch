@@ -100,7 +100,6 @@ import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.indices.breaker.HierarchyCircuitBreakerService;
 import org.elasticsearch.indices.breaker.NoneCircuitBreakerService;
 import org.elasticsearch.indices.cluster.IndicesClusterStateService;
-import org.elasticsearch.indices.mapper.MapperRegistry;
 import org.elasticsearch.indices.recovery.PeerRecoverySourceService;
 import org.elasticsearch.indices.recovery.PeerRecoveryTargetService;
 import org.elasticsearch.indices.recovery.RecoverySettings;
@@ -116,6 +115,7 @@ import org.elasticsearch.plugins.IngestPlugin;
 import org.elasticsearch.plugins.MapperPlugin;
 import org.elasticsearch.plugins.MetaDataUpgrader;
 import org.elasticsearch.plugins.NetworkPlugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.plugins.RepositoryPlugin;
@@ -245,7 +245,7 @@ public class Node implements Closeable {
         this(environment, Collections.emptyList());
     }
 
-    protected Node(final Environment environment, Collection<Class<? extends Plugin>> classpathPlugins) {
+    protected Node(final Environment environment, Collection<Class<? extends PluginProvider>> classpathPluginProvider) {
         final List<Closeable> resourcesToClose = new ArrayList<>(); // register everything we need to release in the case of an error
         boolean success = false;
         {
@@ -299,13 +299,15 @@ public class Node implements Closeable {
                     environment.configFile(), Arrays.toString(environment.dataFiles()), environment.logsFile(), environment.pluginsFile());
             }
 
-            this.pluginsService = new PluginsService(tmpSettings, environment.configFile(), environment.modulesFile(), environment.pluginsFile(), classpathPlugins);
-            this.settings = pluginsService.updatedSettings();
+            PluginsService.PluginLoader loader = new PluginsService.PluginLoader(tmpSettings, environment.modulesFile(), environment
+                .pluginsFile(), classpathPluginProvider);
+            this.settings = Settings.builder().put(loader.getAdditionalSettings()).put(tmpSettings).build();
+            this.environment = new Environment(this.settings, environment.configFile());
+            this.pluginsService = new PluginsService(environment, loader.getPluginProvider(), loader.info());
             localNodeFactory = new LocalNodeFactory(settings, nodeEnvironment.nodeId());
 
             // create the environment based on the finalized (processed) view of the settings
             // this is just to makes sure that people get the same settings, no matter where they ask them from
-            this.environment = new Environment(this.settings, environment.configFile());
             Environment.assertEquivalent(environment, this.environment);
 
             final List<ExecutorBuilder<?>> executorBuilders = pluginsService.getExecutorBuilders(settings);

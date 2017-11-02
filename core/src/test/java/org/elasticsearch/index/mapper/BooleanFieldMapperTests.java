@@ -42,7 +42,7 @@ import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.IndexService;
 import org.elasticsearch.index.mapper.ParseContext.Document;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.test.InternalSettingsPlugin;
 import org.junit.Before;
@@ -70,7 +70,7 @@ public class BooleanFieldMapperTests extends ESSingleNodeTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return pluginList(InternalSettingsPlugin.class);
     }
 
@@ -193,7 +193,7 @@ public class BooleanFieldMapperTests extends ESSingleNodeTestCase {
                     // omit "false"/"true" here as they should still be parsed correctly
                     .field("field", randomFrom("off", "no", "0", "on", "yes", "1"))
                 .endObject().bytes();
-        MapperParsingException ex = expectThrows(MapperParsingException.class, 
+        MapperParsingException ex = expectThrows(MapperParsingException.class,
                 () -> defaultMapper.parse(SourceToParse.source("test", "type", "1", source, XContentType.JSON)));
         assertEquals("failed to parse [field]", ex.getMessage());
     }

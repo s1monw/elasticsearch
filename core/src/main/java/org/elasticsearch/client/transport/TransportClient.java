@@ -50,6 +50,7 @@ import org.elasticsearch.node.Node;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.NetworkPlugin;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.plugins.SearchPlugin;
 import org.elasticsearch.search.SearchModule;
@@ -91,24 +92,19 @@ public abstract class TransportClient extends AbstractClient {
     public static final Setting<Boolean> CLIENT_TRANSPORT_SNIFF =
         Setting.boolSetting("client.transport.sniff", false, Setting.Property.NodeScope);
 
-    private static PluginsService newPluginService(final Settings settings, Collection<Class<? extends Plugin>> plugins) {
-        final Settings.Builder settingsBuilder = Settings.builder()
-                .put(TcpTransport.PING_SCHEDULE.getKey(), "5s") // enable by default the transport schedule ping interval
-                .put(InternalSettingsPreparer.prepareSettings(settings))
-                .put(NetworkService.NETWORK_SERVER.getKey(), false)
-                .put(CLIENT_TYPE_SETTING_S.getKey(), CLIENT_TYPE);
-        return new PluginsService(settingsBuilder.build(), null, null, null, plugins);
+    private static PluginsService.PluginLoader newPluginService(final Settings settings, Collection<Class<? extends PluginProvider>> plugins) {
+        return new PluginsService.PluginLoader(settings, null, null, plugins);
     }
 
-    protected static Collection<Class<? extends Plugin>> addPlugins(Collection<Class<? extends Plugin>> collection,
-                                                                    Class<? extends Plugin>... plugins) {
+    protected static Collection<Class<? extends PluginProvider>> addPlugins(Collection<Class<? extends PluginProvider>> collection,
+                                                                    Class<? extends PluginProvider>... plugins) {
         return addPlugins(collection, Arrays.asList(plugins));
     }
 
-    protected static Collection<Class<? extends Plugin>> addPlugins(Collection<Class<? extends Plugin>> collection,
-            Collection<Class<? extends Plugin>> plugins) {
-        ArrayList<Class<? extends Plugin>> list = new ArrayList<>(collection);
-        for (Class<? extends Plugin> p : plugins) {
+    protected static Collection<Class<? extends PluginProvider>> addPlugins(Collection<Class<? extends PluginProvider>> collection,
+            Collection<Class<? extends PluginProvider>> plugins) {
+        ArrayList<Class<? extends PluginProvider>> list = new ArrayList<>(collection);
+        for (Class<? extends PluginProvider> p : plugins) {
             if (list.contains(p)) {
                 throw new IllegalArgumentException("plugin already exists: " + p);
             }
@@ -118,12 +114,19 @@ public abstract class TransportClient extends AbstractClient {
     }
 
     private static ClientTemplate buildTemplate(Settings providedSettings, Settings defaultSettings,
-                                                Collection<Class<? extends Plugin>> plugins, HostFailureListener failureListner) {
+                                                Collection<Class<? extends PluginProvider>> plugins, HostFailureListener failureListner) {
         if (Node.NODE_NAME_SETTING.exists(providedSettings) == false) {
             providedSettings = Settings.builder().put(providedSettings).put(Node.NODE_NAME_SETTING.getKey(), "_client_").build();
         }
-        final PluginsService pluginsService = newPluginService(providedSettings, plugins);
-        final Settings settings = Settings.builder().put(defaultSettings).put(pluginsService.updatedSettings()).build();
+        final PluginsService.PluginLoader pluginLoader = newPluginService(providedSettings, plugins);
+        final Settings settings = Settings.builder()
+            .put(defaultSettings)
+            .put(TcpTransport.PING_SCHEDULE.getKey(), "5s") // enable by default the transport schedule ping interval
+            .put(InternalSettingsPreparer.prepareSettings(providedSettings))
+            .put(NetworkService.NETWORK_SERVER.getKey(), false)
+            .put(CLIENT_TYPE_SETTING_S.getKey(), CLIENT_TYPE)
+            .put(pluginLoader.getAdditionalSettings()).build();
+        PluginsService pluginsService = new PluginsService(settings, pluginLoader.getPluginProvider(), pluginLoader.info());
         final List<Closeable> resourcesToClose = new ArrayList<>();
         final ThreadPool threadPool = new ThreadPool(settings);
         resourcesToClose.add(() -> ThreadPool.terminate(threadPool, 10, TimeUnit.SECONDS));
@@ -244,7 +247,7 @@ public abstract class TransportClient extends AbstractClient {
     /**
      * Creates a new TransportClient with the given settings and plugins
      */
-    public TransportClient(Settings settings, Collection<Class<? extends Plugin>> plugins) {
+    public TransportClient(Settings settings, Collection<Class<? extends PluginProvider>> plugins) {
         this(buildTemplate(settings, Settings.EMPTY, plugins, null));
     }
 
@@ -254,7 +257,7 @@ public abstract class TransportClient extends AbstractClient {
      * @param defaultSettings default settings that are merged after the plugins have added it's additional settings.
      * @param plugins the client plugins
      */
-    protected TransportClient(Settings settings, Settings defaultSettings, Collection<Class<? extends Plugin>> plugins,
+    protected TransportClient(Settings settings, Settings defaultSettings, Collection<Class<? extends PluginProvider>> plugins,
                               HostFailureListener hostFailureListener) {
         this(buildTemplate(settings, defaultSettings, plugins, hostFailureListener));
     }

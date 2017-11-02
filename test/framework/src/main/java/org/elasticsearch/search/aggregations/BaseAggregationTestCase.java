@@ -19,6 +19,7 @@
 
 package org.elasticsearch.search.aggregations;
 
+import org.elasticsearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
@@ -33,7 +34,8 @@ import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.env.Environment;
 import org.elasticsearch.indices.IndicesModule;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.plugins.PluginsService;
 import org.elasticsearch.plugins.SearchPlugin;
 import org.elasticsearch.search.SearchModule;
@@ -69,7 +71,7 @@ public abstract class BaseAggregationTestCase<AB extends AbstractAggregationBuil
     private NamedXContentRegistry xContentRegistry;
     protected abstract AB createTestAggregatorBuilder();
 
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.emptyList();
     }
 
@@ -83,8 +85,11 @@ public abstract class BaseAggregationTestCase<AB extends AbstractAggregationBuil
             .put("node.name", AbstractQueryTestCase.class.toString())
             .put(Environment.PATH_HOME_SETTING.getKey(), createTempDir())
             .build();
+
         IndicesModule indicesModule = new IndicesModule(Collections.emptyList());
-        PluginsService pluginsService = new PluginsService(settings, null, null, null, getPlugins());
+        PluginsService.PluginLoader loader = new PluginsService.PluginLoader(settings, null, null, getPlugins());
+        settings = Settings.builder().put(settings).put(loader.getAdditionalSettings()).build();
+        PluginsService pluginsService = new PluginsService(new Environment(settings), loader.getPluginProvider(), loader.info());
         SearchModule searchModule = new SearchModule(settings, false, pluginsService.filterPlugins(SearchPlugin.class));
         List<NamedWriteableRegistry.Entry> entries = new ArrayList<>();
         entries.addAll(indicesModule.getNamedWriteables());

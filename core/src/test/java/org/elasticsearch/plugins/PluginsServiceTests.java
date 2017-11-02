@@ -45,21 +45,24 @@ import static org.hamcrest.Matchers.instanceOf;
 public class PluginsServiceTests extends ESTestCase {
     public static class AdditionalSettingsPlugin1 extends Plugin {
         @Override
-        public Settings additionalSettings() {
+        public Settings getAdditionalSettings() {
             return Settings.builder().put("foo.bar", "1").put(IndexModule.INDEX_STORE_TYPE_SETTING.getKey(), IndexModule.Type.MMAPFS.getSettingsKey()).build();
         }
     }
     public static class AdditionalSettingsPlugin2 extends Plugin {
         @Override
-        public Settings additionalSettings() {
+        public Settings getAdditionalSettings() {
             return Settings.builder().put("foo.bar", "2").build();
         }
     }
 
     public static class FilterablePlugin extends Plugin implements ScriptPlugin {}
 
-    static PluginsService newPluginsService(Settings settings, Class<? extends Plugin>... classpathPlugins) {
-        return new PluginsService(settings, null, null, new Environment(settings).pluginsFile(), Arrays.asList(classpathPlugins));
+    static PluginsService newPluginsService(Settings settings, Class<? extends PluginProvider>... classpathPlugins) {
+        PluginsService.PluginLoader loader = new PluginsService.PluginLoader(settings, null, new Environment(settings).pluginsFile(), Arrays
+            .asList(classpathPlugins));
+        settings = Settings.builder().put(loader.getAdditionalSettings()).put(settings).build();
+        return new PluginsService(new Environment(settings), loader.getPluginProvider(), loader.info());
     }
 
     public void testAdditionalSettings() {
@@ -68,7 +71,7 @@ public class PluginsServiceTests extends ESTestCase {
             .put("my.setting", "test")
             .put(IndexModule.INDEX_STORE_TYPE_SETTING.getKey(), IndexModule.Type.SIMPLEFS.getSettingsKey()).build();
         PluginsService service = newPluginsService(settings, AdditionalSettingsPlugin1.class);
-        Settings newSettings = service.updatedSettings();
+        Settings newSettings = service.getSettings();
         assertEquals("test", newSettings.get("my.setting")); // previous settings still exist
         assertEquals("1", newSettings.get("foo.bar")); // added setting exists
         assertEquals(IndexModule.Type.SIMPLEFS.getSettingsKey(), newSettings.get(IndexModule.INDEX_STORE_TYPE_SETTING.getKey())); // does not override pre existing settings
@@ -77,9 +80,8 @@ public class PluginsServiceTests extends ESTestCase {
     public void testAdditionalSettingsClash() {
         Settings settings = Settings.builder()
             .put(Environment.PATH_HOME_SETTING.getKey(), createTempDir()).build();
-        PluginsService service = newPluginsService(settings, AdditionalSettingsPlugin1.class, AdditionalSettingsPlugin2.class);
         try {
-            service.updatedSettings();
+            newPluginsService(settings, AdditionalSettingsPlugin1.class, AdditionalSettingsPlugin2.class);
             fail("Expected exception when building updated settings");
         } catch (IllegalArgumentException e) {
             String msg = e.getMessage();
@@ -93,7 +95,7 @@ public class PluginsServiceTests extends ESTestCase {
         Path pluginsDir = createTempDir();
         Files.createDirectory(pluginsDir.resolve("plugin-missing-descriptor"));
         try {
-            PluginsService.getPluginBundles(pluginsDir);
+            PluginsService.PluginLoader.getPluginBundles(pluginsDir);
             fail();
         } catch (IllegalStateException e) {
             assertTrue(e.getMessage(), e.getMessage().contains("Could not load plugin descriptor for existing plugin [plugin-missing-descriptor]"));

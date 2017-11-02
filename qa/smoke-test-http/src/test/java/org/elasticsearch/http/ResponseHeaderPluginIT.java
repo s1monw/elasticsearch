@@ -22,7 +22,7 @@ import org.apache.http.message.BasicHeader;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.ResponseException;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase.ClusterScope;
 import org.elasticsearch.test.ESIntegTestCase.Scope;
 
@@ -46,7 +46,7 @@ public class ResponseHeaderPluginIT extends HttpSmokeTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         ArrayList<Class<? extends Plugin>> plugins = new ArrayList<>(super.nodePlugins());
         plugins.add(TestResponseHeaderPlugin.class);
         return plugins;

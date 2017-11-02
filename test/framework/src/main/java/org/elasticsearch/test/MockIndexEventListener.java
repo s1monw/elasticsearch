@@ -34,6 +34,7 @@ import org.elasticsearch.index.shard.IndexShardState;
 import org.elasticsearch.index.shard.ShardId;
 import org.elasticsearch.indices.cluster.IndicesClusterStateService.AllocatedIndices.IndexRemovalReason;
 import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.Plugin;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -60,6 +61,7 @@ public final class MockIndexEventListener {
          * For tests to pass in to fail on listener invocation
          */
         public static final Setting<Boolean> INDEX_FAIL = Setting.boolSetting("index.fail", false, Property.IndexScope);
+
         @Override
         public List<Setting<?>> getSettings() {
             return Arrays.asList(INDEX_FAIL);

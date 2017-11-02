@@ -32,7 +32,7 @@ import org.elasticsearch.index.mapper.MapperService;
 import org.elasticsearch.index.mapper.TypeFieldMapper;
 import org.elasticsearch.index.query.QueryShardException;
 import org.elasticsearch.join.ParentJoinPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.test.AbstractQueryTestCase;
 import org.hamcrest.Matchers;
@@ -51,7 +51,7 @@ public class LegacyParentIdQueryBuilderTests extends AbstractQueryTestCase<Paren
     protected static final String CHILD_TYPE = "child";
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singletonList(ParentJoinPlugin.class);
     }
 

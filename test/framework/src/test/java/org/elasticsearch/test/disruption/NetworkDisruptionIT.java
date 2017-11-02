@@ -19,7 +19,7 @@
 
 package org.elasticsearch.test.disruption;
 
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.test.ESIntegTestCase;
 import org.elasticsearch.test.InternalTestCluster;
 import org.elasticsearch.test.disruption.NetworkDisruption.TwoPartitions;
@@ -36,7 +36,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 public class NetworkDisruptionIT extends ESIntegTestCase {
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(MockTransportService.TestPlugin.class);
     }
 

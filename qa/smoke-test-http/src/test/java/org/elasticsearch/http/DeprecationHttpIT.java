@@ -29,7 +29,7 @@ import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.json.JsonXContent;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.hamcrest.Matcher;
 
 import java.io.IOException;
@@ -70,7 +70,7 @@ public class DeprecationHttpIT extends HttpSmokeTestCase {
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         ArrayList<Class<? extends Plugin>> plugins = new ArrayList<>(super.nodePlugins());
         plugins.add(TestDeprecationPlugin.class);
         return plugins;

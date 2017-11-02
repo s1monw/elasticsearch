@@ -32,7 +32,7 @@ import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.repositories.RepositoryMissingException;
 import org.elasticsearch.repositories.RepositoryVerificationException;
 import org.elasticsearch.repositories.azure.AzureRepository.Repository;
@@ -136,7 +136,7 @@ public class AzureSnapshotRestoreTests extends ESBlobStoreRepositoryIntegTestCas
     }
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Arrays.asList(AzureRepositoryPlugin.class, MockFSIndexStore.TestPlugin.class);
     }
 

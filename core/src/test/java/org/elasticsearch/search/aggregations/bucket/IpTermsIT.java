@@ -20,7 +20,8 @@ package org.elasticsearch.search.aggregations.bucket;
 
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.index.fielddata.ScriptDocValues;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
@@ -38,7 +39,7 @@ import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertSear
 public class IpTermsIT extends AbstractTermsTestCase {
 
     @Override
-    protected Collection<Class<? extends Plugin>> nodePlugins() {
+    protected Collection<Class<? extends PluginProvider>> nodePlugins() {
         return Collections.singleton(CustomScriptPlugin.class);
     }
 

@@ -38,7 +38,7 @@ import org.elasticsearch.index.query.QueryShardException;
 import org.elasticsearch.index.query.TermQueryBuilder;
 import org.elasticsearch.index.query.WrapperQueryBuilder;
 import org.elasticsearch.join.ParentJoinPlugin;
-import org.elasticsearch.plugins.Plugin;
+import org.elasticsearch.plugins.PluginProvider;
 import org.elasticsearch.search.fetch.subphase.InnerHitsContext;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.sort.FieldSortBuilder;
@@ -67,7 +67,7 @@ public class HasParentQueryBuilderTests extends AbstractQueryTestCase<HasParentQ
     boolean requiresRewrite = false;
 
     @Override
-    protected Collection<Class<? extends Plugin>> getPlugins() {
+    protected Collection<Class<? extends PluginProvider>> getPlugins() {
         return Collections.singletonList(ParentJoinPlugin.class);
     }
 
