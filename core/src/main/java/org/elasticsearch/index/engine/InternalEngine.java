@@ -47,6 +47,7 @@ import org.apache.lucene.util.InfoStream;
 import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.common.CheckedRunnable;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.SuppressForbidden;
 import org.elasticsearch.common.UUIDs;
@@ -58,6 +59,7 @@ import org.elasticsearch.common.lucene.uid.Versions;
 import org.elasticsearch.common.lucene.uid.VersionsAndSeqNoResolver;
 import org.elasticsearch.common.lucene.uid.VersionsAndSeqNoResolver.DocIdAndSeqNo;
 import org.elasticsearch.common.metrics.CounterMetric;
+import org.elasticsearch.common.unit.ByteSizeValue;
 import org.elasticsearch.common.util.concurrent.AbstractRunnable;
 import org.elasticsearch.common.util.concurrent.KeyedLock;
 import org.elasticsearch.common.util.concurrent.ReleasableLock;
@@ -119,6 +121,8 @@ public class InternalEngine extends Engine {
     private final LiveVersionMap versionMap = new LiveVersionMap();
 
     private final KeyedLock<BytesRef> keyedLock = new KeyedLock<>();
+
+    private final AtomicBoolean versionMapRefreshPending = new AtomicBoolean();
 
     private volatile SegmentInfos lastCommittedSegmentInfos;
 
@@ -1298,16 +1302,7 @@ public class InternalEngine extends Engine {
     }
 
     final void refresh(String source, SearcherScope scope) throws EngineException {
-        // we obtain a read lock here, since we don't want a flush to happen while we are refreshing
-        // since it flushes the index as well (though, in terms of concurrency, we are allowed to do it)
-        // both refresh types will result in an internal refresh but only the external will also
-        // pass the new reader reference to the external reader manager.
-
-        // this will also cause version map ram to be freed hence we always account for it.
-        final long bytes = indexWriter.ramBytesUsed() + versionMap.ramBytesUsedForRefresh();
-        writingBytes.addAndGet(bytes);
-        try (ReleasableLock lock = readLock.acquire()) {
-            ensureOpen();
+        internalFlushBuffers(source, () -> {
             switch (scope) {
                 case EXTERNAL:
                     // even though we maintain 2 managers we really do the heavy-lifting only once.
@@ -1321,6 +1316,28 @@ public class InternalEngine extends Engine {
                 default:
                     throw new IllegalArgumentException("unknown scope: " + scope);
             }
+        });
+
+        // TODO: maybe we should just put a scheduled job in threadPool?
+        // We check for pruning in each delete request, but we also prune here e.g. in case a delete burst comes in and then no more deletes
+        // for a long time:
+        versionMapRefreshPending.set(false);
+        maybePruneDeletedTombstones();
+        mergeScheduler.refreshConfig();
+    }
+
+    private void internalFlushBuffers(String source, CheckedRunnable<IOException> runnable) {
+        // we obtain a read lock here, since we don't want a flush to happen while we are refreshing
+        // since it flushes the index as well (though, in terms of concurrency, we are allowed to do it)
+        // both refresh types will result in an internal refresh but only the external will also
+        // pass the new reader reference to the external reader manager.
+
+        // this will also cause version map ram to be freed hence we always account for it.
+        final long bytes = indexWriter.ramBytesUsed() + versionMap.ramBytesUsedForRefresh();
+        writingBytes.addAndGet(bytes);
+        try (ReleasableLock lock = readLock.acquire()) {
+            ensureOpen();
+            runnable.run();
         } catch (AlreadyClosedException e) {
             failOnTragicEvent(e);
             throw e;
@@ -1334,19 +1351,27 @@ public class InternalEngine extends Engine {
         }  finally {
             writingBytes.addAndGet(-bytes);
         }
-
-        // TODO: maybe we should just put a scheduled job in threadPool?
-        // We check for pruning in each delete request, but we also prune here e.g. in case a delete burst comes in and then no more deletes
-        // for a long time:
-        maybePruneDeletedTombstones();
-        mergeScheduler.refreshConfig();
     }
 
     @Override
     public void writeIndexingBuffer() throws EngineException {
-        // we obtain a read lock here, since we don't want a flush to happen while we are writing
-        // since it flushes the index as well (though, in terms of concurrency, we are allowed to do it)
-        refresh("write indexing buffer", SearcherScope.INTERNAL);
+        internalFlushBuffers("write indexing buffer", () -> {
+            final long versionMapBytes = versionMap.ramBytesUsedForRefresh();
+            final long indexingBufferBytes = indexWriter.ramBytesUsed();
+            final boolean useRefresh = versionMapRefreshPending.get() || (indexingBufferBytes / 4 < versionMapBytes);
+            if (useRefresh) {
+                // The version map is using > 25% of the indexing buffer, so we do a refresh so the version map also clears
+                logger.debug("use refresh to write indexing buffer (heap size=[{}]), to also clear version map (heap size=[{}])",
+                    new ByteSizeValue(indexingBufferBytes), new ByteSizeValue(versionMapBytes));
+                refresh("write indexing buffer", SearcherScope.INTERNAL);
+            } else {
+                // Most of our heap is used by the indexing buffer, so we do a cheaper (just writes segments, doesn't open a new searcher) IW.flush:
+                logger.debug("use IndexWriter.flush to write indexing buffer (heap size=[{}]) since version map is small (heap size=[{}])",
+                    new ByteSizeValue(indexingBufferBytes), new ByteSizeValue(versionMapBytes));
+                indexWriter.flush();
+            }
+
+        });
     }
 
     @Override
