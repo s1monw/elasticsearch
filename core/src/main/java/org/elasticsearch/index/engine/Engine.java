@@ -1540,4 +1540,6 @@ public abstract class Engine implements Closeable {
     public boolean isRecovering() {
         return false;
     }
+
+    public abstract boolean shouldWriteIndexingBuffer();
 }

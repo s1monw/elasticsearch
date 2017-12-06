@@ -2170,4 +2170,9 @@ public class InternalEngine extends Engine {
         }
         return commitData;
     }
+
+    @Override
+    public boolean shouldWriteIndexingBuffer() {
+        return versionMap.getAllCurrent().size() > 75000;
+    }
 }

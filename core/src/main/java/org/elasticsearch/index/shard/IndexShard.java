@@ -312,6 +312,30 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
         persistMetadata(path, indexSettings, shardRouting, null, logger);
     }
 
+    private final AtomicBoolean writingIndexingBuffer = new AtomicBoolean(false);
+    private final void checkShouldWriteIndexingBuffer(Engine engine) {
+        if (engine.shouldWriteIndexingBuffer() && writingIndexingBuffer.compareAndSet(false, true)) {
+            threadPool.executor(ThreadPool.Names.REFRESH).execute(new AbstractRunnable() {
+                @Override
+                public void onFailure(Exception e) {
+                    logger.warn((org.apache.logging.log4j.util.Supplier<?>)
+                        () -> new ParameterizedMessage("failed to write indexing buffer for shard [{}]; ignoring", shardId()), e);
+
+                }
+
+                @Override
+                protected void doRun() throws Exception {
+                    writeIndexingBuffer();
+                }
+
+                @Override
+                public void onAfter() {
+                    writingIndexingBuffer.compareAndSet(true, false);
+                }
+            });
+        }
+    }
+
     public ThreadPool getThreadPool() {
         return this.threadPool;
     }
@@ -725,6 +749,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             indexingOperationListeners.postIndex(shardId, index, e);
             throw e;
         }
+        checkShouldWriteIndexingBuffer(engine);
         indexingOperationListeners.postIndex(shardId, index, result);
         return result;
     }
@@ -826,6 +851,7 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
             indexingOperationListeners.postDelete(shardId, delete, e);
             throw e;
         }
+        checkShouldWriteIndexingBuffer(engine);
         indexingOperationListeners.postDelete(shardId, delete, result);
         return result;
     }
