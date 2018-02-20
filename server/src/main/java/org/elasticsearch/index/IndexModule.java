@@ -49,6 +49,7 @@ import org.elasticsearch.indices.breaker.CircuitBreakerService;
 import org.elasticsearch.indices.fielddata.cache.IndicesFieldDataCache;
 import org.elasticsearch.indices.mapper.MapperRegistry;
 import org.elasticsearch.script.ScriptService;
+import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
@@ -113,11 +114,18 @@ public final class IndexModule {
     private final List<SearchOperationListener> searchOperationListeners = new ArrayList<>();
     private final List<IndexingOperationListener> indexOperationListeners = new ArrayList<>();
     private final AtomicBoolean frozen = new AtomicBoolean(false);
+    private final boolean isFrozenIndex = false
 
     public IndexModule(IndexSettings indexSettings, AnalysisRegistry analysisRegistry) {
         this.indexSettings = indexSettings;
         this.analysisRegistry = analysisRegistry;
         this.searchOperationListeners.add(new SearchSlowLog(indexSettings));
+        this.searchOperationListeners.add(new SearchOperationListener() {
+            @Override
+            public void onNewContext(SearchContext context) {
+                if ()
+            }
+        });
         this.indexOperationListeners.add(new IndexingSlowLog(indexSettings));
     }
 
