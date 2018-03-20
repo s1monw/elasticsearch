@@ -819,13 +819,14 @@ public abstract class Engine implements Closeable {
      * Force merges to 1 segment
      */
     public void forceMerge(boolean flush) throws IOException {
-        forceMerge(flush, 1, false, false, false);
+        forceMerge(flush, 1, false, false, false, false);
     }
 
     /**
      * Triggers a forced merge on this engine
      */
-    public abstract void forceMerge(boolean flush, int maxNumSegments, boolean onlyExpungeDeletes, boolean upgrade, boolean upgradeOnlyAncientSegments) throws EngineException, IOException;
+    public abstract void forceMerge(boolean flush, int maxNumSegments, boolean onlyExpungeDeletes, boolean upgrade,
+                                    boolean upgradeOnlyAncientSegments, boolean applySoftDeletes) throws EngineException, IOException;
 
     /**
      * Snapshots the most recent index and returns a handle to it. If needed will try and "commit" the

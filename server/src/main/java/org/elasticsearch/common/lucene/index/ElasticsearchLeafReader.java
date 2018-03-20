@@ -20,6 +20,8 @@ package org.elasticsearch.common.lucene.index;
 
 import org.apache.lucene.index.FilterLeafReader;
 import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.util.Bits;
+import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.index.shard.ShardId;
 
 /**
@@ -29,6 +31,8 @@ import org.elasticsearch.index.shard.ShardId;
 public final class ElasticsearchLeafReader extends FilterLeafReader {
 
     private final ShardId shardId;
+    private final Lucene.SoftLiveDocs liveDocs;
+    private final int numDocs;
 
     /**
      * <p>Construct a FilterLeafReader based on the specified base reader.
@@ -36,9 +40,21 @@ public final class ElasticsearchLeafReader extends FilterLeafReader {
      *
      * @param in specified base reader.
      */
-    public ElasticsearchLeafReader(LeafReader in, ShardId shardId) {
+    public ElasticsearchLeafReader(LeafReader in, ShardId shardId, Lucene.SoftLiveDocs liveDocs) {
         super(in);
         this.shardId = shardId;
+        this.liveDocs = liveDocs;
+        this.numDocs = liveDocs == null ? in.numDocs() : liveDocs.getNumDocs();
+    }
+
+    @Override
+    public Bits getLiveDocs() {
+        return liveDocs;
+    }
+
+    @Override
+    public int numDocs() {
+        return numDocs;
     }
 
     /**

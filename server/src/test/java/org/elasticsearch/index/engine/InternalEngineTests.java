@@ -50,6 +50,7 @@ import org.apache.lucene.index.PointValues;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.TieredMergePolicy;
+import org.apache.lucene.search.DocValuesFieldExistsQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.ReferenceManager;
@@ -65,6 +66,7 @@ import org.apache.lucene.store.MockDirectoryWrapper;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.FixedBitSet;
+import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
@@ -313,6 +315,9 @@ public class InternalEngineTests extends EngineTestCase {
 
 
             engine.delete(new Engine.Delete("test", "1", newUid(doc)));
+            // apply soft deletes to get accurate counts
+            engine.applySoftDeletes(new DocValuesFieldExistsQuery(Lucene.SOFT_DELETE_FIELD));
+
             engine.refresh("test");
 
             segments = engine.segments(false);
@@ -1088,7 +1093,7 @@ public class InternalEngineTests extends EngineTestCase {
                     Engine.SyncedFlushResult.SUCCESS);
                 assertEquals(3, engine.segments(false).size());
 
-                engine.forceMerge(forceMergeFlushes, 1, false, false, false);
+                engine.forceMerge(forceMergeFlushes, 1, false, false, false, false);
                 if (forceMergeFlushes == false) {
                     engine.refresh("make all segments visible");
                     assertEquals(4, engine.segments(false).size());
@@ -1279,14 +1284,14 @@ public class InternalEngineTests extends EngineTestCase {
             try (Engine.Searcher test = engine.acquireSearcher("test")) {
                 assertEquals(numDocs, test.reader().numDocs());
             }
-            engine.forceMerge(true, 1, false, false, false);
+            engine.forceMerge(true, 1, false, false, false, false);
             engine.refresh("test");
             assertEquals(engine.segments(true).size(), 1);
 
             ParsedDocument doc = testParsedDocument(Integer.toString(0), null, testDocument(), B_1, null);
             Engine.Index index = indexForDoc(doc);
             engine.delete(new Engine.Delete(index.type(), index.id(), index.uid()));
-            engine.forceMerge(true, 10, true, false, false); //expunge deletes
+            engine.forceMerge(true, 10, true, false, false, true); //expunge deletes
             engine.refresh("test");
 
             assertEquals(engine.segments(true).size(), 1);
@@ -1298,7 +1303,7 @@ public class InternalEngineTests extends EngineTestCase {
             doc = testParsedDocument(Integer.toString(1), null, testDocument(), B_1, null);
             index = indexForDoc(doc);
             engine.delete(new Engine.Delete(index.type(), index.id(), index.uid()));
-            engine.forceMerge(true, 10, false, false, false); //expunge deletes
+            engine.forceMerge(true, 10, false, false, false, true); //expunge deletes
             engine.refresh("test");
             assertEquals(engine.segments(true).size(), 1);
             try (Engine.Searcher test = engine.acquireSearcher("test")) {
@@ -1337,7 +1342,7 @@ public class InternalEngineTests extends EngineTestCase {
                                 engine.refresh("test");
                                 indexed.countDown();
                                 try {
-                                    engine.forceMerge(randomBoolean(), 1, false, randomBoolean(), randomBoolean());
+                                    engine.forceMerge(randomBoolean(), 1, false, randomBoolean(), randomBoolean(), false);
                                 } catch (IOException e) {
                                     return;
                                 }
@@ -1354,7 +1359,7 @@ public class InternalEngineTests extends EngineTestCase {
                 startGun.countDown();
                 int someIters = randomIntBetween(1, 10);
                 for (int i = 0; i < someIters; i++) {
-                    engine.forceMerge(randomBoolean(), 1, false, randomBoolean(), randomBoolean());
+                    engine.forceMerge(randomBoolean(), 1, false, randomBoolean(), randomBoolean(), false);
                 }
                 indexed.await();
                 IOUtils.close(engine);
@@ -2634,7 +2639,7 @@ public class InternalEngineTests extends EngineTestCase {
                     try {
                         switch (operation) {
                             case "optimize": {
-                                engine.forceMerge(true, 1, false, false, false);
+                                engine.forceMerge(true, 1, false, false, false, false);
                                 break;
                             }
                             case "refresh": {
@@ -2725,6 +2730,19 @@ public class InternalEngineTests extends EngineTestCase {
         public long addDocument(Iterable<? extends IndexableField> doc) throws IOException {
             maybeThrowFailure();
             return super.addDocument(doc);
+        }
+
+        @Override
+        public long softUpdateDocuments(Term term, Iterable<? extends Iterable<? extends IndexableField>> docs,
+                                        Field... softDeletes) throws IOException {
+            maybeThrowFailure();
+            return super.softUpdateDocuments(term, docs, softDeletes);
+        }
+
+        @Override
+        public long softUpdateDocument(Term term, Iterable<? extends IndexableField> doc, Field... softDeletes) throws IOException {
+            maybeThrowFailure();
+            return super.softUpdateDocument(term, doc, softDeletes);
         }
 
         private void maybeThrowFailure() throws IOException {
@@ -2847,21 +2865,25 @@ public class InternalEngineTests extends EngineTestCase {
         Engine.Index retry = appendOnlyPrimary(doc, true, 1);
         if (randomBoolean()) {
             Engine.IndexResult indexResult = engine.index(operation);
-            assertFalse(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends());
             assertEquals(0, engine.getNumVersionLookups());
             assertNotNull(indexResult.getTranslogLocation());
             Engine.IndexResult retryResult = engine.index(retry);
-            assertTrue(engine.indexWriterHasDeletions());
+            assertEquals(1, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends());
             assertEquals(0, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             assertTrue(retryResult.getTranslogLocation().compareTo(indexResult.getTranslogLocation()) > 0);
         } else {
             Engine.IndexResult retryResult = engine.index(retry);
-            assertTrue(engine.indexWriterHasDeletions());
+            assertEquals(1, engine.getNumDocUpdates());
+            assertEquals(0, engine.getNumDocAppends());
             assertEquals(0, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             Engine.IndexResult indexResult = engine.index(operation);
-            assertTrue(engine.indexWriterHasDeletions());
+            assertEquals(2, engine.getNumDocUpdates());
+            assertEquals(0, engine.getNumDocAppends());
             assertEquals(0, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             assertTrue(retryResult.getTranslogLocation().compareTo(indexResult.getTranslogLocation()) < 0);
@@ -2908,23 +2930,28 @@ public class InternalEngineTests extends EngineTestCase {
         final boolean belowLckp = operation.seqNo() == 0 && retry.seqNo() == 0;
         if (randomBoolean()) {
             Engine.IndexResult indexResult = engine.index(operation);
-            assertFalse(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends());
             assertEquals(0, engine.getNumVersionLookups());
             assertNotNull(indexResult.getTranslogLocation());
             engine.delete(delete);
             assertEquals(1, engine.getNumVersionLookups());
-            assertTrue(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends());
             Engine.IndexResult retryResult = engine.index(retry);
             assertEquals(belowLckp ? 1 : 2, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             assertTrue(retryResult.getTranslogLocation().compareTo(indexResult.getTranslogLocation()) > 0);
         } else {
             Engine.IndexResult retryResult = engine.index(retry);
-            assertFalse(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends());
             assertEquals(1, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             engine.delete(delete);
-            assertTrue(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocDeletes());
+            assertEquals(1, engine.getNumDocAppends());
             assertEquals(2, engine.getNumVersionLookups());
             Engine.IndexResult indexResult = engine.index(operation);
             assertEquals(belowLckp ? 2 : 3, engine.getNumVersionLookups());
@@ -2949,21 +2976,23 @@ public class InternalEngineTests extends EngineTestCase {
         final boolean belowLckp = operation.seqNo() == 0 && retry.seqNo() == 0;
         if (randomBoolean()) {
             Engine.IndexResult indexResult = engine.index(operation);
-            assertFalse(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends());
             assertEquals(0, engine.getNumVersionLookups());
             assertNotNull(indexResult.getTranslogLocation());
             Engine.IndexResult retryResult = engine.index(retry);
-            assertEquals(retry.seqNo() > operation.seqNo(), engine.indexWriterHasDeletions());
+            assertEquals(retry.seqNo() > operation.seqNo(), engine.getNumDocUpdates() > 0);
             assertEquals(belowLckp ? 0 : 1, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             assertTrue(retryResult.getTranslogLocation().compareTo(indexResult.getTranslogLocation()) > 0);
         } else {
             Engine.IndexResult retryResult = engine.index(retry);
-            assertFalse(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends());
             assertEquals(1, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             Engine.IndexResult indexResult = engine.index(operation);
-            assertEquals(operation.seqNo() > retry.seqNo(), engine.indexWriterHasDeletions());
+            assertEquals(operation.seqNo() > retry.seqNo(), engine.getNumDocUpdates() > 0);
             assertEquals(belowLckp ? 1 : 2, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             assertTrue(retryResult.getTranslogLocation().compareTo(indexResult.getTranslogLocation()) < 0);
@@ -3004,27 +3033,31 @@ public class InternalEngineTests extends EngineTestCase {
         Engine.Index duplicate = replicaIndexForDoc(doc, 1, 20, true);
         if (randomBoolean()) {
             Engine.IndexResult indexResult = engine.index(operation);
-            assertFalse(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends());
             assertEquals(1, engine.getNumVersionLookups());
             assertNotNull(indexResult.getTranslogLocation());
             if (randomBoolean()) {
                 engine.refresh("test");
             }
             Engine.IndexResult retryResult = engine.index(duplicate);
-            assertFalse(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends()); // duplicate we don't index into lucene
             assertEquals(2, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             assertTrue(retryResult.getTranslogLocation().compareTo(indexResult.getTranslogLocation()) > 0);
         } else {
             Engine.IndexResult retryResult = engine.index(duplicate);
-            assertFalse(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends());
             assertEquals(1, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             if (randomBoolean()) {
                 engine.refresh("test");
             }
             Engine.IndexResult indexResult = engine.index(operation);
-            assertFalse(engine.indexWriterHasDeletions());
+            assertEquals(0, engine.getNumDocUpdates());
+            assertEquals(1, engine.getNumDocAppends()); // duplicate we don't index into lucene
             assertEquals(2, engine.getNumVersionLookups());
             assertNotNull(retryResult.getTranslogLocation());
             assertTrue(retryResult.getTranslogLocation().compareTo(indexResult.getTranslogLocation()) < 0);
@@ -3186,10 +3219,10 @@ public class InternalEngineTests extends EngineTestCase {
         }
         if (primary) {
             // primaries rely on lucene dedup and may index the same document twice
-            assertTrue(engine.indexWriterHasDeletions());
+            assertTrue(engine.getNumDocUpdates() > 0);
         } else {
             // replicas rely on seq# based dedup and in this setup (same seq#) should never rely on lucene
-            assertFalse(engine.indexWriterHasDeletions());
+            assertFalse(engine.getNumDocUpdates() > 0);
         }
     }
 
@@ -3284,7 +3317,7 @@ public class InternalEngineTests extends EngineTestCase {
         }
         assertEquals(0, engine.getNumVersionLookups());
         assertEquals(0, engine.getNumIndexVersionsLookups());
-        assertFalse(engine.indexWriterHasDeletions());
+        assertEquals(0, engine.getNumDocUpdates());
 
     }
 

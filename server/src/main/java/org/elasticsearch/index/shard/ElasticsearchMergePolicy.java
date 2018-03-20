@@ -20,17 +20,38 @@
 package org.elasticsearch.index.shard;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.index.CodecReader;
+import org.apache.lucene.index.FilterCodecReader;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexReaderContext;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.MergeTrigger;
+import org.apache.lucene.index.OneMergeWrappingMergePolicy;
+import org.apache.lucene.index.ReaderUtil;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.DocValuesFieldExistsQuery;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.Scorer;
+import org.apache.lucene.search.Weight;
+import org.apache.lucene.util.BitSet;
+import org.apache.lucene.util.Bits;
 import org.elasticsearch.Version;
+import org.elasticsearch.common.inject.Provider;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.common.lucene.Lucene;
+import org.elasticsearch.index.mapper.SeqNoFieldMapper;
 
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.function.LongSupplier;
 
 /**
  * A {@link MergePolicy} that upgrades segments and can upgrade merges.
@@ -59,8 +80,44 @@ public final class ElasticsearchMergePolicy extends MergePolicy {
     private static final int MAX_CONCURRENT_UPGRADE_MERGES = 5;
 
     /** @param delegate the merge policy to wrap */
-    public ElasticsearchMergePolicy(MergePolicy delegate) {
-        this.delegate = delegate;
+    public ElasticsearchMergePolicy(MergePolicy delegate, Provider<Query> softDeletesQueryProvider) {
+        // we wrap the OneMerge to ensure we actually delete documents after a while
+        this.delegate = new OneMergeWrappingMergePolicy(delegate, oneMerge ->
+            new MergePolicy.OneMerge(oneMerge.segments) {
+                @Override
+                public CodecReader wrapForMerge(CodecReader reader) throws IOException {
+                    DocIdSetIterator iter = Lucene.getDocIdSetIterator(softDeletesQueryProvider.get(), reader);
+                    Lucene.SoftLiveDocs softLiveDocs = Lucene.getSoftLiveDocs(iter, reader.maxDoc());
+                    if (softLiveDocs == null) {
+                        return reader;
+                    }
+                    return new FilterCodecReader(reader) {
+                        @Override
+                        public Bits getLiveDocs() {
+                            return softLiveDocs;
+                        }
+
+                        @Override
+                        public int numDocs() {
+                            return softLiveDocs.getNumDocs();
+                        }
+
+                        @Override
+                        public boolean hasDeletions() { return softLiveDocs != null; }
+
+                        @Override
+                        public CacheHelper getCoreCacheHelper() {
+                            return in.getCoreCacheHelper();
+                        }
+
+                        @Override
+                        public CacheHelper getReaderCacheHelper() {
+                            return in.getCoreCacheHelper();
+                        }
+                    };
+                }
+            }
+        );
     }
 
     @Override

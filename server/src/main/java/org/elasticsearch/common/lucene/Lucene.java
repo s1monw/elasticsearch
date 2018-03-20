@@ -27,6 +27,7 @@ import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.document.LatLonDocValuesField;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FilterLeafReader;
@@ -34,15 +35,18 @@ import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.IndexFormatTooNewException;
 import org.apache.lucene.index.IndexFormatTooOldException;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NoMergePolicy;
+import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.DocValuesFieldExistsQuery;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
@@ -62,6 +66,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.Lock;
+import org.apache.lucene.util.BitSet;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
@@ -681,27 +686,6 @@ public class Lucene {
         }
     }
 
-    /**
-     * Return a Scorer that throws an ElasticsearchIllegalStateException
-     * on all operations with the given message.
-     */
-    public static Scorer illegalScorer(final String message) {
-        return new Scorer(null) {
-            @Override
-            public float score() throws IOException {
-                throw new IllegalStateException(message);
-            }
-            @Override
-            public int docID() {
-                throw new IllegalStateException(message);
-            }
-            @Override
-            public DocIdSetIterator iterator() {
-                throw new IllegalStateException(message);
-            }
-        };
-    }
-
     private static final class CommitPoint extends IndexCommit {
         private String segmentsFileName;
         private final Collection<String> files;
@@ -828,5 +812,83 @@ public class Lucene {
                 return maxDoc;
             }
         };
+    }
+
+    public static final String SOFT_DELETE_FIELD = "_soft_delete";
+
+    public static SoftLiveDocs getSoftLiveDocs(DocIdSetIterator iter, int maxDoc) throws IOException {
+        if (iter == null) {
+            return null;
+        }
+        CountingDocIdSetIterator iterator = new CountingDocIdSetIterator(iter);
+        Bits softDeletes = BitSet.of(iterator, maxDoc);
+        return new SoftLiveDocs(softDeletes, maxDoc - iterator.numDocsWithValue, maxDoc);
+    }
+
+    public static class CountingDocIdSetIterator extends DocIdSetIterator {
+        private final DocIdSetIterator softDeleteDocValues;
+        int numDocsWithValue = 0;
+
+        public CountingDocIdSetIterator(DocIdSetIterator softDeleteDocValues) {
+            this.softDeleteDocValues = softDeleteDocValues;
+        }
+
+        @Override
+        public int docID() {
+            return softDeleteDocValues.docID();
+        }
+
+        @Override
+        public int nextDoc() throws IOException {
+            int doc = -1;
+            if ((doc = softDeleteDocValues.nextDoc()) != NO_MORE_DOCS) {
+                numDocsWithValue++;
+            }
+            return doc;
+        }
+
+        @Override
+        public int advance(int target) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long cost() {
+            return softDeleteDocValues.cost();
+        }
+    }
+
+    public static final class SoftLiveDocs implements Bits {
+        private final Bits docsWithValue;
+        private final int numDocs;
+        private final int length;
+
+        public SoftLiveDocs(Bits docsWithValue, int numDocs, int length) {
+            this.docsWithValue = docsWithValue;
+            this.numDocs = numDocs;
+            this.length = length;
+        }
+
+        @Override
+        public boolean get(int index) {
+            return docsWithValue.get(index) == false;
+        }
+
+        @Override
+        public int length() {
+            return length;
+        }
+
+        public int getNumDocs() {
+            return numDocs;
+        }
+    }
+
+    public static DocIdSetIterator getDocIdSetIterator(Query query, LeafReader reader) throws IOException {
+        final IndexSearcher searcher = new IndexSearcher(reader);
+        searcher.setQueryCache(null);
+        final Weight weight = searcher.createNormalizedWeight(query, false);
+        Scorer s = weight.scorer(reader.getContext());
+        return s == null ? null : s.iterator();
     }
 }

@@ -23,12 +23,14 @@ import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.DocValuesFieldExistsQuery;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.util.Constants;
+import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -2309,7 +2311,6 @@ public class IndexShardTests extends IndexShardTestCase {
                 deleteDoc(indexShard, "test", id);
                 indexDoc(indexShard, "test", id);
             }
-
             // flush the buffered deletes
             final FlushRequest flushRequest = new FlushRequest();
             flushRequest.force(false);
@@ -2320,13 +2321,15 @@ public class IndexShardTests extends IndexShardTestCase {
                 indexShard.refresh("test");
             }
             {
+
                 final DocsStats docStats = indexShard.docStats();
                 try (Engine.Searcher searcher = indexShard.acquireSearcher("test")) {
                     assertTrue(searcher.reader().numDocs() <= docStats.getCount());
                 }
                 assertThat(docStats.getCount(), equalTo(numDocs));
-                // Lucene will delete a segment if all docs are deleted from it; this means that we lose the deletes when deleting all docs
-                assertThat(docStats.getDeleted(), equalTo(numDocsToDelete == numDocs ? 0 : numDocsToDelete));
+                // we use soft-deletes and add a document for every delete as a tombstone such that we have exactly 2x the number of docs
+                // to delete marked as deleted
+                assertThat(docStats.getDeleted(), equalTo(2 * numDocsToDelete));
             }
 
             // merge them away
@@ -2858,6 +2861,7 @@ public class IndexShardTests extends IndexShardTestCase {
 
         // Deleting a doc causes its memory to be freed from the breaker
         deleteDoc(primary, "test", "0");
+        ((InternalEngine) primary.getEngine()).applySoftDeletes(new DocValuesFieldExistsQuery(Lucene.SOFT_DELETE_FIELD));
         primary.refresh("force refresh");
 
         ss = primary.segmentStats(randomBoolean());

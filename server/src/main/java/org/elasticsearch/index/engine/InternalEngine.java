@@ -21,18 +21,26 @@ package org.elasticsearch.index.engine;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.NumericDocValuesField;
+import org.apache.lucene.index.CompositeReaderContext;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
+import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.LiveIndexWriterConfig;
 import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.DocIdSetIterator;
+import org.apache.lucene.search.DocValuesFieldExistsQuery;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.search.SearcherFactory;
 import org.apache.lucene.search.SearcherManager;
@@ -41,6 +49,7 @@ import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.LockObtainFailedException;
 import org.apache.lucene.util.BytesRef;
+import org.elasticsearch.common.lucene.index.ElasticsearchLeafReader;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.apache.lucene.util.InfoStream;
 import org.elasticsearch.ExceptionsHelper;
@@ -63,7 +72,9 @@ import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.mapper.IdFieldMapper;
 import org.elasticsearch.index.mapper.ParseContext;
+import org.elasticsearch.index.mapper.SeqNoFieldMapper;
 import org.elasticsearch.index.mapper.UidFieldMapper;
+import org.elasticsearch.index.mapper.VersionFieldMapper;
 import org.elasticsearch.index.merge.MergeStats;
 import org.elasticsearch.index.merge.OnGoingMerge;
 import org.elasticsearch.index.seqno.LocalCheckpointTracker;
@@ -98,6 +109,7 @@ import java.util.stream.Stream;
 
 public class InternalEngine extends Engine {
 
+    public static final NumericDocValuesField SOFT_DELETE_FIELD = new NumericDocValuesField(Lucene.SOFT_DELETE_FIELD, 0);
     /**
      * When we last pruned expired tombstones from versionMap.deletes:
      */
@@ -143,6 +155,9 @@ public class InternalEngine extends Engine {
      * being indexed/deleted.
      */
     private final AtomicLong writingBytes = new AtomicLong();
+    private final CounterMetric numDocUpdates = new CounterMetric();
+    private final CounterMetric numDocAppends = new CounterMetric();
+    private final CounterMetric numDocDeletes = new CounterMetric();
 
     @Nullable
     private final String historyUUID;
@@ -941,12 +956,13 @@ public class InternalEngine extends Engine {
         return mayHaveBeenIndexBefore;
     }
 
-    private static void index(final List<ParseContext.Document> docs, final IndexWriter indexWriter) throws IOException {
+    private void index(final List<ParseContext.Document> docs, final IndexWriter indexWriter) throws IOException {
         if (docs.size() > 1) {
             indexWriter.addDocuments(docs);
         } else {
             indexWriter.addDocument(docs.get(0));
         }
+        numDocAppends.inc();
     }
 
     private static final class IndexingStrategy {
@@ -1027,12 +1043,13 @@ public class InternalEngine extends Engine {
         return true;
     }
 
-    private static void update(final Term uid, final List<ParseContext.Document> docs, final IndexWriter indexWriter) throws IOException {
+    private void update(final Term uid, final List<ParseContext.Document> docs, final IndexWriter indexWriter) throws IOException {
         if (docs.size() > 1) {
-            indexWriter.updateDocuments(uid, docs);
+            indexWriter.softUpdateDocuments(uid, docs, SOFT_DELETE_FIELD);
         } else {
-            indexWriter.updateDocument(uid, docs.get(0));
+            indexWriter.softUpdateDocument(uid, docs.get(0), SOFT_DELETE_FIELD);
         }
+        numDocUpdates.inc();
     }
 
     @Override
@@ -1157,7 +1174,14 @@ public class InternalEngine extends Engine {
             if (plan.currentlyDeleted == false) {
                 // any exception that comes from this is a either an ACE or a fatal exception there
                 // can't be any document failures  coming from this
-                indexWriter.deleteDocuments(delete.uid());
+                Document deleteTombstone = new Document();
+                deleteTombstone.add(new Field(IdFieldMapper.NAME, delete.id(), IdFieldMapper.Defaults.FIELD_TYPE));
+                deleteTombstone.add(SOFT_DELETE_FIELD);
+                deleteTombstone.add(new NumericDocValuesField(SeqNoFieldMapper.NAME, delete.seqNo()));
+                deleteTombstone.add(new NumericDocValuesField(VersionFieldMapper.NAME, delete.version()));
+                deleteTombstone.add(new NumericDocValuesField(SeqNoFieldMapper.PRIMARY_TERM_NAME, delete.primaryTerm()));
+                indexWriter.softUpdateDocument(delete.uid(), deleteTombstone, SOFT_DELETE_FIELD);
+                numDocDeletes.inc();
             }
             versionMap.putUnderLock(delete.uid().bytes(),
                 new DeleteVersionValue(plan.versionOfDeletion, plan.seqNoOfDeletion, delete.primaryTerm(),
@@ -1551,9 +1575,38 @@ public class InternalEngine extends Engine {
         versionMap.pruneTombstones(Long.MAX_VALUE, 0);
     }
 
+
+    @SuppressWarnings("try")
+    public final void applySoftDeletes(Query softDeletesQuery) throws IOException {
+        ensureOpen();
+        store.incRef();
+        try {
+            refresh("apply_soft_deletes", SearcherScope.INTERNAL);
+            try (ReleasableLock releasableLock = readLock.acquire();
+                 Searcher searcher = acquireSearcher("apply_soft_deletes", SearcherScope.INTERNAL)) {
+                CompositeReaderContext context = searcher.getDirectoryReader().getContext();
+                for (LeafReaderContext leave : context.leaves()) {
+                    ElasticsearchLeafReader elasticsearchLeafReader = ElasticsearchLeafReader.getElasticsearchLeafReader(leave.reader());
+                    LeafReader segmentReader = elasticsearchLeafReader.getDelegate();
+                    DocIdSetIterator docIdSetIterator = Lucene.getDocIdSetIterator(softDeletesQuery, segmentReader);
+                    if (docIdSetIterator != null) {
+                        int doc = -1;
+                        while ((doc = docIdSetIterator.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
+                            indexWriter.tryDeleteDocument(segmentReader, doc); // best effort
+                        }
+                    }
+                }
+            }
+        } finally {
+            store.decRef();
+        }
+    }
+
     @Override
     public void forceMerge(final boolean flush, int maxNumSegments, boolean onlyExpungeDeletes,
-                           final boolean upgrade, final boolean upgradeOnlyAncientSegments) throws EngineException, IOException {
+                           final boolean upgrade, final boolean upgradeOnlyAncientSegments,
+                           final boolean applySoftDeletes) throws IOException {
+
         /*
          * We do NOT acquire the readlock here since we are waiting on the merges to finish
          * that's fine since the IW.rollback should stop all the threads and trigger an IOException
@@ -1570,12 +1623,16 @@ public class InternalEngine extends Engine {
         optimizeLock.lock();
         try {
             ensureOpen();
+
             if (upgrade) {
                 logger.info("starting segment upgrade upgradeOnlyAncientSegments={}", upgradeOnlyAncientSegments);
                 mp.setUpgradeInProgress(true, upgradeOnlyAncientSegments);
             }
             store.incRef(); // increment the ref just to ensure nobody closes the store while we optimize
             try {
+                if (applySoftDeletes) {
+                    applySoftDeletes(getSoftDeletesQuery());
+                }
                 if (onlyExpungeDeletes) {
                     assert upgrade == false;
                     indexWriter.forceMergeDeletes(true /* blocks and waits for merges*/);
@@ -1836,6 +1893,10 @@ public class InternalEngine extends Engine {
         return new IndexWriter(directory, iwc);
     }
 
+    private Query getSoftDeletesQuery() {
+        return new DocValuesFieldExistsQuery(SOFT_DELETE_FIELD.name());
+    }
+
     private IndexWriterConfig getIndexWriterConfig(IndexCommit startingCommit) {
         final IndexWriterConfig iwc = new IndexWriterConfig(engineConfig.getAnalyzer());
         iwc.setCommitOnClose(false); // we by default don't commit on close
@@ -1853,7 +1914,8 @@ public class InternalEngine extends Engine {
         MergePolicy mergePolicy = config().getMergePolicy();
         // Give us the opportunity to upgrade old segments while performing
         // background merges
-        mergePolicy = new ElasticsearchMergePolicy(mergePolicy);
+
+        mergePolicy = new ElasticsearchMergePolicy(mergePolicy, this::getSoftDeletesQuery);
         iwc.setMergePolicy(mergePolicy);
         iwc.setSimilarity(engineConfig.getSimilarity());
         iwc.setRAMBufferSizeMB(engineConfig.getIndexingBufferSize().getMbFrac());
@@ -2150,15 +2212,17 @@ public class InternalEngine extends Engine {
         return versionMap.isSafeAccessRequired();
     }
 
-
-    /**
-     * Returns <code>true</code> iff the index writer has any deletions either buffered in memory or
-     * in the index.
-     */
-    boolean indexWriterHasDeletions() {
-        return indexWriter.hasDeletions();
+    long getNumDocUpdates() {
+        return numDocUpdates.count();
     }
 
+    long getNumDocAppends() {
+        return numDocAppends.count();
+    }
+
+    long getNumDocDeletes() {
+        return numDocDeletes.count();
+    }
     @Override
     public boolean isRecovering() {
         return pendingTranslogRecovery.get();
