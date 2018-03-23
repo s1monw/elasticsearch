@@ -133,13 +133,18 @@ public class SearchSlowLogTests extends ESSingleNodeTestCase {
                 }
 
                 @Override
-                public BytesReference cacheKey() throws IOException {
+                public BytesReference cacheKey() {
                     return null;
                 }
 
                 @Override
                 public Rewriteable getRewriteable() {
                     return null;
+                }
+
+                @Override
+                public boolean includeDeletedDocs() {
+                    return false;
                 }
 
                 @Override
@@ -154,7 +159,7 @@ public class SearchSlowLogTests extends ESSingleNodeTestCase {
         };
     }
 
-    public void testSlowLogSearchContextPrinterToLog() throws IOException {
+    public void testSlowLogSearchContextPrinterToLog() {
         IndexService index = createIndex("foo");
         SearchContext searchContext = createSearchContext(index);
         SearchSourceBuilder source = SearchSourceBuilder.searchSource().query(QueryBuilders.matchAllQuery());

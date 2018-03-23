@@ -51,6 +51,7 @@ import org.elasticsearch.common.lease.Releasable;
 import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.common.lucene.Lucene;
+import org.elasticsearch.common.lucene.index.ElasticsearchDirectoryReader;
 import org.elasticsearch.common.lucene.uid.Versions;
 import org.elasticsearch.common.lucene.uid.VersionsAndSeqNoResolver;
 import org.elasticsearch.common.lucene.uid.VersionsAndSeqNoResolver.DocIdAndVersion;
@@ -70,6 +71,7 @@ import org.elasticsearch.index.translog.Translog;
 import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.NoSuchFileException;
 import java.util.Arrays;
 import java.util.Base64;
@@ -964,6 +966,39 @@ public abstract class Engine implements Closeable {
         @Override
         public void close() {
             // Nothing to close here
+        }
+    }
+
+    public static class NoDeletesSearcher extends Searcher {
+        private final Searcher delegate;
+        private final AtomicBoolean closed = new AtomicBoolean(false);
+
+        public NoDeletesSearcher(Searcher delegate) throws IOException {
+            super(delegate.source, rewrap(delegate.searcher));
+            this.delegate = delegate;
+        }
+
+        static IndexSearcher rewrap(IndexSearcher searcher) throws IOException {
+            ElasticsearchDirectoryReader reader = ElasticsearchDirectoryReader.getElasticsearchDirectoryReader(
+                (DirectoryReader) searcher.getIndexReader());
+            IndexSearcher newSearcher = new IndexSearcher(reader.wrapWithoutSoftDeletes());
+            newSearcher.setSimilarity(searcher.getSimilarity(true));
+            newSearcher.setQueryCache(null); // we don't cache anything here
+            reader.incRef();
+            return newSearcher;
+        }
+
+        @Override
+        public void close() {
+            if (closed.compareAndSet(false, true)) {
+                try {
+                    reader().decRef();
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                } finally {
+                    delegate.close();
+                }
+            }
         }
     }
 

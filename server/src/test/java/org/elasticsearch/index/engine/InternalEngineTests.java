@@ -1291,6 +1291,8 @@ public class InternalEngineTests extends EngineTestCase {
             ParsedDocument doc = testParsedDocument(Integer.toString(0), null, testDocument(), B_1, null);
             Engine.Index index = indexForDoc(doc);
             engine.delete(new Engine.Delete(index.type(), index.id(), index.uid()));
+            // make sure we mark everything as deleted - the default impl might keep more docs around
+            assertTrue(((InternalEngine)engine).applySoftDeletes(new DocValuesFieldExistsQuery(Lucene.SOFT_DELETE_FIELD)));
             engine.forceMerge(true, 10, true, false, false, true); //expunge deletes
             engine.refresh("test");
 
@@ -1303,6 +1305,8 @@ public class InternalEngineTests extends EngineTestCase {
             doc = testParsedDocument(Integer.toString(1), null, testDocument(), B_1, null);
             index = indexForDoc(doc);
             engine.delete(new Engine.Delete(index.type(), index.id(), index.uid()));
+            // make sure we mark everything as deleted - the default impl might keep more docs around
+            assertTrue(((InternalEngine)engine).applySoftDeletes(new DocValuesFieldExistsQuery(Lucene.SOFT_DELETE_FIELD)));
             engine.forceMerge(true, 10, false, false, false, true); //expunge deletes
             engine.refresh("test");
             assertEquals(engine.segments(true).size(), 1);

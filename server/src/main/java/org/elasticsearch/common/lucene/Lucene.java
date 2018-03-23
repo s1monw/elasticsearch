@@ -27,7 +27,6 @@ import org.apache.lucene.codecs.CodecUtil;
 import org.apache.lucene.codecs.DocValuesFormat;
 import org.apache.lucene.codecs.PostingsFormat;
 import org.apache.lucene.document.LatLonDocValuesField;
-import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.CorruptIndexException;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FilterLeafReader;
@@ -35,18 +34,15 @@ import org.apache.lucene.index.IndexCommit;
 import org.apache.lucene.index.IndexFileNames;
 import org.apache.lucene.index.IndexFormatTooNewException;
 import org.apache.lucene.index.IndexFormatTooOldException;
-import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.index.LeafReader;
 import org.apache.lucene.index.LeafReaderContext;
 import org.apache.lucene.index.NoMergePolicy;
-import org.apache.lucene.index.NumericDocValues;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.SegmentReader;
 import org.apache.lucene.search.DocIdSetIterator;
-import org.apache.lucene.search.DocValuesFieldExistsQuery;
 import org.apache.lucene.search.Explanation;
 import org.apache.lucene.search.FieldDoc;
 import org.apache.lucene.search.IndexSearcher;
@@ -816,20 +812,24 @@ public class Lucene {
 
     public static final String SOFT_DELETE_FIELD = "_soft_delete";
 
-    public static SoftLiveDocs getSoftLiveDocs(DocIdSetIterator iter, int maxDoc) throws IOException {
+    public static SoftLiveDocs getSoftLiveDocs(DocIdSetIterator iter, LeafReader reader) throws IOException {
+        Bits liveDocs = reader.getLiveDocs();
         if (iter == null) {
+            if (liveDocs != null) {
+                return new SoftLiveDocs(liveDocs, reader.numDocs(), reader.maxDoc());
+            }
             return null;
         }
-        CountingDocIdSetIterator iterator = new CountingDocIdSetIterator(iter);
-        Bits softDeletes = BitSet.of(iterator, maxDoc);
-        return new SoftLiveDocs(softDeletes, maxDoc - iterator.numDocsWithValue, maxDoc);
+        int maxDoc = reader.maxDoc();
+        CountingDocIdSetIterator iterator = new CountingDocIdSetIterator(new InvertingDocIdSetIterator(iter, maxDoc, liveDocs));
+        return new SoftLiveDocs(BitSet.of(iterator, maxDoc), iterator.numDocsWithValue, maxDoc);
     }
 
-    public static class CountingDocIdSetIterator extends DocIdSetIterator {
+    static class CountingDocIdSetIterator extends DocIdSetIterator {
         private final DocIdSetIterator softDeleteDocValues;
         int numDocsWithValue = 0;
 
-        public CountingDocIdSetIterator(DocIdSetIterator softDeleteDocValues) {
+        CountingDocIdSetIterator(DocIdSetIterator softDeleteDocValues) {
             this.softDeleteDocValues = softDeleteDocValues;
         }
 
@@ -871,7 +871,7 @@ public class Lucene {
 
         @Override
         public boolean get(int index) {
-            return docsWithValue.get(index) == false;
+            return docsWithValue.get(index);
         }
 
         @Override
@@ -890,5 +890,62 @@ public class Lucene {
         final Weight weight = searcher.createNormalizedWeight(query, false);
         Scorer s = weight.scorer(reader.getContext());
         return s == null ? null : s.iterator();
+    }
+
+    public static final class InvertingDocIdSetIterator extends DocIdSetIterator {
+
+        private final DocIdSetIterator iterator;
+        private final int maxDoc;
+        private final Bits liveDocs;
+        private int nextDeletedDoc;
+        private int docId = -1;
+
+        public InvertingDocIdSetIterator(DocIdSetIterator iterator, int maxDocs, Bits liveDocs) throws IOException {
+            this.iterator = iterator;
+            this.maxDoc = maxDocs;
+            this.liveDocs = liveDocs;
+            this.nextDeletedDoc = iterator.nextDoc();
+        }
+
+        @Override
+        public int docID() {
+            return docId;
+        }
+
+        @Override
+        public int nextDoc() throws IOException {
+            int nextDoc;
+            do {
+                nextDoc = nextDocInternal();
+                if (nextDoc == NO_MORE_DOCS) {
+                    return nextDoc;
+                }
+
+            } while (liveDocs != null && liveDocs.get(nextDoc) == false);
+            return nextDoc;
+        }
+
+        int nextDocInternal() throws IOException {
+            docId++;
+            while (docId == nextDeletedDoc) {
+                docId++;
+                nextDeletedDoc = iterator.nextDoc();
+            }
+            if (docId >= maxDoc) {
+                docId = NO_MORE_DOCS;
+            }
+            return docId;
+        }
+
+
+        @Override
+        public int advance(int target) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public long cost() {
+            return iterator.cost() - maxDoc;
+        }
     }
 }

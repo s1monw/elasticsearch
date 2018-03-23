@@ -34,6 +34,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * A {@link org.apache.lucene.index.FilterDirectoryReader} that exposes
@@ -45,7 +47,8 @@ public final class ElasticsearchDirectoryReader extends FilterDirectoryReader {
     private final ShardId shardId;
     private final SubReaderWrapper wrapper;
 
-    private ElasticsearchDirectoryReader(DirectoryReader in, SubReaderWrapper wrapper, ShardId shardId) throws IOException {
+    private ElasticsearchDirectoryReader(DirectoryReader in, SubReaderWrapper wrapper, ShardId shardId) throws
+        IOException {
         super(in, wrapper);
         this.wrapper = wrapper;
         this.shardId = shardId;
@@ -66,27 +69,7 @@ public final class ElasticsearchDirectoryReader extends FilterDirectoryReader {
 
     @Override
     protected DirectoryReader doWrapDirectoryReader(DirectoryReader in) throws IOException {
-        fillSoftLiveDocsCache(in, wrapper);
         return new ElasticsearchDirectoryReader(in, wrapper, shardId);
-    }
-
-    private static void fillSoftLiveDocsCache(DirectoryReader in, SubReaderWrapper wrapper) {
-        for (LeafReaderContext leafReaderContext : in.getContext().leaves()) {
-            LeafReader reader = leafReaderContext.reader();
-            CacheHelper readerCacheHelper = reader.getReaderCacheHelper();
-            Map<Object, SoftLiveDocs> liveDocsCache = wrapper.liveDocsCache;
-            liveDocsCache.computeIfAbsent(readerCacheHelper.getKey(), (k) -> {
-                final SoftLiveDocs bits;
-                try {
-                    NumericDocValues softDeleteDocValues = reader.getNumericDocValues(Lucene.SOFT_DELETE_FIELD);
-                    bits = Lucene.getSoftLiveDocs(softDeleteDocValues, reader.maxDoc());
-                } catch (IOException e) {
-                    throw new UncheckedIOException(e);
-                }
-                readerCacheHelper.addClosedListener(liveDocsCache::remove);
-                return bits == null ? ALL_DOCS_LIVE : bits;
-            });
-        }
     }
 
     /**
@@ -98,23 +81,51 @@ public final class ElasticsearchDirectoryReader extends FilterDirectoryReader {
      * @param shardId the shard ID to expose via the elasticsearch internal reader wrappers.
      */
     public static ElasticsearchDirectoryReader wrap(DirectoryReader reader, ShardId shardId) throws IOException {
-        SubReaderWrapper wrapper = new SubReaderWrapper(shardId, new ConcurrentHashMap<>());
-        fillSoftLiveDocsCache(reader, wrapper);
+        return wrap(reader, shardId, true);
+    }
+
+    public ElasticsearchDirectoryReader wrapWithoutSoftDeletes() throws IOException {
+        return wrap(this.getDelegate(), shardId, false);
+    }
+
+    private static ElasticsearchDirectoryReader wrap(DirectoryReader reader, ShardId shardId, boolean useSoftDeletes) throws IOException {
+        ConcurrentHashMap<Object, SoftLiveDocs> liveDocsCache = new ConcurrentHashMap<>();
+        Function<LeafReader, SoftLiveDocs> cache;
+        if (useSoftDeletes) {
+            cache = leafReader -> {
+            SoftLiveDocs softLiveDocs = liveDocsCache.computeIfAbsent(leafReader.getReaderCacheHelper().getKey(), (k) -> {
+                final SoftLiveDocs bits;
+                try {
+                    NumericDocValues softDeleteDocValues = leafReader.getNumericDocValues(Lucene.SOFT_DELETE_FIELD);
+                    bits = Lucene.getSoftLiveDocs(softDeleteDocValues, leafReader);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+                leafReader.getReaderCacheHelper().addClosedListener(liveDocsCache::remove);
+                return bits == null ? ALL_DOCS_LIVE : bits;
+            });
+
+            return softLiveDocs;
+        };
+        } else {
+            cache = leafReader -> leafReader.getLiveDocs() == null ? ALL_DOCS_LIVE: new SoftLiveDocs(leafReader.getLiveDocs(),
+                leafReader.numDocs(), leafReader.maxDoc());
+        }
+        SubReaderWrapper wrapper = new SubReaderWrapper(shardId, cache);
         return new ElasticsearchDirectoryReader(reader, wrapper, shardId);
     }
 
-    private static final class SubReaderWrapper extends FilterDirectoryReader.SubReaderWrapper {
+    private static class SubReaderWrapper extends FilterDirectoryReader.SubReaderWrapper {
         private final ShardId shardId;
-        private final Map<Object, SoftLiveDocs> liveDocsCache;
+        private final Function<LeafReader, SoftLiveDocs> liveDocsCache;
 
-        SubReaderWrapper(ShardId shardId, Map<Object, SoftLiveDocs> liveDocsCache) {
+        SubReaderWrapper(ShardId shardId, Function<LeafReader, SoftLiveDocs> liveDocsCache) {
             this.shardId = shardId;
             this.liveDocsCache = liveDocsCache;
         }
         @Override
         public LeafReader wrap(LeafReader reader) {
-            assert liveDocsCache.containsKey(reader.getReaderCacheHelper().getKey());
-            SoftLiveDocs softLiveDocs = liveDocsCache.get(reader.getReaderCacheHelper().getKey());
+            SoftLiveDocs softLiveDocs = liveDocsCache.apply(reader);
             return new ElasticsearchLeafReader(reader, shardId, softLiveDocs == ALL_DOCS_LIVE ? null : softLiveDocs);
         }
     }

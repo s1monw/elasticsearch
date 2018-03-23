@@ -75,8 +75,9 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
     private Boolean requestCache;
 
     private Boolean allowPartialSearchResults;
-    
-    
+
+    private boolean includeDeletedDocs;
+
     private Scroll scroll;
 
     private int batchedReduceSize = 512;
@@ -140,7 +141,11 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
         }
         if (in.getVersion().onOrAfter(Version.V_6_3_0)) {
             allowPartialSearchResults = in.readOptionalBoolean();
-        }           
+        }
+
+        if (in.getVersion().onOrAfter(Version.V_7_0_0_alpha1)) {
+            includeDeletedDocs = in.readBoolean();
+        }
     }
 
     @Override
@@ -165,7 +170,10 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
         }
         if (out.getVersion().onOrAfter(Version.V_6_3_0)) {
             out.writeOptionalBoolean(allowPartialSearchResults);
-        }         
+        }
+        if (out.getVersion().onOrAfter(Version.V_7_0_0_alpha1)) {
+            out.writeBoolean(includeDeletedDocs);
+        }
     }
 
     @Override
@@ -360,7 +368,7 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
     public Boolean requestCache() {
         return this.requestCache;
     }
-    
+
     /**
      * Sets if this request should allow partial results. (If method is not called,
      * will default to the cluster level setting).
@@ -372,8 +380,8 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
 
     public Boolean allowPartialSearchResults() {
         return this.allowPartialSearchResults;
-    }    
-    
+    }
+
 
     /**
      * Sets the number of shard results that should be reduced at once on the coordinating node. This value should be used as a protection
@@ -451,6 +459,19 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
         return source != null && source.isSuggestOnly();
     }
 
+    /**
+     * Returns true iff deleted docs should be returned in the search result.
+     */
+    public boolean isIncludeDeletedDocs() {
+        return includeDeletedDocs;
+    }
+    /**
+     * if true, deleted docs will be returned in the search result.
+     */
+    public void setIncludeDeletedDocs(boolean includeDeletedDocs) {
+        this.includeDeletedDocs = includeDeletedDocs;
+    }
+
     @Override
     public Task createTask(long id, String type, String action, TaskId parentTaskId, Map<String, String> headers) {
         // generating description in a lazy way since source can be quite big
@@ -502,14 +523,15 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
                 Objects.equals(maxConcurrentShardRequests, that.maxConcurrentShardRequests) &&
                 Objects.equals(preFilterShardSize, that.preFilterShardSize) &&
                 Objects.equals(indicesOptions, that.indicesOptions) &&
-                Objects.equals(allowPartialSearchResults, that.allowPartialSearchResults);
+                Objects.equals(allowPartialSearchResults, that.allowPartialSearchResults) &&
+                Objects.equals(includeDeletedDocs, that.includeDeletedDocs);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(searchType, Arrays.hashCode(indices), routing, preference, source, requestCache,
-                scroll, Arrays.hashCode(types), indicesOptions, batchedReduceSize, maxConcurrentShardRequests, preFilterShardSize, 
-                allowPartialSearchResults);
+                scroll, Arrays.hashCode(types), indicesOptions, batchedReduceSize, maxConcurrentShardRequests, preFilterShardSize,
+                allowPartialSearchResults, includeDeletedDocs);
     }
 
     @Override
@@ -527,6 +549,7 @@ public final class SearchRequest extends ActionRequest implements IndicesRequest
                 ", batchedReduceSize=" + batchedReduceSize +
                 ", preFilterShardSize=" + preFilterShardSize +
                 ", allowPartialSearchResults=" + allowPartialSearchResults +
+                ", includeDeletedDocs=" + includeDeletedDocs +
                 ", source=" + source + '}';
     }
 }

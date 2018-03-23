@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.CompositeReaderContext;
 import org.apache.lucene.index.DirectoryReader;
@@ -37,6 +38,8 @@ import org.apache.lucene.index.MergePolicy;
 import org.apache.lucene.index.SegmentCommitInfo;
 import org.apache.lucene.index.SegmentInfos;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.BooleanClause;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.DocValuesFieldExistsQuery;
 import org.apache.lucene.search.IndexSearcher;
@@ -1177,8 +1180,8 @@ public class InternalEngine extends Engine {
                 Document deleteTombstone = new Document();
                 deleteTombstone.add(new Field(IdFieldMapper.NAME, delete.id(), IdFieldMapper.Defaults.FIELD_TYPE));
                 deleteTombstone.add(SOFT_DELETE_FIELD);
-                deleteTombstone.add(new NumericDocValuesField(SeqNoFieldMapper.NAME, delete.seqNo()));
-                deleteTombstone.add(new NumericDocValuesField(VersionFieldMapper.NAME, delete.version()));
+                deleteTombstone.add(new NumericDocValuesField(SeqNoFieldMapper.NAME, plan.seqNoOfDeletion));
+                deleteTombstone.add(new NumericDocValuesField(VersionFieldMapper.NAME, plan.versionOfDeletion));
                 deleteTombstone.add(new NumericDocValuesField(SeqNoFieldMapper.PRIMARY_TERM_NAME, delete.primaryTerm()));
                 indexWriter.softUpdateDocument(delete.uid(), deleteTombstone, SOFT_DELETE_FIELD);
                 numDocDeletes.inc();
@@ -1577,8 +1580,9 @@ public class InternalEngine extends Engine {
 
 
     @SuppressWarnings("try")
-    public final void applySoftDeletes(Query softDeletesQuery) throws IOException {
+    public final boolean applySoftDeletes(Query softDeletesQuery) throws IOException {
         ensureOpen();
+        boolean allSuccess = true;
         store.incRef();
         try {
             refresh("apply_soft_deletes", SearcherScope.INTERNAL);
@@ -1592,7 +1596,9 @@ public class InternalEngine extends Engine {
                     if (docIdSetIterator != null) {
                         int doc = -1;
                         while ((doc = docIdSetIterator.nextDoc()) != DocIdSetIterator.NO_MORE_DOCS) {
-                            indexWriter.tryDeleteDocument(segmentReader, doc); // best effort
+                            if (indexWriter.tryDeleteDocument(segmentReader, doc) == -1) { // best effort
+                                allSuccess = false;
+                            }
                         }
                     }
                 }
@@ -1600,6 +1606,7 @@ public class InternalEngine extends Engine {
         } finally {
             store.decRef();
         }
+        return allSuccess;
     }
 
     @Override
@@ -1894,7 +1901,14 @@ public class InternalEngine extends Engine {
     }
 
     private Query getSoftDeletesQuery() {
-        return new DocValuesFieldExistsQuery(SOFT_DELETE_FIELD.name());
+        LongSupplier globalCheckpointSupplier = engineConfig.getGlobalCheckpointSupplier();
+        return new BooleanQuery.Builder()
+            .add(new DocValuesFieldExistsQuery(SOFT_DELETE_FIELD.name()), BooleanClause.Occur.FILTER)
+            // lets keep the last 1k operations for now
+            // we need to make this configurable
+            .add(LongPoint.newRangeQuery(SeqNoFieldMapper.NAME, 0, globalCheckpointSupplier.getAsLong() - 1000),
+                BooleanClause.Occur.FILTER)
+            .build();
     }
 
     private IndexWriterConfig getIndexWriterConfig(IndexCommit startingCommit) {

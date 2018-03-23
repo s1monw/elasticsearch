@@ -68,7 +68,7 @@ public interface ShardSearchRequest {
     long nowInMillis();
 
     Boolean requestCache();
-    
+
     Boolean allowPartialSearchResults();
 
     Scroll scroll();
@@ -148,5 +148,8 @@ public interface ShardSearchRequest {
     String getClusterAlias();
 
     Rewriteable<Rewriteable> getRewriteable();
+
+    boolean includeDeletedDocs();
+
 
 }

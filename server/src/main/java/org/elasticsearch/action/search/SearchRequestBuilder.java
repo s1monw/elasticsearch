@@ -59,6 +59,14 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
     }
 
     /**
+     * Sets if deleted docs should be returned in the search result.
+     */
+    public SearchRequestBuilder setIncludeDeleteDocs(boolean includeDeleteDocs) {
+        request.setIncludeDeletedDocs(includeDeleteDocs);
+        return this;
+    }
+
+    /**
      * The document types to execute the search against. Defaults to be executed against
      * all types.
      */
@@ -488,7 +496,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
         request.requestCache(requestCache);
         return this;
     }
-    
+
 
     /**
      * Sets if this request should allow partial results.  (If method is not called,
@@ -497,7 +505,7 @@ public class SearchRequestBuilder extends ActionRequestBuilder<SearchRequest, Se
     public SearchRequestBuilder setAllowPartialSearchResults(boolean allowPartialSearchResults) {
         request.allowPartialSearchResults(allowPartialSearchResults);
         return this;
-    }    
+    }
 
     /**
      * Should the query be profiled. Defaults to <code>false</code>

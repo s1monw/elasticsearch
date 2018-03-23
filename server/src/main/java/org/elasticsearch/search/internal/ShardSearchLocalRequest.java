@@ -74,6 +74,7 @@ public class ShardSearchLocalRequest implements ShardSearchRequest {
     private Boolean requestCache;
     private long nowInMillis;
     private boolean allowPartialSearchResults;
+    private boolean includeDeletedDocs;
 
     private boolean profile;
 
@@ -83,11 +84,12 @@ public class ShardSearchLocalRequest implements ShardSearchRequest {
     ShardSearchLocalRequest(SearchRequest searchRequest, ShardId shardId, int numberOfShards,
                             AliasFilter aliasFilter, float indexBoost, long nowInMillis, String clusterAlias) {
         this(shardId, numberOfShards, searchRequest.searchType(),
-                searchRequest.source(), searchRequest.types(), searchRequest.requestCache(), aliasFilter, indexBoost, 
+                searchRequest.source(), searchRequest.types(), searchRequest.requestCache(), aliasFilter, indexBoost,
                 searchRequest.allowPartialSearchResults());
         // If allowPartialSearchResults is unset (ie null), the cluster-level default should have been substituted
         // at this stage. Any NPEs in the above are therefore an error in request preparation logic.
         assert searchRequest.allowPartialSearchResults() != null;
+        this.includeDeletedDocs = searchRequest.isIncludeDeletedDocs();
         this.scroll = searchRequest.scroll();
         this.nowInMillis = nowInMillis;
         this.clusterAlias = clusterAlias;
@@ -169,12 +171,12 @@ public class ShardSearchLocalRequest implements ShardSearchRequest {
     public Boolean requestCache() {
         return requestCache;
     }
-    
+
     @Override
     public Boolean allowPartialSearchResults() {
         return allowPartialSearchResults;
     }
-    
+
 
     @Override
     public Scroll scroll() {
@@ -225,6 +227,9 @@ public class ShardSearchLocalRequest implements ShardSearchRequest {
         if (in.getVersion().onOrAfter(Version.V_6_3_0)) {
             allowPartialSearchResults = in.readOptionalBoolean();
         }
+        if (in.getVersion().onOrAfter(Version.V_7_0_0_alpha1)) {
+            includeDeletedDocs = in.readBoolean();
+        }
     }
 
     protected void innerWriteTo(StreamOutput out, boolean asKey) throws IOException {
@@ -250,7 +255,10 @@ public class ShardSearchLocalRequest implements ShardSearchRequest {
         if (out.getVersion().onOrAfter(Version.V_6_3_0)) {
             out.writeOptionalBoolean(allowPartialSearchResults);
         }
-        
+        if (out.getVersion().onOrAfter(Version.V_7_0_0_alpha1)) {
+            out.writeBoolean(includeDeletedDocs);
+        }
+
     }
 
     @Override
@@ -270,6 +278,11 @@ public class ShardSearchLocalRequest implements ShardSearchRequest {
     @Override
     public Rewriteable<Rewriteable> getRewriteable() {
         return new RequestRewritable(this);
+    }
+
+    @Override
+    public boolean includeDeletedDocs() {
+        return includeDeletedDocs;
     }
 
     static class RequestRewritable implements Rewriteable<Rewriteable> {

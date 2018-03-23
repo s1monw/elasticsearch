@@ -87,7 +87,7 @@ public final class ElasticsearchMergePolicy extends MergePolicy {
                 @Override
                 public CodecReader wrapForMerge(CodecReader reader) throws IOException {
                     DocIdSetIterator iter = Lucene.getDocIdSetIterator(softDeletesQueryProvider.get(), reader);
-                    Lucene.SoftLiveDocs softLiveDocs = Lucene.getSoftLiveDocs(iter, reader.maxDoc());
+                    Lucene.SoftLiveDocs softLiveDocs = Lucene.getSoftLiveDocs(iter, reader);
                     if (softLiveDocs == null) {
                         return reader;
                     }

@@ -27,13 +27,17 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.IndexSettings;
+import org.elasticsearch.index.mapper.SeqNoFieldMapper;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.rescore.QueryRescorerBuilder;
+import org.elasticsearch.search.sort.SortBuilder;
 import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.test.ESIntegTestCase;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -454,5 +458,42 @@ public class SimpleSearchIT extends ESIntegTestCase {
                 + "be less than [" + IndexSettings.MAX_RESCORE_WINDOW_SETTING.get(Settings.EMPTY)));
         assertThat(e.toString(), containsString(
                 "This limit can be set by changing the [" + IndexSettings.MAX_RESCORE_WINDOW_SETTING.getKey() + "] index level setting."));
+    }
+
+    public void testSimpleChangesAPI() {
+        // This is a simple changes API test that includes deleted documents
+        // TODO we should have a filter that allows us to exclude docs below the global checkpoint. this can just be a simple
+        // Elasticsearch query that rewrites to a range query.
+        createIndex("idx", Settings.builder().put("index.number_of_shards", 1).build());
+        client().prepareIndex("idx", "type", "1").setSource("{}", XContentType.JSON).get();
+        client().prepareIndex("idx", "type", "2").setSource("{}", XContentType.JSON).get();
+        refresh("idx"); // cause a new segment
+        client().prepareIndex("idx", "type", "3").setSource("{}", XContentType.JSON).get();
+        client().prepareIndex("idx", "type", "4").setSource("{}", XContentType.JSON).get();
+        refresh("idx"); // cause a new segment
+        client().prepareDelete("idx", "type", "2").get();
+        client().prepareIndex("idx", "type", "3").setSource("{\"update\" : true}", XContentType.JSON).get();
+        client().prepareIndex("idx", "type", "4").setSource("{\"update\" : true}", XContentType.JSON).get();
+        refresh("idx");
+        client().admin().indices().prepareForceMerge("idx").setFlush(true).setMaxNumSegments(1)
+            .setOnlyExpungeDeletes(randomBoolean()).get();
+        refresh("idx");
+        SearchResponse result = client().prepareSearch("idx").setIncludeDeleteDocs(true).addSort(SeqNoFieldMapper.NAME, SortOrder.DESC)
+            .get();
+        assertHitCount(result, 7);
+        SearchHit[] hits = result.getHits().getHits();
+        logger.info(result);
+        assertEquals("4", hits[0].getId());
+        assertEquals(Boolean.TRUE, hits[0].getSourceAsMap().get("update"));
+        assertEquals("3", hits[1].getId());
+        assertEquals(Boolean.TRUE, hits[1].getSourceAsMap().get("update"));
+
+        assertEquals("2", hits[2].getId());
+        assertNull(hits[2].getSourceAsString());
+
+        assertEquals("4", hits[3].getId());
+        assertEquals("3", hits[4].getId());
+        assertEquals("2", hits[5].getId());
+        assertEquals("1", hits[6].getId());
     }
 }

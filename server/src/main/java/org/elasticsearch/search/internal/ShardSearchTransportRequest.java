@@ -53,9 +53,6 @@ public class ShardSearchTransportRequest extends TransportRequest implements Sha
 
     private ShardSearchLocalRequest shardSearchLocalRequest;
 
-    public ShardSearchTransportRequest(){
-    }
-
     public ShardSearchTransportRequest(OriginalIndices originalIndices, SearchRequest searchRequest, ShardId shardId, int numberOfShards,
                                        AliasFilter aliasFilter, float indexBoost, long nowInMillis, String clusterAlias) {
         this.shardSearchLocalRequest = new ShardSearchLocalRequest(searchRequest, shardId, numberOfShards, aliasFilter, indexBoost,
@@ -151,11 +148,11 @@ public class ShardSearchTransportRequest extends TransportRequest implements Sha
     public Boolean requestCache() {
         return shardSearchLocalRequest.requestCache();
     }
-    
+
     @Override
     public Boolean allowPartialSearchResults() {
         return shardSearchLocalRequest.allowPartialSearchResults();
-    }    
+    }
 
     @Override
     public Scroll scroll() {
@@ -201,5 +198,10 @@ public class ShardSearchTransportRequest extends TransportRequest implements Sha
     @Override
     public Rewriteable<Rewriteable> getRewriteable() {
         return shardSearchLocalRequest.getRewriteable();
+    }
+
+    @Override
+    public boolean includeDeletedDocs() {
+        return shardSearchLocalRequest.includeDeletedDocs();
     }
 }
