@@ -23,6 +23,7 @@ import org.apache.lucene.index.FilterDirectoryReader;
 import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.LeafReader;
 import org.elasticsearch.common.SuppressForbidden;
+import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.index.shard.ShardId;
 
 import java.io.IOException;
