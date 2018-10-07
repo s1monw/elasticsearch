@@ -27,7 +27,6 @@ import org.apache.lucene.index.SortedSetDocValues;
 import org.apache.lucene.index.StoredFieldVisitor;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.SearcherFactory;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.Bits;
@@ -42,6 +41,7 @@ import org.elasticsearch.transport.TransportRequest;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
 public final class FrozenEngine extends ReadOnlyEngine {
@@ -49,9 +49,23 @@ public final class FrozenEngine extends ReadOnlyEngine {
         Setting.Property.PrivateIndex);
     private final CounterMetric openedReaders = new CounterMetric();
     private volatile DirectoryReader lastOpenedReader;
+    private final DirectoryReader canMatchReader;
 
     public FrozenEngine(EngineConfig config) {
         super(config, null, null, true, Function.identity());
+
+        boolean success = false;
+        Directory directory = store.directory();
+        try (DirectoryReader reader = DirectoryReader.open(directory)) {
+            canMatchReader = new RewriteCachingDirectoryReader(directory, reader.leaves());
+            success = true;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        } finally {
+            if (success == false) {
+                closeNoLock("failed on construction", new CountDownLatch(1));
+            }
+        }
     }
 
     @Override
@@ -149,6 +163,7 @@ public final class FrozenEngine extends ReadOnlyEngine {
                 case "segments_stats":
                 case "completion_stats":
                 case "refresh_needed":
+                case "can_match": // special case for can_match phase - we use the cached point values reader
                     openReader = false;
                     break;
                 default:
@@ -160,6 +175,10 @@ public final class FrozenEngine extends ReadOnlyEngine {
             if (reader == null) {
                 store.decRef();
                 success = true;
+                if ("can_match".equals(source)) {
+                    canMatchReader.incRef();
+                    return new Searcher(source, new IndexSearcher(canMatchReader), logger);
+                }
                 // we just hand out an empty searcher in this case
                 return super.acquireSearcher(source, scope);
             } else {

@@ -4,27 +4,31 @@ import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.PlainActionFuture;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexService;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.shard.IndexShard;
 import org.elasticsearch.index.shard.IndexShardTestCase;
 import org.elasticsearch.indices.IndicesService;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.search.Scroll;
 import org.elasticsearch.search.SearchService;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.internal.AliasFilter;
+import org.elasticsearch.search.internal.ShardSearchLocalRequest;
 import org.elasticsearch.test.ESSingleNodeTestCase;
 import org.elasticsearch.xpack.core.XPackClient;
 import org.elasticsearch.xpack.core.XPackPlugin;
 import org.elasticsearch.xpack.core.action.TransportOpenIndexAndFreezeAction;
 import org.hamcrest.Matchers;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.ExecutionException;
 
 import static org.elasticsearch.action.support.WriteRequest.RefreshPolicy.IMMEDIATE;
-import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertFailures;
 import static org.elasticsearch.test.hamcrest.ElasticsearchAssertions.assertHitCount;
 
 public class FrozenIndexTests extends ESSingleNodeTestCase {
@@ -117,5 +121,65 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
             assertThat(engine, Matchers.instanceOf(InternalEngine.class));
         }
         client().prepareIndex("index", "type", "4").setSource("field", "value").setRefreshPolicy(IMMEDIATE).get();
+    }
+
+    public void testCanMatch() throws ExecutionException, InterruptedException, IOException {
+        createIndex("index");
+        client().prepareIndex("index", "_doc", "1").setSource("field", "2010-01-05T02:00").setRefreshPolicy(IMMEDIATE).execute().actionGet();
+        client().prepareIndex("index", "_doc", "2").setSource("field", "2010-01-06T02:00").setRefreshPolicy(IMMEDIATE).execute().actionGet();
+
+        {
+            IndicesService indexServices = getInstanceFromNode(IndicesService.class);
+            Index index = resolveIndex("index");
+            IndexService indexService = indexServices.indexServiceSafe(index);
+            IndexShard shard = indexService.getShard(0);
+            assertFalse(indexService.getIndexSettings().isSearchThrottled());
+            SearchService searchService = getInstanceFromNode(SearchService.class);
+            assertTrue(searchService.canMatch(new ShardSearchLocalRequest(shard.shardId(), 1, SearchType.QUERY_THEN_FETCH, null,
+                Strings.EMPTY_ARRAY, false, new AliasFilter(null, Strings.EMPTY_ARRAY), 1f, true, null, null)));
+
+            SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+            sourceBuilder.query(QueryBuilders.rangeQuery("field").gte("2010-01-03||+2d").lte("2010-01-04||+2d/d"));
+            assertTrue(searchService.canMatch(new ShardSearchLocalRequest(shard.shardId(), 1, SearchType.QUERY_THEN_FETCH, sourceBuilder,
+                Strings.EMPTY_ARRAY, false, new AliasFilter(null, Strings.EMPTY_ARRAY), 1f, true, null, null)));
+
+            sourceBuilder = new SearchSourceBuilder();
+            sourceBuilder.query(QueryBuilders.rangeQuery("field").gt("2010-01-06T02:00").lt("2010-01-07T02:00"));
+            assertFalse(searchService.canMatch(new ShardSearchLocalRequest(shard.shardId(), 1, SearchType.QUERY_THEN_FETCH, sourceBuilder,
+                Strings.EMPTY_ARRAY, false, new AliasFilter(null, Strings.EMPTY_ARRAY), 1f, true, null, null)));
+        }
+
+        client().admin().indices().prepareFlush("index").get();
+        client().admin().indices().prepareClose("index").get();
+        XPackClient xPackClient = new XPackClient(client());
+        PlainActionFuture<OpenIndexResponse> future = new PlainActionFuture<>();
+        TransportOpenIndexAndFreezeAction.OpenIndexAndFreezeRequest request =
+            new TransportOpenIndexAndFreezeAction.OpenIndexAndFreezeRequest("index");
+        xPackClient.openAndFreeze(request, future);
+        future.get();
+        {
+
+            IndicesService indexServices = getInstanceFromNode(IndicesService.class);
+            Index index = resolveIndex("index");
+            IndexService indexService = indexServices.indexServiceSafe(index);
+            IndexShard shard = indexService.getShard(0);
+            assertTrue(indexService.getIndexSettings().isSearchThrottled());
+            SearchService searchService = getInstanceFromNode(SearchService.class);
+            assertTrue(searchService.canMatch(new ShardSearchLocalRequest(shard.shardId(), 1, SearchType.QUERY_THEN_FETCH, null,
+                Strings.EMPTY_ARRAY, false, new AliasFilter(null, Strings.EMPTY_ARRAY), 1f, true, null, null)));
+
+            SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+            sourceBuilder.query(QueryBuilders.rangeQuery("field").gte("2010-01-03||+2d").lte("2010-01-04||+2d/d"));
+            assertTrue(searchService.canMatch(new ShardSearchLocalRequest(shard.shardId(), 1, SearchType.QUERY_THEN_FETCH, sourceBuilder,
+                Strings.EMPTY_ARRAY, false, new AliasFilter(null, Strings.EMPTY_ARRAY), 1f, true, null, null)));
+
+            sourceBuilder = new SearchSourceBuilder();
+            sourceBuilder.query(QueryBuilders.rangeQuery("field").gt("2010-01-06T02:00").lt("2010-01-07T02:00"));
+            assertFalse(searchService.canMatch(new ShardSearchLocalRequest(shard.shardId(), 1, SearchType.QUERY_THEN_FETCH, sourceBuilder,
+                Strings.EMPTY_ARRAY, false, new AliasFilter(null, Strings.EMPTY_ARRAY), 1f, true, null, null)));
+
+            Engine engine = IndexShardTestCase.getEngine(shard);
+            assertEquals(0, ((FrozenEngine) engine).getOpenedReaders());
+        }
     }
 }

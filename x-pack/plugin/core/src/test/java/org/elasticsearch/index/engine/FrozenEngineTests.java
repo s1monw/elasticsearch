@@ -1,5 +1,7 @@
 package org.elasticsearch.index.engine;
 
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.FilterDirectoryReader;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.AlreadyClosedException;
@@ -12,6 +14,7 @@ import org.elasticsearch.index.mapper.ParsedDocument;
 import org.elasticsearch.index.seqno.SequenceNumbers;
 import org.elasticsearch.index.store.Store;
 import org.elasticsearch.indices.breaker.HierarchyCircuitBreakerService;
+import org.hamcrest.Matchers;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -242,5 +245,36 @@ public class FrozenEngineTests extends EngineTestCase {
     public void testOverrideMethods() throws Exception {
         checkOverrideMethods(FrozenEngine.LazyDirectoryReader.class);
         checkOverrideMethods(FrozenEngine.LazyLeafReader.class);
+    }
+
+    public void testCanMatch() throws IOException {
+        IOUtils.close(engine, store);
+        final AtomicLong globalCheckpoint = new AtomicLong(SequenceNumbers.NO_OPS_PERFORMED);
+        try (Store store = createStore()) {
+            EngineConfig config = config(defaultSettings, store, createTempDir(), newMergePolicy(), null, null, globalCheckpoint::get);
+            int numDocs = scaledRandomIntBetween(10, 1000);
+            try (InternalEngine engine = createEngine(config)) {
+                addDocuments(globalCheckpoint, numDocs, engine);
+                engine.flushAndClose();
+                try (FrozenEngine frozenEngine = new FrozenEngine(engine.engineConfig)) {
+                    DirectoryReader reader;
+                    try (Engine.Searcher searcher = frozenEngine.acquireSearcher("can_match")) {
+                        reader = searcher.getDirectoryReader();
+                        assertNotEquals(searcher, Matchers.instanceOf(FrozenEngine.FrozenEngineSearcher.class));
+                        assertEquals(0, frozenEngine.getOpenedReaders());
+                        DirectoryReader unwrap = FilterDirectoryReader.unwrap(searcher.getDirectoryReader());
+                        assertThat(unwrap, Matchers.instanceOf(RewriteCachingDirectoryReader.class));
+                    }
+
+                    try (Engine.Searcher searcher = frozenEngine.acquireSearcher("can_match")) {
+                        assertSame(reader, searcher.getDirectoryReader());
+                        assertNotEquals(searcher, Matchers.instanceOf(FrozenEngine.FrozenEngineSearcher.class));
+                        assertEquals(0, frozenEngine.getOpenedReaders());
+                        DirectoryReader unwrap = FilterDirectoryReader.unwrap(searcher.getDirectoryReader());
+                        assertThat(unwrap, Matchers.instanceOf(RewriteCachingDirectoryReader.class));
+                    }
+                }
+            }
+        }
     }
 }
