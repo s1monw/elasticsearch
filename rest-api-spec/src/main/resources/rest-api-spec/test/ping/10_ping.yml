@@ -3,3 +3,14 @@
     - do:      { ping: {}}
     - is_true: ''
 
+
+---
+"Ping with version":
+
+  - skip:
+    version: " - 6.99.99"
+    reason:  version was introduced in 7.0.0
+  - do:      { ping: {}, version: "6.4.0"}
+  - is_true: ''
+
+

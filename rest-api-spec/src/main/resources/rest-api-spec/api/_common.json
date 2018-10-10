@@ -12,6 +12,10 @@
       "description": "Return human readable values for statistics.",
       "default": true
     },
+    "version": {
+      "type": "string",
+      "description": "Specifies the expected request / response version in for form of: 'major.minor.bugfix'. The default is the current version"
+    },
     "error_trace": {
       "type": "boolean",
       "description": "Include the stack trace of returned errors.",

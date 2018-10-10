@@ -21,6 +21,7 @@ package org.elasticsearch.rest;
 
 import org.apache.lucene.util.SetOnce;
 import org.elasticsearch.ElasticsearchParseException;
+import org.elasticsearch.Version;
 import org.elasticsearch.common.Booleans;
 import org.elasticsearch.common.CheckedConsumer;
 import org.elasticsearch.common.Nullable;
@@ -56,6 +57,7 @@ public class RestRequest implements ToXContent.Params {
 
     // tchar pattern as defined by RFC7230 section 3.2.6
     private static final Pattern TCHAR_PATTERN = Pattern.compile("[a-zA-z0-9!#$%&'*+\\-.\\^_`|~]+");
+    public static final String VERSION_KEY = "version";
 
     private final NamedXContentRegistry xContentRegistry;
     private final Map<String, String> params;
@@ -65,6 +67,7 @@ public class RestRequest implements ToXContent.Params {
     private final SetOnce<XContentType> xContentType = new SetOnce<>();
     private final HttpRequest httpRequest;
     private final HttpChannel httpChannel;
+    private final Version version;
 
     protected RestRequest(NamedXContentRegistry xContentRegistry, Map<String, String> params, String path,
                           Map<String, List<String>> headers, HttpRequest httpRequest, HttpChannel httpChannel) {
@@ -83,6 +86,13 @@ public class RestRequest implements ToXContent.Params {
         this.params = params;
         this.rawPath = path;
         this.headers = Collections.unmodifiableMap(headers);
+
+        String value = param(VERSION_KEY);
+        if (value == null) {
+            version = Version.CURRENT;
+        } else {
+            version = Version.fromString(value);
+        }
     }
 
     protected RestRequest(RestRequest restRequest) {
@@ -498,6 +508,10 @@ public class RestRequest implements ToXContent.Params {
             super(cause);
         }
 
+    }
+
+    public Version getVersion() {
+        return version;
     }
 
 }
