@@ -25,12 +25,14 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.SchemeIOSessionStrategy;
 
 import javax.net.ssl.SSLContext;
 import java.security.AccessController;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivilegedAction;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -208,7 +210,26 @@ public final class RestClientBuilder {
                 return createHttpClient();
             }
         });
-        RestClient restClient = new RestClient(httpClient, maxRetryTimeout, defaultHeaders, nodes,
+        Header[] theHeaders = defaultHeaders;
+        boolean found = false;
+        for (Header header : theHeaders) {
+            if ("version".equals(header.getName())) {
+                found = true;
+                break;
+            }
+        }
+
+        if (found == false) {
+            Package aPackage = RestClientBuilder.class.getPackage();
+            String implementationVersion = aPackage.getImplementationVersion();
+            if (implementationVersion != null) { // non-jared we don't get this version
+                theHeaders = new Header[defaultHeaders.length + 1];
+                System.arraycopy(defaultHeaders, 0, theHeaders, 0, defaultHeaders.length);
+                theHeaders[defaultHeaders.length] = new BasicHeader("version", implementationVersion);
+            }
+        }
+
+        RestClient restClient = new RestClient(httpClient, maxRetryTimeout, theHeaders, nodes,
                 pathPrefix, failureListener, nodeSelector, strictDeprecationMode);
         httpClient.start();
         return restClient;

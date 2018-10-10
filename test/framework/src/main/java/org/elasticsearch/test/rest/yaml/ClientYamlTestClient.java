@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -186,6 +187,7 @@ public class ClientYamlTestClient implements Closeable {
         }
         request.setEntity(entity);
         setOptions(request, headers);
+        setOptions(request, Collections.singletonMap("version", esVersion.toString()));
 
         try {
             Response response = getRestClient(nodeSelector).performRequest(request);
