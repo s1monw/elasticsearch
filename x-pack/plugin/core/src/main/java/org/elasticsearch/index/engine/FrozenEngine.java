@@ -5,7 +5,6 @@
  */
 package org.elasticsearch.index.engine;
 
-import org.apache.logging.log4j.Logger;
 import org.apache.lucene.index.BinaryDocValues;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FieldInfos;
@@ -174,7 +173,7 @@ public final class FrozenEngine extends ReadOnlyEngine {
                 return super.acquireSearcher(source, scope);
             } else {
                 try {
-                    LazyDirectoryReader lazyDirectoryReader = new LazyDirectoryReader(reader);
+                    LazyDirectoryReader lazyDirectoryReader = new LazyDirectoryReader(reader, this);
                     Searcher newSearcher = new Searcher(source, new IndexSearcher(lazyDirectoryReader),
                         () -> IOUtils.close(lazyDirectoryReader, store::decRef));
                     success = true;
@@ -192,14 +191,6 @@ public final class FrozenEngine extends ReadOnlyEngine {
                 store.decRef();
             }
         }
-    }
-
-    void release(LazyDirectoryReader reader) throws IOException {
-        reader.release();
-    }
-
-    void reset(LazyDirectoryReader reader) throws IOException {
-        reader.reset(getOrOpenReader(true));
     }
 
     static LazyDirectoryReader unwrapLazyReader(DirectoryReader reader) {
@@ -260,9 +251,10 @@ public final class FrozenEngine extends ReadOnlyEngine {
      */
     static final class LazyDirectoryReader extends FilterDirectoryReader {
 
+        private final FrozenEngine engine;
         private volatile DirectoryReader delegate; // volatile since it might be closed concurrently
 
-        private LazyDirectoryReader(DirectoryReader reader) throws IOException {
+        private LazyDirectoryReader(DirectoryReader reader, FrozenEngine engine) throws IOException {
             super(reader, new SubReaderWrapper() {
                 @Override
                 public LeafReader wrap(LeafReader reader) {
@@ -270,10 +262,11 @@ public final class FrozenEngine extends ReadOnlyEngine {
                 };
             });
             this.delegate = reader;
+            this.engine = engine;
         }
 
         @SuppressForbidden(reason = "we manage references explicitly here")
-        private synchronized void release() throws IOException {
+        synchronized void release() throws IOException {
             if (delegate != null) { // we are lenient here it's ok to double close
                 delegate.decRef();
                 delegate = null;
@@ -288,6 +281,10 @@ public final class FrozenEngine extends ReadOnlyEngine {
                     }
                 }
             }
+        }
+
+        void reset() throws IOException {
+            reset(engine.getOrOpenReader(true));
         }
 
         private synchronized void reset(DirectoryReader delegate) {
