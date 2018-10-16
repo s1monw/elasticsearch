@@ -66,7 +66,7 @@ public class FrozenIndexTests extends ESSingleNodeTestCase {
         assertFalse(((FrozenEngine)engine).isReaderOpen());
         assertTrue(indexService.getIndexSettings().isSearchThrottled());
         try (Engine.Searcher searcher = shard.acquireSearcher("test")) {
-            assertThat(searcher, Matchers.instanceOf(FrozenEngine.FrozenEngineSearcher.class));
+            assertNotNull(FrozenEngine.unwrapLazyReader(searcher.getDirectoryReader()));
         }
         // now scroll
         SearchResponse searchResponse = client().prepareSearch().setScroll(TimeValue.timeValueMinutes(1)).setSize(1).get();

@@ -214,9 +214,10 @@ public final class FrozenEngine extends ReadOnlyEngine {
         @Override
         public void validateSearchContext(SearchContext context, TransportRequest transportRequest) {
             Searcher engineSearcher = context.searcher().getEngineSearcher();
-            if (engineSearcher instanceof FrozenEngineSearcher) {
+            LazyDirectoryReader lazyDirectoryReader = unwrapLazyReader(engineSearcher.getDirectoryReader());
+            if (lazyDirectoryReader != null) {
                 try {
-                    ((FrozenEngineSearcher) engineSearcher).resetReader();
+                    lazyDirectoryReader.reset();
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
@@ -229,9 +230,10 @@ public final class FrozenEngine extends ReadOnlyEngine {
         public void onNewContext(SearchContext context) {
             Searcher engineSearcher = context.searcher().getEngineSearcher();
             context.addReleasable(() -> {
-                if (engineSearcher instanceof FrozenEngineSearcher) {
+                LazyDirectoryReader lazyDirectoryReader = unwrapLazyReader(engineSearcher.getDirectoryReader());
+                if (lazyDirectoryReader != null) {
                     try {
-                        ((FrozenEngineSearcher) engineSearcher).releaseReader();
+                        lazyDirectoryReader.release();
                     } catch (IOException e) {
                         throw new UncheckedIOException(e);
                     }
