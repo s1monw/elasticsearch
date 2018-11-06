@@ -25,6 +25,7 @@ import org.elasticsearch.common.regex.Regex;
 import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.protocol.xpack.graph.GraphExploreRequest;
 import org.elasticsearch.transport.RemoteClusterAware;
 import org.elasticsearch.transport.TransportRequest;
@@ -416,11 +417,17 @@ class IndicesAndAliasesResolver {
         assert aliasOrIndex.getIndices().size() == 1 : "concrete index must point to a single index";
         IndexMetaData indexMetaData = aliasOrIndex.getIndices().get(0);
         if (indexMetaData.getState() == IndexMetaData.State.CLOSE && (indicesOptions.expandWildcardsClosed() || dateMathExpression)) {
+            if (indicesOptions.ignoreThrottled()) {
+                return IndexSettings.INDEX_SEARCH_THROTTLED.get(indexMetaData.getSettings()) == false;
+            }
+            return true;
+        } else if (indexMetaData.getState() == IndexMetaData.State.OPEN && (indicesOptions.expandWildcardsOpen() || dateMathExpression)) {
+            if (indicesOptions.ignoreThrottled()) {
+                return IndexSettings.INDEX_SEARCH_THROTTLED.get(indexMetaData.getSettings()) == false;
+            }
             return true;
         }
-        if (indexMetaData.getState() == IndexMetaData.State.OPEN && (indicesOptions.expandWildcardsOpen() || dateMathExpression)) {
-            return true;
-        }
+
         return false;
     }
 

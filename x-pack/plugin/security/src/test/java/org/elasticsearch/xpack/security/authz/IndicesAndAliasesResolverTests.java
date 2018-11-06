@@ -46,6 +46,7 @@ import org.elasticsearch.common.settings.ClusterSettings;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.Index;
 import org.elasticsearch.index.IndexNotFoundException;
+import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.protocol.xpack.graph.GraphExploreRequest;
 import org.elasticsearch.search.internal.ShardSearchTransportRequest;
 import org.elasticsearch.test.ESTestCase;
@@ -106,6 +107,7 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     private IndicesAndAliasesResolver defaultIndicesResolver;
     private IndexNameExpressionResolver indexNameExpressionResolver;
     private Map<String, RoleDescriptor> roleMap;
+    private User userDashThrotteledIndices;
 
     @Before
     public void setup() {
@@ -139,6 +141,8 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
                 .put(indexBuilder("-index11").settings(settings))
                 .put(indexBuilder("-index20").settings(settings))
                 .put(indexBuilder("-index21").settings(settings))
+                .put(indexBuilder("-throttled").settings(Settings.builder()
+                    .put(settings).put(IndexSettings.INDEX_SEARCH_THROTTLED.getKey(), "true").build()))
                 .put(indexBuilder(securityIndexName).settings(settings)).build();
 
         if (withAlias) {
@@ -148,15 +152,20 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
 
         user = new User("user", "role");
         userDashIndices = new User("dash", "dash");
+        userDashThrotteledIndices = new User("dash-throttled", "dash-throttled");
         userNoIndices = new User("test", "test");
         rolesStore = mock(CompositeRolesStore.class);
         String[] authorizedIndices = new String[] { "bar", "bar-closed", "foofoobar", "foobarfoo", "foofoo", "missing", "foofoo-closed"};
         String[] dashIndices = new String[]{"-index10", "-index11", "-index20", "-index21"};
+        String[] dashIndicesAndThrottled = new String[]{"-index10", "-index11", "-index20", "-index21", "-throttled"};
+
         roleMap = new HashMap<>();
         roleMap.put("role", new RoleDescriptor("role", null,
                 new IndicesPrivileges[] { IndicesPrivileges.builder().indices(authorizedIndices).privileges("all").build() }, null));
         roleMap.put("dash", new RoleDescriptor("dash", null,
                 new IndicesPrivileges[] { IndicesPrivileges.builder().indices(dashIndices).privileges("all").build() }, null));
+        roleMap.put("dash-throttled", new RoleDescriptor("dash-throttled", null,
+            new IndicesPrivileges[] { IndicesPrivileges.builder().indices(dashIndicesAndThrottled).privileges("all").build() }, null));
         roleMap.put("test", new RoleDescriptor("test", new String[] { "monitor" }, null, null));
         roleMap.put("alias_read_write", new RoleDescriptor("alias_read_write", null,
             new IndicesPrivileges[] { IndicesPrivileges.builder().indices("barbaz", "foofoobar").privileges("read", "write").build() },
@@ -1389,5 +1398,64 @@ public class IndicesAndAliasesResolverTests extends ESTestCase {
     private void assertSameValues(List<String> indices, String[] expectedIndices) {
         assertThat(indices.stream().distinct().count(), equalTo((long)expectedIndices.length));
         assertThat(indices, hasItems(expectedIndices));
+    }
+
+    public void testIgnoreThrottled() {
+        {
+            SearchRequest request = new SearchRequest("-index10", "-thro*");
+            List<String> indices =
+                resolveIndices(request, buildAuthorizedIndices(userDashThrotteledIndices, SearchAction.NAME)).getLocal();
+            String[] expectedIndices = new String[]{"-index10"};
+            assertThat(indices.size(), equalTo(expectedIndices.length));
+            assertThat(request.indices().length, equalTo(expectedIndices.length));
+            assertThat(indices, hasItems(expectedIndices));
+            assertThat(request.indices(), arrayContainingInAnyOrder(expectedIndices));
+        }
+
+        {
+            SearchRequest request = new SearchRequest("-index10", "-thro*");
+            request.indicesOptions(IndicesOptions.STRICT_EXPAND_OPEN_FORBID_CLOSED);
+            List<String> indices =
+                resolveIndices(request, buildAuthorizedIndices(userDashThrotteledIndices, SearchAction.NAME)).getLocal();
+            String[] expectedIndices = new String[]{"-index10", "-throttled"};
+            assertThat(indices.toString(), indices.size(), equalTo(expectedIndices.length));
+            assertThat(request.indices().length, equalTo(expectedIndices.length));
+            assertThat(indices, hasItems(expectedIndices));
+            assertThat(request.indices(), arrayContainingInAnyOrder(expectedIndices));
+        }
+
+        {
+            SearchRequest request = new SearchRequest("-index10", "-throttled");
+            List<String> indices =
+                resolveIndices(request, buildAuthorizedIndices(userDashThrotteledIndices, SearchAction.NAME)).getLocal();
+            String[] expectedIndices = new String[]{"-index10", "-throttled"};
+            assertThat(indices.size(), equalTo(expectedIndices.length));
+            assertThat(request.indices().length, equalTo(expectedIndices.length));
+            assertThat(indices, hasItems(expectedIndices));
+            assertThat(request.indices(), arrayContainingInAnyOrder(expectedIndices));
+        }
+
+        {
+            SearchRequest request = new SearchRequest("_all");
+            request.indicesOptions(IndicesOptions.STRICT_EXPAND_OPEN_FORBID_CLOSED);
+            List<String> indices =
+                resolveIndices(request, buildAuthorizedIndices(userDashThrotteledIndices, SearchAction.NAME)).getLocal();
+            String[] expectedIndices = new String[]{"-index10", "-index11", "-index20", "-index21", "-throttled"};
+            assertThat(indices.toString(), indices.size(), equalTo(expectedIndices.length));
+            assertThat(request.indices().length, equalTo(expectedIndices.length));
+            assertThat(indices, hasItems(expectedIndices));
+            assertThat(request.indices(), arrayContainingInAnyOrder(expectedIndices));
+        }
+
+        {
+            SearchRequest request = new SearchRequest("_all");
+            List<String> indices =
+                resolveIndices(request, buildAuthorizedIndices(userDashThrotteledIndices, SearchAction.NAME)).getLocal();
+            String[] expectedIndices = new String[]{"-index10", "-index11", "-index20", "-index21"};
+            assertThat(indices.toString(), indices.size(), equalTo(expectedIndices.length));
+            assertThat(request.indices().length, equalTo(expectedIndices.length));
+            assertThat(indices, hasItems(expectedIndices));
+            assertThat(request.indices(), arrayContainingInAnyOrder(expectedIndices));
+        }
     }
 }
