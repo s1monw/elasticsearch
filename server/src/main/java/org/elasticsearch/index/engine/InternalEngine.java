@@ -2157,6 +2157,7 @@ public class InternalEngine extends Engine {
 
     private IndexWriterConfig getIndexWriterConfig() {
         final IndexWriterConfig iwc = new IndexWriterConfig(engineConfig.getAnalyzer());
+        iwc.setCheckPendingFlushUpdate(false);
         iwc.setCommitOnClose(false); // we by default don't commit on close
         iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
         iwc.setReaderAttributes(getReaderAttributes(store.directory()));
