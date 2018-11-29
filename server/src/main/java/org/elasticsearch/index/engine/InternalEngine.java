@@ -1551,6 +1551,7 @@ public class InternalEngine extends Engine {
 
     @Override
     public SyncedFlushResult syncFlush(String syncId, CommitId expectedCommitId) throws EngineException {
+        logger.warn("running sync_flush", new RuntimeException());
         // best effort attempt before we acquire locks
         ensureOpen();
         if (indexWriter.hasUncommittedChanges()) {

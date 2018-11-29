@@ -1566,8 +1566,14 @@ public class IndexShard extends AbstractIndexShardComponent implements IndicesCl
      */
     public void checkIdle(long inactiveTimeNS) {
         Engine engineOrNull = getEngineOrNull();
-        if (engineOrNull != null && System.nanoTime() - engineOrNull.getLastWriteNanos() >= inactiveTimeNS) {
+        long lastWriteNanos = engineOrNull.getLastWriteNanos();
+        long currentTime = System.nanoTime();
+        if (engineOrNull != null && currentTime - lastWriteNanos >= inactiveTimeNS) {
             boolean wasActive = active.getAndSet(false);
+            logger.warn("engine is idle after [{}] - no writes since [{}] {} / {} was active: {}", inactiveTimeNS,
+                currentTime - lastWriteNanos,
+                currentTime ,
+                lastWriteNanos, wasActive);
             if (wasActive) {
                 logger.debug("shard is now inactive");
                 try {
