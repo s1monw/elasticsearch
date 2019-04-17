@@ -31,10 +31,12 @@ import org.apache.lucene.search.ReferenceManager;
 import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.util.Bits;
+import org.elasticsearch.ExceptionsHelper;
 import org.elasticsearch.common.SuppressForbidden;
 import org.elasticsearch.common.lucene.Lucene;
 import org.elasticsearch.common.lucene.index.ElasticsearchDirectoryReader;
 import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.util.concurrent.AbstractRefCounted;
 import org.elasticsearch.core.internal.io.IOUtils;
 import org.elasticsearch.index.shard.SearchOperationListener;
 import org.elasticsearch.search.internal.SearchContext;
@@ -42,7 +44,10 @@ import org.elasticsearch.transport.TransportRequest;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Function;
 
@@ -72,6 +77,7 @@ public final class FrozenEngine extends ReadOnlyEngine {
     private final SegmentsStats stats;
     private volatile DirectoryReader lastOpenedReader;
     private final DirectoryReader canMatchReader;
+    private final SharedCacheHelper sharedCacheHelper;
 
     public FrozenEngine(EngineConfig config) {
         super(config, null, null, true, Function.identity());
@@ -79,6 +85,7 @@ public final class FrozenEngine extends ReadOnlyEngine {
         boolean success = false;
         Directory directory = store.directory();
         try (DirectoryReader reader = DirectoryReader.open(directory)) {
+            sharedCacheHelper = new SharedCacheHelper(reader.getReaderCacheHelper().getKey());
             canMatchReader = ElasticsearchDirectoryReader.wrap(new RewriteCachingDirectoryReader(directory, reader.leaves()),
                 config.getShardId());
             // we record the segment stats here - that's what the reader needs when it's open and it give the user
@@ -147,6 +154,7 @@ public final class FrozenEngine extends ReadOnlyEngine {
 
     @SuppressForbidden(reason = "we manage references explicitly here")
     private synchronized void onReaderClosed(IndexReader.CacheKey key) {
+        sharedCacheHelper.decRef();
         // it might look awkward that we have to check here if the keys match but if we concurrently
         // access the lastOpenedReader there might be 2 threads competing for the cached reference in
         // a way that thread 1 counts down the lastOpenedReader reference and before thread 1 can execute
@@ -170,14 +178,15 @@ public final class FrozenEngine extends ReadOnlyEngine {
                 }
                 reader = DirectoryReader.open(engineConfig.getStore().directory());
                 processReaders(reader, null);
-                reader = lastOpenedReader = wrapReader(reader, Function.identity());
+                reader = wrapReader(reader, Function.identity());
+                sharedCacheHelper.incRef();
                 reader.getReaderCacheHelper().addClosedListener(this::onReaderClosed);
-                for (ReferenceManager.RefreshListener listeners : config ().getInternalRefreshListener()) {
+                for (ReferenceManager.RefreshListener listeners : config().getInternalRefreshListener()) {
                     listeners.afterRefresh(true);
                 }
             }
             success = true;
-            return reader;
+            return lastOpenedReader = reader;
         } finally {
             if (success == false) {
                 IOUtils.close(reader);
@@ -305,6 +314,49 @@ public final class FrozenEngine extends ReadOnlyEngine {
         }
     }
 
+    private static class SharedCacheHelper extends AbstractRefCounted implements IndexReader.CacheHelper {
+        private final Set<IndexReader.ClosedListener> closeListeners = new HashSet<>();
+        private final IndexReader.CacheKey cacheKey;
+
+        SharedCacheHelper(IndexReader.CacheKey cacheKey) {
+            super("shared_cache_helper");
+            this.cacheKey = cacheKey;
+        }
+
+        @Override
+        public IndexReader.CacheKey getKey() {
+            return cacheKey;
+        }
+
+        @Override
+        public void addClosedListener(IndexReader.ClosedListener listener) {
+            incRef();
+            try {
+                synchronized (closeListeners) {
+                    closeListeners.add(listener);
+                }
+            } finally {
+                decRef();
+            }
+        }
+
+        @Override
+        protected void closeInternal() {
+            List<IOException> exceptions = new ArrayList<>();
+            synchronized (closeListeners) {
+                for (IndexReader.ClosedListener closeListener : this.closeListeners) {
+                    try {
+                        closeListener.onClose(cacheKey);
+                    } catch (IOException e) {
+                        exceptions.add(e);
+                    }
+                }
+                this.closeListeners.clear();
+                ExceptionsHelper.maybeThrowRuntimeAndSuppress(exceptions);
+            }
+        }
+    }
+
     /**
      * This class allows us to use the same high level reader across multiple search phases but replace the underpinnings
      * on/after each search phase. This is really important otherwise we would hold on to multiple readers across phases.
@@ -317,6 +369,7 @@ public final class FrozenEngine extends ReadOnlyEngine {
     static final class LazyDirectoryReader extends FilterDirectoryReader {
 
         private final FrozenEngine engine;
+        private final SharedCacheHelper sharedCacheHelper;
         private volatile DirectoryReader delegate; // volatile since it might be closed concurrently
 
         private LazyDirectoryReader(DirectoryReader reader, FrozenEngine engine) throws IOException {
@@ -328,6 +381,7 @@ public final class FrozenEngine extends ReadOnlyEngine {
             });
             this.delegate = reader;
             this.engine = engine;
+            this.sharedCacheHelper = engine.sharedCacheHelper;
         }
 
         @SuppressForbidden(reason = "we manage references explicitly here")
@@ -421,7 +475,7 @@ public final class FrozenEngine extends ReadOnlyEngine {
         @Override
         public CacheHelper getReaderCacheHelper() {
             ensureOpenOrReset();
-            return delegate.getReaderCacheHelper();
+            return sharedCacheHelper;
         }
 
         @Override
@@ -603,4 +657,9 @@ public final class FrozenEngine extends ReadOnlyEngine {
     synchronized boolean isReaderOpen() {
         return lastOpenedReader != null;
     } // this is mainly for tests
+
+    @Override
+    protected void onClose() {
+        sharedCacheHelper.decRef();
+    }
 }

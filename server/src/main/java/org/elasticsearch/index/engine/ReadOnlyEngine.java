@@ -190,7 +190,7 @@ public class ReadOnlyEngine extends Engine {
     protected void closeNoLock(String reason, CountDownLatch closedLatch) {
         if (isClosed.compareAndSet(false, true)) {
             try {
-                IOUtils.close(searcherManager, indexWriterLock, store::decRef);
+                IOUtils.close(searcherManager, indexWriterLock, store::decRef, this::onClose);
             } catch (Exception ex) {
                 logger.warn("failed to close searcher", ex);
             } finally {
@@ -198,6 +198,11 @@ public class ReadOnlyEngine extends Engine {
             }
         }
     }
+
+    /**
+     * Called exactly once, once this engine is closed
+     */
+    protected void onClose() {}
 
     private static SeqNoStats buildSeqNoStats(EngineConfig config, SegmentInfos infos) {
         final SequenceNumbers.CommitInfo seqNoStats =

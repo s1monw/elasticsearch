@@ -7,6 +7,7 @@ package org.elasticsearch.index.engine;
 
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.FilterDirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.ReferenceManager;
@@ -31,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class FrozenEngineTests extends EngineTestCase {
 
@@ -286,6 +288,7 @@ public class FrozenEngineTests extends EngineTestCase {
             beforeRefresh.set(0);
         }
     }
+
     public void testCanMatch() throws IOException {
         IOUtils.close(engine, store);
         final AtomicLong globalCheckpoint = new AtomicLong(SequenceNumbers.NO_OPS_PERFORMED);
@@ -319,6 +322,47 @@ public class FrozenEngineTests extends EngineTestCase {
                         assertThat(unwrap, Matchers.instanceOf(RewriteCachingDirectoryReader.class));
                     }
                 }
+            }
+        }
+    }
+
+    public void testLazyReaderCacheKey() throws IOException {
+        IOUtils.close(engine, store);
+        final AtomicLong globalCheckpoint = new AtomicLong(SequenceNumbers.NO_OPS_PERFORMED);
+        try (Store store = createStore()) {
+            CountingRefreshListener listener = new CountingRefreshListener();
+            EngineConfig config = config(defaultSettings, store, createTempDir(), newMergePolicy(), null, listener, null,
+                globalCheckpoint::get, new NoneCircuitBreakerService());
+            try (InternalEngine engine = createEngine(config)) {
+                int numDocs = Math.min(10, addDocuments(globalCheckpoint, engine));
+                engine.flushAndClose();
+                listener.reset();
+                Engine.Searcher carryOverSearcher;
+                AtomicReference<IndexReader.CacheKey> closedKey = new AtomicReference<>();
+                try (FrozenEngine frozenEngine = new FrozenEngine(engine.engineConfig)) {
+                    assertFalse(frozenEngine.isReaderOpen());
+                    Engine.Searcher searcher = frozenEngine.acquireSearcher("test");
+                    assertTrue(frozenEngine.isReaderOpen());
+                    IndexReader.CacheHelper readerCacheHelper = searcher.getDirectoryReader().getReaderCacheHelper();
+                    readerCacheHelper.addClosedListener(closedKey::set);
+                    TopDocs search = searcher.searcher().search(new MatchAllDocsQuery(), numDocs);
+                    assertEquals(search.scoreDocs.length, numDocs);
+                    assertEquals(1, listener.afterRefresh.get());
+                    FrozenEngine.unwrapLazyReader(searcher.getDirectoryReader()).release();
+                    assertNull(closedKey.get());
+                    assertFalse(frozenEngine.isReaderOpen());
+                    assertEquals(1, listener.afterRefresh.get());
+                    FrozenEngine.unwrapLazyReader(searcher.getDirectoryReader()).reset();
+                    assertEquals(2, listener.afterRefresh.get());
+                    search = searcher.searcher().search(new MatchAllDocsQuery(), numDocs);
+                    assertEquals(search.scoreDocs.length, numDocs);
+                    searcher.close();
+                    assertNull(closedKey.get());
+                    carryOverSearcher = frozenEngine.acquireSearcher("test");
+                }
+                assertNull(closedKey.get());
+                carryOverSearcher.close();
+                assertNotNull(closedKey.get());
             }
         }
     }
