@@ -19,6 +19,11 @@
 
 package org.elasticsearch.common.blobstore.fs;
 
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.store.IOContext;
+import org.apache.lucene.store.IndexInput;
+import org.apache.lucene.store.NoLockFactory;
 import org.elasticsearch.common.UUIDs;
 import org.elasticsearch.common.blobstore.BlobMetaData;
 import org.elasticsearch.common.blobstore.BlobPath;
@@ -32,6 +37,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileVisitResult;
@@ -61,11 +67,18 @@ public class FsBlobContainer extends AbstractBlobContainer {
 
     protected final FsBlobStore blobStore;
     protected final Path path;
+    private Directory directory;
 
     public FsBlobContainer(FsBlobStore blobStore, BlobPath blobPath, Path path) {
         super(blobPath);
         this.blobStore = blobStore;
         this.path = path;
+        try {
+            directory = FSDirectory.open(path, NoLockFactory.INSTANCE);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+
     }
 
     @Override
@@ -186,5 +199,10 @@ public class FsBlobContainer extends AbstractBlobContainer {
      */
     public static boolean isTempBlobName(final String blobName) {
         return blobName.startsWith(TEMP_FILE_PREFIX);
+    }
+
+    @Override
+    public IndexInput open(String blobName, long length, IOContext context) throws IOException {
+        return directory.openInput(blobName, context);
     }
 }

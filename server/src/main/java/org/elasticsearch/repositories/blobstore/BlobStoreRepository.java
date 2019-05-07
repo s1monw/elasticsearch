@@ -23,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.ParameterizedMessage;
 import org.apache.lucene.index.IndexCommit;
+import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IOContext;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.RateLimiter;
@@ -89,6 +90,7 @@ import org.elasticsearch.repositories.RepositoryData;
 import org.elasticsearch.repositories.RepositoryException;
 import org.elasticsearch.repositories.RepositoryVerificationException;
 import org.elasticsearch.snapshots.InvalidSnapshotNameException;
+import org.elasticsearch.snapshots.Snapshot;
 import org.elasticsearch.snapshots.SnapshotCreationException;
 import org.elasticsearch.snapshots.SnapshotException;
 import org.elasticsearch.snapshots.SnapshotId;
@@ -286,7 +288,7 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
      * maintains single lazy instance of {@link BlobStore}
      */
     protected BlobStore blobStore() {
-        assertSnapshotOrGenericThread();
+//        assertSnapshotOrGenericThread(); // NOCOMMIT
 
         BlobStore store = blobStore.get();
         if (store == null) {
@@ -1347,5 +1349,12 @@ public abstract class BlobStoreRepository extends AbstractLifecycleComponent imp
                 return new RateLimitingInputStream(new PartSliceStream(blobContainer, fileInfo), restoreRateLimiter, listener);
             }
         }
+    }
+
+    public Directory openDirectory(ShardId shardId, IndexId indexId, SnapshotId snapshotId) {
+        final Context context = new Context(snapshotId, indexId, shardId, shardId);
+        BlobStoreIndexShardSnapshot snapshot = context.loadSnapshot();
+        SnapshotFiles files = new SnapshotFiles(snapshot.snapshot(), snapshot.indexFiles());
+        return new BlobContainerReadOnlyDirectory(files, context.blobContainer);
     }
 }

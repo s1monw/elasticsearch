@@ -24,6 +24,7 @@ import org.apache.lucene.document.Field;
 import org.apache.lucene.document.SortedDocValuesField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.CheckIndex;
 import org.apache.lucene.index.CodecReader;
 import org.apache.lucene.index.FilterMergePolicy;
 import org.apache.lucene.index.IndexCommit;
@@ -62,6 +63,7 @@ import org.elasticsearch.threadpool.TestThreadPool;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
@@ -149,6 +151,54 @@ public class FsRepositoryTests extends ESTestCase {
             Collections.sort(recoveredFiles, Comparator.comparing(RecoveryState.File::name));
             assertTrue(recoveredFiles.get(0).name(), recoveredFiles.get(0).name().endsWith(".liv"));
             assertTrue(recoveredFiles.get(1).name(), recoveredFiles.get(1).name().endsWith("segments_2"));
+        } finally {
+            terminate(threadPool);
+        }
+    }
+
+    public void testOpenFromSnapshot() throws IOException, InterruptedException {
+        ThreadPool threadPool = new TestThreadPool(getClass().getSimpleName());
+        try (Directory directory = newDirectory()) {
+            Path repo = createTempDir();
+            Settings settings = Settings.builder()
+                .put(Environment.PATH_HOME_SETTING.getKey(), createTempDir().toAbsolutePath())
+                .put(Environment.PATH_REPO_SETTING.getKey(), repo.toAbsolutePath())
+                .putList(Environment.PATH_DATA_SETTING.getKey(), tmpPaths())
+                .put("location", repo)
+                .put("compress", randomBoolean())
+                .put("chunk_size", randomIntBetween(100, 1000), ByteSizeUnit.BYTES).build();
+
+            int numDocs = indexDocs(directory);
+            RepositoryMetaData metaData = new RepositoryMetaData("test", "fs", settings);
+            FsRepository repository = new FsRepository(metaData, new Environment(settings, null), NamedXContentRegistry.EMPTY, threadPool);
+            repository.start();
+            final Settings indexSettings = Settings.builder().put(IndexMetaData.SETTING_INDEX_UUID, "myindexUUID").build();
+            IndexSettings idxSettings = IndexSettingsModule.newIndexSettings("myindex", indexSettings);
+            ShardId shardId = new ShardId(idxSettings.getIndex(), 1);
+            Store store = new Store(shardId, idxSettings, directory, new DummyShardLock(shardId));
+            SnapshotId snapshotId = new SnapshotId("test", "test");
+            IndexId indexId = new IndexId(idxSettings.getIndex().getName(), idxSettings.getUUID());
+
+            IndexCommit indexCommit = Lucene.getIndexCommit(Lucene.readSegmentInfos(store.directory()), store.directory());
+            runGeneric(threadPool, () -> {
+                IndexShardSnapshotStatus snapshotStatus = IndexShardSnapshotStatus.newInitializing();
+                repository.snapshotShard(store, null, snapshotId, indexId, indexCommit,
+                    snapshotStatus);
+                IndexShardSnapshotStatus.Copy copy = snapshotStatus.asCopy();
+                assertEquals(copy.getTotalFileCount(), copy.getIncrementalFileCount());
+            });
+            runGeneric(threadPool, () -> {
+                try (Directory snapDir = repository.openDirectory(shardId, indexId, snapshotId)) {
+                    try (CheckIndex checkIndex = new CheckIndex(snapDir)) {
+                        CheckIndex.Status status = checkIndex.checkIndex();
+                        assertFalse(status.partial);
+                        assertEquals(numDocs, status.segmentInfos.stream().mapToInt(s -> s.maxDoc).sum());
+                    }
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+
         } finally {
             terminate(threadPool);
         }
