@@ -41,6 +41,8 @@ import org.elasticsearch.index.IndexModule;
 import org.elasticsearch.index.IndexSettings;
 import org.elasticsearch.index.engine.EngineFactory;
 import org.elasticsearch.index.engine.FrozenEngine;
+import org.elasticsearch.index.store.IndexStore;
+import org.elasticsearch.index.store.RepositoryIndexStore;
 import org.elasticsearch.license.LicenseService;
 import org.elasticsearch.license.LicensesMetaData;
 import org.elasticsearch.license.Licensing;
@@ -48,6 +50,7 @@ import org.elasticsearch.license.XPackLicenseState;
 import org.elasticsearch.persistent.PersistentTaskParams;
 import org.elasticsearch.plugins.EnginePlugin;
 import org.elasticsearch.plugins.ExtensiblePlugin;
+import org.elasticsearch.plugins.IndexStorePlugin;
 import org.elasticsearch.plugins.RepositoryPlugin;
 import org.elasticsearch.repositories.Repository;
 import org.elasticsearch.rest.RestController;
@@ -81,11 +84,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-public class XPackPlugin extends XPackClientPlugin implements ExtensiblePlugin, RepositoryPlugin, EnginePlugin {
+public class XPackPlugin extends XPackClientPlugin implements ExtensiblePlugin, RepositoryPlugin, EnginePlugin, IndexStorePlugin {
 
     private static Logger logger = LogManager.getLogger(XPackPlugin.class);
     private static DeprecationLogger deprecationLogger = new DeprecationLogger(logger);
@@ -328,6 +332,13 @@ public class XPackPlugin extends XPackClientPlugin implements ExtensiblePlugin, 
             }
         }
         return config;
+    }
+
+    @Override
+    public Map<String, Function<IndexSettings, IndexStore>> getIndexStoreFactories() {
+        return Collections.singletonMap("repository", indexSettings -> {
+            return new RepositoryIndexStore(indexSettings, null);
+        });
     }
 
     public interface XPackClusterStateCustom extends ClusterState.Custom {
