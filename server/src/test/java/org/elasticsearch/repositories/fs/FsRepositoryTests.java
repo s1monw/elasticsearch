@@ -32,6 +32,7 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.IOContext;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOSupplier;
 import org.apache.lucene.util.TestUtil;
@@ -194,6 +195,7 @@ public class FsRepositoryTests extends ESTestCase {
                         assertFalse(status.partial);
                         assertEquals(numDocs, status.segmentInfos.stream().mapToInt(s -> s.maxDoc).sum());
                     }
+                    expectThrows(UnsupportedOperationException.class, () -> snapDir.openInput("foo", IOContext.DEFAULT));
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }
