@@ -1607,7 +1607,9 @@ public class InternalEngine extends Engine {
 
     @Override
     public void writeIndexingBuffer() throws IOException {
-        if (indexWriter.flushNextBuffer() == false) {
+        long iwBuffer = indexWriter.ramBytesUsed();
+        long versionMapBuffer = versionMap.ramBytesUsedForRefresh();
+        if (iwBuffer < versionMapBuffer || indexWriter.flushNextBuffer() == false) {
             // nothing was actually flushed, so any RAM used will be due to deletes
             // in the version map.  Refresh to clear these out.
             refresh("writeIndexingBuffer", SearcherScope.INTERNAL, true);
@@ -2193,6 +2195,7 @@ public class InternalEngine extends Engine {
     private IndexWriterConfig getIndexWriterConfig() {
         final IndexWriterConfig iwc = new IndexWriterConfig(engineConfig.getAnalyzer());
         iwc.setCommitOnClose(false); // we by default don't commit on close
+        iwc.setCheckPendingFlushUpdate(false);
         iwc.setOpenMode(IndexWriterConfig.OpenMode.APPEND);
         iwc.setReaderAttributes(getReaderAttributes(store.directory()));
         iwc.setIndexDeletionPolicy(combinedDeletionPolicy);
