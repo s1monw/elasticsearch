@@ -110,6 +110,7 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -235,7 +236,7 @@ public class TranslogTests extends ESTestCase {
     @After
     public void tearDown() throws Exception {
         try {
-            translog.getDeletionPolicy().assertNoOpenTranslogRefs();
+            //translog.getDeletionPolicy().assertNoOpenTranslogRefs();
             translog.close();
         } finally {
             super.tearDown();
@@ -2526,7 +2527,7 @@ public class TranslogTests extends ESTestCase {
                 () -> SequenceNumbers.NO_OPS_PERFORMED, primaryTerm::get, seqNo -> {}) {
                 @Override
                 protected TranslogWriter createWriter(long fileGeneration, long initialMinTranslogGen, long initialGlobalCheckpoint,
-                                                      LongConsumer persistedSequenceNumberConsumer)
+                                                      LongConsumer persistedSequenceNumberConsumer, boolean writeCheckpoint)
                     throws IOException {
                     throw new MockDirectoryWrapper.FakeIOException();
                 }
@@ -3268,4 +3269,35 @@ public class TranslogTests extends ESTestCase {
             }
         }
     }
+
+//    public void testBench() throws IOException, InterruptedException {
+//
+//        AtomicInteger ops = new AtomicInteger(100000);
+//        Thread[] threads = new Thread[5];
+//        CountDownLatch latch = new CountDownLatch(1);
+//        for (int i = 0; i < threads.length; i++) {
+//            threads[i] = new Thread(() -> {
+//                try {
+//                    latch.await();
+//                    byte[] data = new byte[1024];
+//                    while(ops.decrementAndGet() > 0) {
+//                        translog.add(new Translog.Index("test", "1", 0, primaryTerm.get(), data));
+//                    }
+//                } catch (IOException | InterruptedException e) {
+//                    throw new AssertionError(e);
+//                }
+//            });
+//            threads[i].start();
+//        }
+//        latch.countDown();
+//        long start = System.nanoTime();
+//        while(ops.get() > 0) {
+//            translog.rollGeneration();
+//        }
+//        long end = System.nanoTime();
+//        System.out.println("took: " + TimeUnit.NANOSECONDS.toMillis(end - start) + " ms");
+//        for (int i = 0; i < threads.length; i++) {
+//            threads[i].join();
+//        }
+//    }
 }

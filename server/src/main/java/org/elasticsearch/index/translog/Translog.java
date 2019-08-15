@@ -197,7 +197,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
             current = null;
             try {
                 current = createWriter(checkpoint.generation + 1, getMinFileGeneration(), checkpoint.globalCheckpoint,
-                    persistedSequenceNumberConsumer);
+                    persistedSequenceNumberConsumer, true);
                 success = true;
             } finally {
                 // we have to close all the recovered ones otherwise we leak file handles here
@@ -480,7 +480,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
      */
     TranslogWriter createWriter(long fileGeneration) throws IOException {
         final TranslogWriter writer = createWriter(fileGeneration, getMinFileGeneration(), globalCheckpointSupplier.getAsLong(),
-            persistedSequenceNumberConsumer);
+            persistedSequenceNumberConsumer, true);
         assert writer.sizeInBytes() == DEFAULT_HEADER_SIZE_IN_BYTES : "Mismatch translog header size; " +
             "empty translog size [" + writer.sizeInBytes() + ", header size [" + DEFAULT_HEADER_SIZE_IN_BYTES + "]";
         return writer;
@@ -496,7 +496,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
      * @param initialGlobalCheckpoint the global checkpoint to be written in the first checkpoint.
      */
     TranslogWriter createWriter(long fileGeneration, long initialMinTranslogGen, long initialGlobalCheckpoint,
-                                LongConsumer persistedSequenceNumberConsumer) throws IOException {
+                                LongConsumer persistedSequenceNumberConsumer, boolean writeCheckpoint) throws IOException {
         final TranslogWriter newFile;
         try {
             newFile = TranslogWriter.create(
@@ -508,7 +508,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
                 config.getBufferSize(),
                 initialMinTranslogGen, initialGlobalCheckpoint,
                 globalCheckpointSupplier, this::getMinFileGeneration, primaryTermSupplier.getAsLong(), tragedy,
-                persistedSequenceNumberConsumer);
+                persistedSequenceNumberConsumer, writeCheckpoint);
         } catch (final IOException e) {
             throw new TranslogException(shardId, "failed to create new translog file", e);
         }
@@ -1634,6 +1634,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
         }
     }
 
+    private final Object rollGenerationMutex = new Object();
     /**
      * Roll the current translog generation into a new generation. This does not commit the
      * translog.
@@ -1641,15 +1642,22 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
      * @throws IOException if an I/O exception occurred during any file operations
      */
     public void rollGeneration() throws IOException {
-        try (Releasable ignored = writeLock.acquire()) {
+        synchronized (rollGenerationMutex) {
             try {
-                final TranslogReader reader = current.closeIntoReader();
-                readers.add(reader);
-                assert Checkpoint.read(location.resolve(CHECKPOINT_FILE_NAME)).generation == current.getGeneration();
-                copyCheckpointTo(location.resolve(getCommitCheckpointFileName(current.getGeneration())));
-                // create a new translog file; this will sync it and update the checkpoint data;
-                current = createWriter(current.getGeneration() + 1);
-                logger.trace("current translog set to [{}]", current.getGeneration());
+                final TranslogWriter writer = createWriter(current.getGeneration() + 1,
+                    getMinFileGeneration(), globalCheckpointSupplier.getAsLong(), persistedSequenceNumberConsumer, false);
+                try (Releasable ignored = writeLock.acquire()) {
+                    final Path checkpointFile = location.resolve(getCommitCheckpointFileName(current.getGeneration()));
+                    final TranslogReader reader = current.closeIntoReader();
+                    readers.add(reader);
+                    copyCheckpointTo(checkpointFile);
+                    assert Checkpoint.read(location.resolve(CHECKPOINT_FILE_NAME)).generation == current.getGeneration();
+                    // create a new translog file; this will sync it and update the checkpoint data;
+                    writer.writeCheckpoint();
+                    assert Checkpoint.read(location.resolve(CHECKPOINT_FILE_NAME)).generation == writer.getGeneration();
+                    current = writer;
+                    logger.trace("current translog set to [{}]", current.getGeneration());
+                }
             } catch (final Exception e) {
                 tragedy.setTragicException(e);
                 closeOnTragicEvent(e);
@@ -1879,7 +1887,7 @@ public class Translog extends AbstractIndexShardComponent implements IndexShardC
             location.resolve(getFilename(1)), channelFactory,
             new ByteSizeValue(10), 1, initialGlobalCheckpoint,
             () -> { throw new UnsupportedOperationException(); }, () -> { throw new UnsupportedOperationException(); }, primaryTerm,
-                new TragicExceptionHolder(), seqNo -> { throw new UnsupportedOperationException(); });
+                new TragicExceptionHolder(), seqNo -> { throw new UnsupportedOperationException(); }, true);
         writer.close();
         return translogUUID;
     }
